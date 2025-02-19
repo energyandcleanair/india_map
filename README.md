@@ -1,6 +1,7 @@
-# pm_prediction
+# PM2.5 predictions in India
 - Two-stage machine learning model for daily PM2.5 predictions at a 10 km resolution in India, from 2005 to 2023
 - Published in Science Advances. https://www.science.org/doi/10.1126/sciadv.adq1071
+- Output PM2.5 estimates across India are publicly available and can be downloaded here: https://zenodo.org/records/13694585
 
 Citation: Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil Dahiya, Inés Azevedo, and Marshall Burke. "Improved daily PM2. 5 estimates in India reveal inequalities in recent enhancement of air quality." Science Advances 11, no. 4 (2025): eadq1071.
 
