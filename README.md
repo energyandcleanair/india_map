@@ -7,4 +7,6 @@ Citation: Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturved
 
 ## 1. Collect input features
 Scripts to download input features from Google Earth Engine have been included in the repository. 
-The rest of the features, namely MERRA-2 CO and MERRA-2 AOT, need to be collected separately by downloading the raw data from NASA Earthdata and extract values for grid_india_10km shapefiles.  
+The rest of the features, namely MERRA-2 CO and MERRA-2 AOT, need to be collected separately by downloading the raw data from NASA Earthdata and values needed to be extracted to each grid in the grid_india_10km shapefiles.  
+
+## 2. 
