@@ -11,4 +11,5 @@ Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil D
 - The rest of the features, namely MERRA-2 CO and MERRA-2 AOT, need to be collected separately by downloading the raw data from NASA Earthdata and values needed to be extracted to each grid in the grid_india_10km shapefiles.  
 
 ## 2. First stage ML - impute missing data in TROPOMI NO2, TROPOMI CO, and MODIS AOD
-- 
+- LightGBM for NO2
+- XGBoost for CO and AOD
