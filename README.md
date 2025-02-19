@@ -7,7 +7,8 @@
 Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil Dahiya, Inés Azevedo, and Marshall Burke. "Improved daily PM2. 5 estimates in India reveal inequalities in recent enhancement of air quality." Science Advances 11, no. 4 (2025): eadq1071.
 
 ## 1. Collect input features
-Scripts to download input features from Google Earth Engine have been included in the repository. 
-The rest of the features, namely MERRA-2 CO and MERRA-2 AOT, need to be collected separately by downloading the raw data from NASA Earthdata and values needed to be extracted to each grid in the grid_india_10km shapefiles.  
+- Scripts to download input features from Google Earth Engine have been included in the repository. 
+- The rest of the features, namely MERRA-2 CO and MERRA-2 AOT, need to be collected separately by downloading the raw data from NASA Earthdata and values needed to be extracted to each grid in the grid_india_10km shapefiles.  
 
-## 2. 
+## 2. First stage ML - impute missing data in TROPOMI NO2, TROPOMI CO, and MODIS AOD
+- 
