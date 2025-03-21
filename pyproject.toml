@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "india-map"
+version = "0.1.0"
+description = "Create daily PM2.5 rasters for India."
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.2.3"
+earthengine-api = "^1.5.7"
+scikit-learn = "^1.6.1"
+xgboost = "^3.0.0"
+geopandas = "^1.0.1"
+metpy = "^1.6.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
