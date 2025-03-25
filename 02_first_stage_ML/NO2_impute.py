@@ -20,7 +20,8 @@ import random
 import numpy as np
 import pandas as pd
 from dateutil.relativedelta import relativedelta
-from sklearn.model_selection import GroupKFold, RandomizedSearchCV, shuffle, GridSearchCV
+from sklearn.model_selection import GroupKFold, RandomizedSearchCV, GridSearchCV
+from sklearn.utils import shuffle
 from sklearn.metrics import r2_score, mean_squared_error
 from xgboost import XGBRegressor
 

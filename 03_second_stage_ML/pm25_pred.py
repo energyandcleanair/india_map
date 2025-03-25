@@ -23,7 +23,8 @@ import random
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from sklearn.model_selection import GroupKFold, shuffle
+from sklearn.model_selection import GroupKFold
+from sklearn.utils import shuffle
 from sklearn.metrics import r2_score, mean_squared_error
 from xgboost import XGBRegressor
 
