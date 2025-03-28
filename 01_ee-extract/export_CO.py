@@ -10,7 +10,8 @@ END_DATE = "2018-10-01"
 # Use monthly increments (step_months=1) for a shorter period
 start_list, end_list = generate_date_lists(START_DATE, END_DATE, step_months=1)
 
-collection = ee.ImageCollection("COPERNICUS/S5P/OFFL/L3_CO").select("CO_column_number_density")
+collection = ee.ImageCollection(
+    "COPERNICUS/S5P/OFFL/L3_CO").select("CO_column_number_density")
 export_properties = get_export_properties(["grid_id", "mean", "start_date"])
 
 for s_date, e_date in zip(start_list, end_list):

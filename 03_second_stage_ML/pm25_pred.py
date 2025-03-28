@@ -36,6 +36,8 @@ path_to_data = "path_to_data"  # update this as needed
 # ------------------------------
 # Helper function: Create 10-fold splits for one region
 # ------------------------------
+
+
 def create_region_folds(df_region):
     df_region = df_region.reset_index(drop=True)
     y_region = df_region.pop('pm25').to_frame()
@@ -50,11 +52,14 @@ def create_region_folds(df_region):
 # ------------------------------
 # Main Pipeline
 # ------------------------------
+
+
 def main():
     record = 'xgb'  # identifier for this run
 
     # Step 1: Load pre-engineered PM2.5 data
-    df_path = os.path.join(path_to_data, "intermediate", "ML_full_model", "df_ml.csv")
+    df_path = os.path.join(path_to_data, "intermediate",
+                           "ML_full_model", "df_ml.csv")
     pm25 = pd.read_csv(df_path)
     print("Original data shape:", pm25.shape)
     print("Columns:", list(pm25.columns))
@@ -73,9 +78,11 @@ def main():
     print("Data shape after dropping columns:", pm25.shape)
 
     # Step 3: Merge with grid monitor shapefile to obtain region info
-    grid_shp_path = os.path.join(path_to_data, "intermediate", "grid_india_monitor_region")
+    grid_shp_path = os.path.join(
+        path_to_data, "intermediate", "grid_india_monitor_region")
     grid_india = gpd.read_file(grid_shp_path)
-    grid_india = grid_india[['grid_id', 'grid_id_50km', 'k_region', 'geometry']].copy()
+    grid_india = grid_india[['grid_id',
+                             'grid_id_50km', 'k_region', 'geometry']].copy()
     # Ensure grid_id is string
     pm25['grid_id'] = pm25['grid_id'].astype(int).astype(str)
     grid_india['grid_id'] = grid_india['grid_id'].astype(int).astype(str)
@@ -94,10 +101,12 @@ def main():
 
     train_concat, test_concat = [], []
     for i in range(10):
-        fold_train = pd.concat([train_folds_r1[i], train_folds_r2[i], train_folds_r3[i]], axis=0, ignore_index=True)
+        fold_train = pd.concat(
+            [train_folds_r1[i], train_folds_r2[i], train_folds_r3[i]], axis=0, ignore_index=True)
         fold_train = shuffle(fold_train).reset_index(drop=True)
         train_concat.append(fold_train)
-        fold_test = pd.concat([test_folds_r1[i], test_folds_r2[i], test_folds_r3[i]], axis=0, ignore_index=True)
+        fold_test = pd.concat(
+            [test_folds_r1[i], test_folds_r2[i], test_folds_r3[i]], axis=0, ignore_index=True)
         fold_test = shuffle(fold_test).reset_index(drop=True)
         test_concat.append(fold_test)
     print("Created 10 concatenated train/test folds.")
@@ -106,7 +115,7 @@ def main():
     # Fixed best parameters for XGBoost (adjust as needed)
     best_params_xgb = {
         'eta': 0.01,
-        'gamma': 0.8, 
+        'gamma': 0.8,
         'max_depth': 30,
         'min_child_weight': 0.8,
         'n_estimators': 1500,
@@ -150,13 +159,15 @@ def main():
         X_val_model = X_val.drop(columns=drop_cols, errors='ignore')
 
         # Train XGBoost model
-        model_xgb = XGBRegressor(**best_params_xgb, n_jobs=int(os.getenv("SLURM_CPUS_PER_TASK", 4)), tree_method="hist")
+        model_xgb = XGBRegressor(
+            **best_params_xgb, n_jobs=int(os.getenv("SLURM_CPUS_PER_TASK", 4)), tree_method="hist")
         model_xgb.fit(X_trn_model, y_trn.values.ravel())
 
         # Get feature importance (using gain)
         booster = model_xgb.get_booster()
         fi = booster.get_score(importance_type="gain")
-        fi_df = pd.DataFrame(data=list(fi.items()), columns=["feature", "gain"]).sort_values(by="gain", ascending=False)
+        fi_df = pd.DataFrame(data=list(fi.items()), columns=[
+                             "feature", "gain"]).sort_values(by="gain", ascending=False)
         xgb_feature_importances.append(fi_df)
 
         # Compute training metrics
@@ -180,32 +191,41 @@ def main():
         print(f"Fold {fold+1}: Train R²: {r2_trn:.3f}, Train RMSE: {rmse_trn:.3f} | CV R²: {r2_val:.3f}, CV RMSE: {rmse_val:.3f}")
 
     print("\nOverall Performance:")
-    print(f"Average Train R²: {np.mean(trn_r2):.3f}, Average Train RMSE: {np.mean(trn_rmse):.3f}")
-    print(f"Average CV R²: {np.mean(cv_r2):.3f}, Average CV RMSE: {np.mean(cv_rmse):.3f}")
+    print(
+        f"Average Train R²: {np.mean(trn_r2):.3f}, Average Train RMSE: {np.mean(trn_rmse):.3f}")
+    print(
+        f"Average CV R²: {np.mean(cv_r2):.3f}, Average CV RMSE: {np.mean(cv_rmse):.3f}")
 
     # Save feature importance and fold predictions
     output_ml_dir = os.path.join(path_to_data, "intermediate", "ML_full_model")
     for i in range(10):
-        fi_path = os.path.join(output_ml_dir, f"{record}_fold_{i+1}_feature_importance.csv")
-        train_path = os.path.join(output_ml_dir, f"{record}_fold_{i+1}_traindf.csv")
-        eval_path = os.path.join(output_ml_dir, f"{record}_fold_{i+1}_evaldf.csv")
+        fi_path = os.path.join(
+            output_ml_dir, f"{record}_fold_{i+1}_feature_importance.csv")
+        train_path = os.path.join(
+            output_ml_dir, f"{record}_fold_{i+1}_traindf.csv")
+        eval_path = os.path.join(
+            output_ml_dir, f"{record}_fold_{i+1}_evaldf.csv")
         xgb_feature_importances[i].to_csv(fi_path, index=False)
         train_dfs[i].to_csv(train_path, index=False)
         eval_dfs[i].to_csv(eval_path, index=False)
 
     # Step 6: Final Prediction on New Data
-    pred_file = os.path.join(path_to_data, "intermediate", "ML_full_model", "df_to_be_predicted.csv")
+    pred_file = os.path.join(path_to_data, "intermediate",
+                             "ML_full_model", "df_to_be_predicted.csv")
     df_pred = pd.read_csv(pred_file)
     # Prepare features by dropping non-model columns
-    X_fin = df_pred.drop(columns=['date', 'grid_id', 'grid_id_50km', 'k_region', 'geometry'], errors='ignore')
+    X_fin = df_pred.drop(columns=[
+                         'date', 'grid_id', 'grid_id_50km', 'k_region', 'geometry'], errors='ignore')
     # Here we use the last fold's model for final prediction (or retrain on full data)
     final_pred = model_xgb.predict(X_fin)
     df_pred['pm25_pred_xgb'] = final_pred
     # Replace negative predictions with 0
     df_pred.loc[df_pred['pm25_pred_xgb'] < 0, 'pm25_pred_xgb'] = 0
-    out_pred_file = os.path.join(path_to_data, "intermediate", "ML_full_model", f"pm25_pred_{record}_negatives_replaced.csv")
+    out_pred_file = os.path.join(path_to_data, "intermediate",
+                                 "ML_full_model", f"pm25_pred_{record}_negatives_replaced.csv")
     df_pred.to_csv(out_pred_file, index=False)
     print("Final predictions saved to:", out_pred_file)
+
 
 if __name__ == '__main__':
     main()

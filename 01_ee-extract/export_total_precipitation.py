@@ -9,7 +9,8 @@ START_DATE = "2005-01-01"
 END_DATE = "2023-10-01"
 start_list, end_list = generate_date_lists(START_DATE, END_DATE, step_months=3)
 
-collection = ee.ImageCollection("ECMWF/ERA5_LAND/DAILY_AGGR").select("total_precipitation_sum")
+collection = ee.ImageCollection(
+    "ECMWF/ERA5_LAND/DAILY_AGGR").select("total_precipitation_sum")
 export_properties = get_export_properties(["grid_id", "mean", "start_date"])
 
 for s_date, e_date in zip(start_list, end_list):

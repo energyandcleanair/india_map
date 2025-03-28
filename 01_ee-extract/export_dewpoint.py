@@ -12,7 +12,8 @@ END_DATE = "2023-10-01"
 start_list, end_list = generate_date_lists(START_DATE, END_DATE, step_months=3)
 
 # ERA5 collection for dewpoint temperature at 2m
-collection = ee.ImageCollection("ECMWF/ERA5_LAND/DAILY_AGGR").select("dewpoint_temperature_2m")
+collection = ee.ImageCollection(
+    "ECMWF/ERA5_LAND/DAILY_AGGR").select("dewpoint_temperature_2m")
 export_properties = get_export_properties(["grid_id", "mean", "start_date"])
 
 for s_date, e_date in zip(start_list, end_list):
