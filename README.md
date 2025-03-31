@@ -25,9 +25,9 @@ This shows the overall process flow and dependencies for the modelling.
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TB
+  collect_station_data["Collect station data"]
   collect_features["Collect features"]
   impute_satellite["Impute satellite"]
-  collect_station_data["Collect station data"]
   train_pm25_model["Train PM2.5 model"]
   predict_pm25["Predict PM2.5"]
 
