@@ -18,73 +18,189 @@ Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil D
 
 ## Diagrams
 
+### Process dependencies overview
+
+This shows the overall process flow and dependencies for the modelling.
+
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TB
-  subgraph Imputation
-    direction TB
+  collect_features["Collect features"]
+  impute_satellite["Impute satellite"]
+  collect_station_data["Collect station data"]
+  train_pm25_model["Train PM2.5 model"]
+  predict_pm25["Predict PM2.5"]
 
-    to_impute["`
-      **NASA Earth Data**
-      MERRA AOT
-      MERRA CO
-      OMI NO2
-    `"]
-    grid_to_impute{{"Grid"}}
-    gridded_to_impute["`
-      **Gridded NASA Earth Data**
-    `"]
+  collect_features --> train_pm25_model
+  collect_features --> impute_satellite
+  collect_features --> predict_pm25
 
-    gee_feature_sets["`
-      **GEE feature sets**
-      TROPOMI CO
-      Meteorology
-      Land cover type
-      Elevation
-    `"]
+  impute_satellite --> train_pm25_model
+  impute_satellite --> predict_pm25
+
+  collect_station_data --> train_pm25_model
+
+  train_pm25_model --> predict_pm25
+
+```
 
 
-    feature_sets["`
-      **Unsourced feature sets**
-      Low/high vegetation (ERA-5 land)
-      TROPOMI NO2
-      AOD
-    `"]
-    grid_feature_sets{{"Grid"}}
-    gridded_feature_sets["`
-      **Gridded feature sets**
-    `"]
+### Imputing data
 
-    generated_feature_sets["`
-      **Generated feature sets**
-      Monsoon flag
-    `"]
+This shows the data needed to impute the data.
 
-    imputation{{Impute}}
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+flowchart TB
+  direction TB
 
-    imputed_data["`
-      **Imputed gridded**
-      TROPOMI NO2
-      TROPOMI CO
-      AOD
-    `"]
+  to_impute["`
+    **NASA Earth Data**
+    MERRA AOT
+    MERRA CO
+    OMI NO2
+  `"]
+  grid_to_impute{{"Grid"}}
+  gridded_to_impute["`
+    **Gridded NASA Earth Data**
+  `"]
 
-    to_impute --> grid_to_impute --> gridded_to_impute
+  gee_feature_sets["`
+    **GEE feature sets**
+    TROPOMI CO
+    AOD*
+    Meteorology
+    Land cover type
+    Elevation
+  `"]
 
-    feature_sets --> grid_feature_sets --> gridded_feature_sets
 
-    gee_feature_sets --> imputation
-    generated_feature_sets --> imputation
-    gridded_to_impute --> imputation
-    gridded_feature_sets --> imputation
+  feature_sets["`
+    **Unsourced feature sets**
+    Low/high vegetation (ERA-5 land)
+    TROPOMI NO2
+  `"]
+  grid_feature_sets{{"Grid"}}
+  gridded_feature_sets["`
+    **Gridded feature sets**
+  `"]
 
-    imputation --> imputed_data
-  
-  end
+  generated_feature_sets["`
+    **Generated feature sets**
+    Monsoon flag
+  `"]
+
+  imputation{{Impute}}
+
+  imputed_data["`
+    **Imputed data**
+    TROPOMI NO2
+    TROPOMI CO
+    AOD
+  `"]
+
+  to_impute --> grid_to_impute --> gridded_to_impute
+
+  feature_sets --> grid_feature_sets --> gridded_feature_sets
+
+  gee_feature_sets --> imputation
+  generated_feature_sets --> imputation
+  gridded_to_impute --> imputation
+  gridded_feature_sets --> imputation
+
+  imputation --> imputed_data
 
   classDef missing fill:#630014,color:#ffc7d2;
 
   class to_impute,grid_to_impute,feature_sets,grid_feature_sets missing
+
+```
+
+### Training the model
+
+This shows the data needed to train the model.
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+flowchart TB
+  direction TB
+
+  nasa_earth_data["`
+    **NASA Earth Data**
+    MERRA AOT
+    MERRA CO
+    OMI NO2
+  `"]
+  grid_nasa_earth_data{{"Grid"}}
+  gridded_nasa_earth_data["`
+    **Gridded NASA Earth Data**
+  `"]
+
+  gee_feature_sets["`
+    **GEE feature sets**
+    Meteorology
+    Land cover type
+    Elevation
+  `"]
+
+
+  feature_sets["`
+    **Unsourced feature sets**
+    Low/high vegetation (ERA-5 land)
+  `"]
+  grid_feature_sets{{"Grid"}}
+  gridded_feature_sets["`
+    **Gridded feature sets**
+  `"]
+
+  generated_feature_sets["`
+    **Generated feature sets**
+    Monsoon flag
+  `"]
+
+  imputed_data["`
+    **Imputed data**
+  `"]
+
+  station_data["`
+    **Station data**
+  `"]
+
+  station_data_cleaning{{"`
+    **Station data cleaning**
+  `"}}
+
+  clean_station_data["`
+    Clean station data
+  `"]
+
+  training{{Training}}
+
+  model["`
+    **Model**
+  `"]
+
+  nasa_earth_data --> grid_nasa_earth_data --> gridded_nasa_earth_data
+
+  feature_sets --> grid_feature_sets --> gridded_feature_sets
+
+  station_data --> station_data_cleaning --> clean_station_data
+
+  gee_feature_sets --> training
+  generated_feature_sets --> training
+  imputed_data --> training
+  gridded_nasa_earth_data --> training
+  gridded_feature_sets --> training
+  clean_station_data --> training
+
+  training --> model
+
+  classDef missing fill:#630014,color:#ffc7d2;
+  classDef from_elsewhere fill:#004517,color:#bdfcd2;
+
+  class nasa_earth_data,grid_nasa_earth_data,feature_sets,grid_feature_sets,station_data_cleaning missing
+
+  class imputed_data from_elsewhere
 
 
 ```
