@@ -68,21 +68,11 @@ flowchart TB
   gee_feature_sets["`
     **GEE feature sets**
     TROPOMI CO
+    TROPOMI NO2
     AOD*
     Meteorology
     Land cover type
     Elevation
-  `"]
-
-
-  feature_sets["`
-    **Unsourced feature sets**
-    Low/high vegetation (ERA-5 land)
-    TROPOMI NO2
-  `"]
-  grid_feature_sets{{"Grid"}}
-  gridded_feature_sets["`
-    **Gridded feature sets**
   `"]
 
   generated_feature_sets["`
@@ -101,12 +91,10 @@ flowchart TB
 
   to_impute --> grid_to_impute --> gridded_to_impute
 
-  feature_sets --> grid_feature_sets --> gridded_feature_sets
-
   gee_feature_sets --> imputation
   generated_feature_sets --> imputation
   gridded_to_impute --> imputation
-  gridded_feature_sets --> imputation
+
 
   imputation --> imputed_data
 
@@ -143,16 +131,6 @@ flowchart TB
     Elevation
   `"]
 
-
-  feature_sets["`
-    **Unsourced feature sets**
-    Low/high vegetation (ERA-5 land)
-  `"]
-  grid_feature_sets{{"Grid"}}
-  gridded_feature_sets["`
-    **Gridded feature sets**
-  `"]
-
   generated_feature_sets["`
     **Generated feature sets**
     Monsoon flag
@@ -182,15 +160,12 @@ flowchart TB
 
   nasa_earth_data --> grid_nasa_earth_data --> gridded_nasa_earth_data
 
-  feature_sets --> grid_feature_sets --> gridded_feature_sets
-
   station_data --> station_data_cleaning --> clean_station_data
 
   gee_feature_sets --> training
   generated_feature_sets --> training
   imputed_data --> training
   gridded_nasa_earth_data --> training
-  gridded_feature_sets --> training
   clean_station_data --> training
 
   training --> model
