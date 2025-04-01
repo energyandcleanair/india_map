@@ -31,7 +31,7 @@ from xgboost import XGBRegressor
 # ------------------------------
 # Global path variable (update as needed)
 # ------------------------------
-path_to_data = "path_to_data"  # update this as needed
+path_to_data = "../../input_data/"  # update this as needed
 
 # ------------------------------
 # Helper function: Create 10-fold splits for one region
@@ -58,9 +58,18 @@ def main():
     record = 'xgb'  # identifier for this run
 
     # Step 1: Load pre-engineered PM2.5 data
-    df_path = os.path.join(path_to_data, "intermediate",
-                           "ML_full_model", "df_ml.csv")
-    pm25 = pd.read_csv(df_path)
+    df_path = os.path.join(path_to_data, "df_ml.csv")
+    if os.path.exists(df_path):
+        pm25 = pd.read_csv(df_path)
+    else:
+        # read parquet file from path_to_data
+        pm25 = pd.read_parquet(os.path.join(
+            path_to_data, "df_ml.parquet"))
+
+    # only take a sample for testing (and use another sampler for mocking the
+    # data for prediction)
+    pm25 = pm25.iloc[::100]
+
     print("Original data shape:", pm25.shape)
     print("Columns:", list(pm25.columns))
     print("Missing values:\n", pm25.isna().sum())
@@ -148,15 +157,24 @@ def main():
         eval_df = test_fold[['date', 'grid_id', 'k_region']].copy()
 
         # Separate target and features
-        y_trn = train_fold.pop("pm25").to_frame()
+        # y_trn = train_fold.pop("pm25").to_frame()
+        # ISSUE pop("pm25") is already done in create_region_folds, so column is already
+        # removed, and train_fold is already a dataframe
+        y_trn = train_fold.copy()
         X_trn = train_fold.copy()
-        y_val = test_fold.pop("pm25").to_frame()
+        # ISSUE same as above
+        # y_val = test_fold.pop("pm25").to_frame()
+        y_val = test_fold.copy()
         X_val = test_fold.copy()
 
         # Drop columns not used for modeling
         drop_cols = ['date', 'grid_id', 'grid_id_50km', 'k_region', 'geometry']
         X_trn_model = X_trn.drop(columns=drop_cols, errors='ignore')
         X_val_model = X_val.drop(columns=drop_cols, errors='ignore')
+
+        # ISSUE drop geometry and date columns, cause problems with model
+        y_trn = y_trn.drop(columns=['geometry', 'date'], errors='ignore')
+        y_val = y_val.drop(columns=['geometry', 'date'], errors='ignore')
 
         # Train XGBoost model
         model_xgb = XGBRegressor(
@@ -176,12 +194,14 @@ def main():
         rmse_trn = math.sqrt(mean_squared_error(y_trn, y_trn_pred))
         trn_r2.append(r2_trn)
         trn_rmse.append(rmse_trn)
-        train_df['trn_y_pred'] = y_trn_pred
+        # ISSUE this crashes due to mismatch in length of y_trn and y_trn_pred
+        # train_df['trn_y_pred'] = y_trn_pred
         train_dfs.append(train_df)
 
         # Compute test metrics
         y_val_pred = model_xgb.predict(X_val_model)
-        eval_df['y_pred'] = y_val_pred
+        # ISSUE this crashes due to dimension mismatch
+        # eval_df['y_pred'] = y_val_pred
         eval_dfs.append(eval_df)
         r2_val = r2_score(y_val, y_val_pred)
         rmse_val = math.sqrt(mean_squared_error(y_val, y_val_pred))
@@ -212,15 +232,39 @@ def main():
     # Step 6: Final Prediction on New Data
     pred_file = os.path.join(path_to_data, "intermediate",
                              "ML_full_model", "df_to_be_predicted.csv")
-    df_pred = pd.read_csv(pred_file)
+    if os.path.exists(pred_file):
+        df_pred = pd.read_csv(pred_file)
+
+    else:
+        # mocking data with the same columns as the original data
+        df_pred = pd.read_parquet(os.path.join(
+            path_to_data, "df_ml.parquet"))
+
+        # drop column pm25
+        df_pred = df_pred.drop(columns=['pm25'], errors='ignore')
+
+        df_pred = df_pred.iloc[10::100]
+        # drop cols, same way as above
+        drop_cols = [
+            'omi_no2', 'aot_daily_annual', 'co_daily_annual', 'omi_no2_annual',
+            'v_wind_annual', 'u_wind_annual', 'rainfall_annual',
+            'thermal_radiation_annual', 'low_veg_annual', 'high_veg_annual',
+            'dewpoint_temp_annual', 'wind_degree_annual', 'RH_annual',
+            'NO2_tropos_annual', 'aod_annual', 'CO_annual', 'co_daily_allyears',
+            'NO2_tropos_allyears', 'aod_allyears', 'cos_day_of_year'
+        ]
+        df_pred = df_pred.drop(columns=drop_cols, errors='ignore')
+
     # Prepare features by dropping non-model columns
     X_fin = df_pred.drop(columns=[
                          'date', 'grid_id', 'grid_id_50km', 'k_region', 'geometry'], errors='ignore')
     # Here we use the last fold's model for final prediction (or retrain on full data)
     final_pred = model_xgb.predict(X_fin)
-    df_pred['pm25_pred_xgb'] = final_pred
+    # ISSUE this does not work because of dimension mismatch
+    # df_pred['pm25_pred_xgb'] = final_pred
     # Replace negative predictions with 0
-    df_pred.loc[df_pred['pm25_pred_xgb'] < 0, 'pm25_pred_xgb'] = 0
+    # ISSUE
+    # df_pred.loc[df_pred['pm25_pred_xgb'] < 0, 'pm25_pred_xgb'] = 0
     out_pred_file = os.path.join(path_to_data, "intermediate",
                                  "ML_full_model", f"pm25_pred_{record}_negatives_replaced.csv")
     df_pred.to_csv(out_pred_file, index=False)

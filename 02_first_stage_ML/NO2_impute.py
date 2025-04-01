@@ -28,7 +28,7 @@ from xgboost import XGBRegressor
 # ------------------------------
 # Global path variable (update as needed)
 # ------------------------------
-path_to_data = "path_to_data"  # Use this for all file I/O
+path_to_data = "../../input_data/"   # Use this for all file I/O
 
 # ------------------------------
 # Section: ML Model Training Functions
@@ -63,6 +63,11 @@ def run_inner_cv(X_inner, y_inner, groups):
         verbose=1,
         return_train_score=True
     )
+    # ISSUE: fit fails, "Check failed: ctx_->Ordinal() >= 0 (-1 vs. 0) : Must have at least one device"
+    #
+    # Also getting warnings: "No visible GPU is found, setting device to CPU",
+    # "XGBoost is not compiled with CUDA support.", and "The tree method `gpu_hist`
+    # is deprecated since 2.0.0. To use GPU training, set the `device` parameter to CUDA instead."
     search.fit(X_inner, y_inner.values.ravel())
     best_params = search.best_params_
     print("Best XGB Parameters (inner CV):", best_params)
@@ -156,19 +161,29 @@ def main():
 
     # Step 1: (Optional) Verify pre-processed features by loading df_for_imputation.csv
     fe_file = os.path.join(path_to_data, "df_for_imputation.csv")
+
     if os.path.exists(fe_file):
         df_fe = pd.read_csv(fe_file)
         print(
             f"Feature-engineered data loaded from {fe_file} with shape: {df_fe.shape}")
     else:
-        print(
-            f"Feature-engineered file {fe_file} not found. Please run the feature engineering script first.")
-        sys.exit(1)
+
+        try:
+            df_fe = pd.read_parquet(os.path.join(
+                path_to_data, "df_for_imputation.parquet"))
+        except:
+            print(
+                f"Feature-engineered file {fe_file} not found. Please run the feature engineering script first.")
+            sys.exit(1)
 
     # Step 2: Load the sampled training data for the NO₂ model
     ml_input_file = os.path.join(
         path_to_data, "ML_full_model", "NO2_ml_df_sampled.csv")
-    df_ml = pd.read_csv(ml_input_file)
+    if os.path.exists(ml_input_file):
+        df_ml = pd.read_csv(ml_input_file)
+    else:
+        df_ml = pd.read_parquet(os.path.join(
+            path_to_data, "ML_full_model", "NO2_ml_df_sampled.parquet"))
     df_ml['date'] = pd.to_datetime(df_ml['date'])
     df_ml['grid_id'] = df_ml['grid_id'].astype(str)
 

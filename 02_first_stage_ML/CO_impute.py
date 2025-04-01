@@ -25,7 +25,7 @@ from xgboost import XGBRegressor
 # ------------------------------
 # Global path variable
 # ------------------------------
-path_to_data = "path_to_data"  # Replace with your base data directory
+path_to_data = "../../input_data/"  # Replace with your base data directory
 
 # ------------------------------
 # Section 1: Load and Sample Feature‐Engineered Data for CO
@@ -40,11 +40,25 @@ def load_and_sample_CO():
     """
     input_file = os.path.join(
         path_to_data, "ML_full_model", "df_for_imputation.csv")
-    df = pd.read_csv(input_file)
+    if os.path.exists(input_file):
+        df = pd.read_csv(input_file)
+    else:
+        df = pd.read_parquet(os.path.join(
+            path_to_data, "df_for_imputation_test.parquet"))
+
     df['date'] = pd.to_datetime(df['date'])
     print("Loaded df_for_imputation.csv, shape:", df.shape)
 
     df['year_month'] = df['date'].dt.strftime('%Y-%m')
+
+    # add grid_id_50km
+    grid_file = os.path.join(path_to_data, "grid_intersect_with_50km.csv")
+    grid_50km = pd.read_csv(grid_file)
+    grid_50km = grid_50km.rename(columns={'grid_id_10km': 'grid_id'})
+    grid_50km['grid_id'] = grid_50km['grid_id'].astype(int).astype(str)
+    df['grid_id'] = df['grid_id'].astype(int).astype(str)
+    df = pd.merge(df, grid_50km, how='left', on='grid_id')
+
     # Randomly sample 2% per grid_id_50km and year_month (adjust frac if needed)
     df_sampled = df.groupby(['grid_id_50km', 'year_month']).apply(
         lambda x: x.sample(frac=0.02, random_state=42, replace=False)
@@ -72,6 +86,11 @@ def run_outer_cv_CO(df, features, target, group_col, best_params, output_dir):
     Saves per-fold feature importance and prediction results.
     Returns the model from the final outer fold.
     """
+
+    # ISSUE: XGBRegressor().fit() fails because there are nans in y_trn
+    # drop all rows in df where target column has nan
+    df = df.dropna(subset=[target])
+
     X = df[features].copy()
     y = df[target].copy()
     gkf_outer = GroupKFold(n_splits=10)
@@ -87,9 +106,13 @@ def run_outer_cv_CO(df, features, target, group_col, best_params, output_dir):
         y_trn, y_val = y.iloc[trn_idx], y.iloc[val_idx]
 
         # Save identifier columns for record-keeping
-        train_df = X_trn[['date', 'grid_id']].copy()
+        # ISSUE: X_trn and X_val do not include date and grid_id columns, because these are not in features
+        # and X_trn is a subset of X, which only includes features
+        # train_df = X_trn[['date', 'grid_id']].copy()
+        train_df = df.iloc[trn_idx][['date', 'grid_id']].copy()
         train_df['y_trn'] = y_trn
-        eval_df = X_val[['date', 'grid_id']].copy()
+        # eval_df = X_val[['date', 'grid_id']].copy()
+        eval_df = df.iloc[val_idx][['date', 'grid_id']].copy()
         eval_df['y_val'] = y_val
 
         # Drop non-modeling columns
