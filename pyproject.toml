@@ -20,6 +20,13 @@ pyarrow = "^19.0.1"
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
 
+[tool.poetry.group.experiment.dependencies]
+earthaccess = "^0.14.0"
+xarray = "^2025.3.1"
+netcdf4 = "^1.7.2"
+dask = "^2025.3.0"
+h5netcdf = "^1.6.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
