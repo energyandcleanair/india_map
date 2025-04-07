@@ -115,8 +115,14 @@ def search_files(dataset: str, start_date: str, end_date: str, version=None):
         version=version  # '003'
     )
 
+    # check if results is empty
+    if len(results) == 0:
+        raise RuntimeError(
+            f"No data found for dataset {dataset} between {start_date} and {end_date}")
+
     # check that the number of files matches the number of days
     # in the date range
+    # TODO this does not work when the last days requested are not yet available
     num_days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days + 1
     if len(results) != num_days:
         raise ValueError(
