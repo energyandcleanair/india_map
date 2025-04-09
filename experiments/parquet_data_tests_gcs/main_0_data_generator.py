@@ -130,6 +130,7 @@ def save_dataset(table: pa.Table, filename: str):
         format="parquet",
         partitioning=ds.partitioning(pa.schema([("month", pa.string())]), flavor="hive"),
         existing_data_behavior="overwrite_or_ignore",
+        use_threads=False,
     )
 
 
