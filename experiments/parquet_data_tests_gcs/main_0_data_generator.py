@@ -123,7 +123,6 @@ def save_dataset(table: pa.Table, filename: str):
     ds.write_dataset(
         data=table,
         base_dir="/mnt/disks/local-ssd/" + filename,
-        filesystem=fs,
         format="parquet",
         partitioning=ds.partitioning(pa.schema([("month", pa.string())]), flavor="hive"),
         existing_data_behavior="overwrite_or_ignore",
