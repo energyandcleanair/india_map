@@ -126,20 +126,27 @@ def save_dataset(table: pa.Table, filename: str):
     col_index = table.schema.get_field_index("grid_id")
     unique_ids = table.column(col_index).unique()
 
-    for value in tqdm(unique_ids):
-        # Filter table to just this group
-        mask = pc.equal(table["grid_id"], value)
-        filtered = table.filter(mask)
+    partition_col = "grid_id"
 
-        # Write only that group
-        ds.write_dataset(
-            data=filtered,
-            base_dir="",
-            filesystem=fs,
-            format="parquet",
-            partitioning=ds.partitioning(pa.schema([("grid_id", pa.string())]), flavor="hive"),
-            existing_data_behavior="overwrite_or_ignore"
-        )
+    def write_partition(value):
+          mask = pc.equal(table[partition_col], value)
+          filtered = table.filter(mask)
+
+          ds.write_dataset(
+              data=filtered,
+              base_dir="",
+              filesystem=fs,
+              format="parquet",
+              partitioning=ds.partitioning(pa.schema([(partition_col, pa.string())]), flavor="hive"),
+              existing_data_behavior="overwrite_or_ignore"
+          )
+          return value.as_py()
+
+      with ThreadPoolExecutor(max_workers=max_workers) as executor:
+          futures = [executor.submit(write_partition, val) for val in unique_ids]
+
+          for future in as_completed(futures):
+              print(f"✅ Finished partition: {future.result()}")
         
 
 def generate_base_df():
