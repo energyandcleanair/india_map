@@ -11,6 +11,7 @@ import pyarrow.compute as pc
 from tqdm import tqdm
 
 from itertools import product
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # This script generates synthetic datasets for a specified range of years and grid IDs.
 # Used for testing and benchmarking purposes.
