@@ -16,7 +16,6 @@ geopandas = "^1.0.1"
 metpy = "^1.6.3"
 pyarrow = "^19.0.1"
 
-
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
 
@@ -30,6 +29,7 @@ pyarrow = "^19.0.1"
 duckdb = "^1.2.1"
 tqdm = "^4.67.1"
 fastparquet = "^2024.11.0"
+gcsfs = "^2025.3.2"
 
 [build-system]
 requires = ["poetry-core"]
