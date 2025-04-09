@@ -120,32 +120,17 @@ def save_dataset(table: pa.Table, filename: str):
     base_fs = pa.fs.GcsFileSystem()
     fs = pa.fs.SubTreeFileSystem(base_path=filename, base_fs=base_fs)
 
-    col_index = table.schema.get_field_index("grid_id")
-    unique_ids = table.column(col_index).unique()
+    month_array = pc.strftime(table["date"], format="%Y-%m")
+    table = table.append_column("month", month_array)
 
-    partition_col = "grid_id"
-
-    def write_partition(value):
-        mask = pc.equal(table[partition_col], value)
-        filtered = table.filter(mask)
-
-        ds.write_dataset(
-            data=filtered,
-            base_dir="",
-            filesystem=fs,
-            format="parquet",
-            partitioning=ds.partitioninsg(
-                pa.schema([(partition_col, pa.string())]), flavor="hive"
-            ),
-            existing_data_behavior="overwrite_or_ignore",
-        )
-        return value.as_py()
-
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(write_partition, val) for val in unique_ids]
-
-        for future in as_completed(futures):
-            print(f"✅ Finished partition: {future.result()}")
+    ds.write_dataset(
+        data=table,
+        base_dir="",
+        filesystem=fs,
+        format="parquet",
+        partitioning=ds.partitioning(pa.schema([("month", pa.string())]), flavor="hive"),
+        existing_data_behavior="overwrite_or_ignore",
+    )
 
 
 def generate_base_df():
