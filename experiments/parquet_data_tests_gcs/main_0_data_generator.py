@@ -117,16 +117,18 @@ def save_dataset(table: pa.Table, filename: str):
 
     file_options = ds.ParquetFileFormat().make_write_options(compression="snappy")
 
-    month_array = pc.strftime(table["date"], format="%Y-%m")
-    table = table.append_column("month", month_array)
+    base_fs = pa.fs.GcsFileSystem()
+    fs = pa.fs.SubTreeFileSystem(base_path=filename, base_fs=base_fs)
 
     ds.write_dataset(
         data=table,
-        base_dir="/mnt/disks/local-ssd/" + filename,
+        base_dir="",
+        filesystem=fs,
         format="parquet",
-        partitioning=ds.partitioning(pa.schema([("month", pa.string())]), flavor="hive"),
+        partitioning=ds.partitioninsg(
+            pa.schema([("grid_id", pa.string())]), flavor="hive"
+        ),
         existing_data_behavior="overwrite_or_ignore",
-        use_threads=False,
     )
 
 
