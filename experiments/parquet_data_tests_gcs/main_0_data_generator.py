@@ -117,22 +117,22 @@ def save_dataset(df: pd.DataFrame, filename: str):
 
     file_options = ds.ParquetFileFormat().make_write_options(compression='snappy')
 
-    fs = gcsfs.GCSFileSystem()
-    with fs.open(filename, 'wb') as file:
-        ds.write_dataset(
-            table,
-            file,
-            filesystem=fs,
-            format=parquet_format,
-            partitioning=ds.partitioning(
-                flavor="hive",
-                schema=pa.schema([
-                    ("grid_id", pa.string()),
-                ])
-            ),
-            existing_data_behavior="overwrite_or_ignore",
-            file_options=file_options
-        )
+    fs = pa.fs.GcsFileSystem()
+    ds.write_dataset(
+      table,
+      filename,
+      file_system=fs,
+      format=parquet_format,
+      partitioning=ds.partitioning(
+          flavor="hive",
+          schema=pa.schema([
+              ("grid_id", pa.string()),
+          ])
+      ),
+      existing_data_behavior="overwrite_or_ignore",
+      file_options=file_options
+  )
+        
 
 def generate_base_df():
   print("Generating date range")
