@@ -7,6 +7,10 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pyarrow.dataset as ds
 
+from tqdm import tqdm
+
+from itertools import product
+
 # This script generates synthetic datasets for a specified range of years and grid IDs.
 # Used for testing and benchmarking purposes.
 
@@ -132,31 +136,35 @@ def save_dataset(df: pd.DataFrame, filename: str):
 def generate_base_df():
   print("Generating date range")
   # Create a date range for the years and months
-  date_range = pd.date_range(start=f"{YEAR_START}-01-01", end=f"{YEAR_END}-12-31", freq="D")
+  dates = pd.date_range(start=f"{YEAR_START}-01-01", end=f"{YEAR_END}-12-31", freq="D")
   
   print("Generating grid IDs")
   # Create a grid of grid IDs
-  grid_ids = [f"grid_{i}" for i in range(NUMBER_OF_GRIDS)]
-  
-  print("Generating date*grid_id combinations")
-  # Use a generator to avoid creating a massive DataFrame in memory
-  def data_generator():
-    for date in date_range:
-      for grid_id in grid_ids:
-        yield {"date": date, "grid_id": grid_id}
-  
-  # Create the DataFrame in chunks and concatenate
-  chunk_size = 1_000_000  # Adjust chunk size based on available memory
-  chunks = []
-  for chunk in itertools.islice(data_generator(), 0, None, chunk_size):
-    chunks.append(pd.DataFrame(chunk))
-  
-  base_df = pd.concat(chunks, ignore_index=True)
-  
-  # Ensure correct types for date and grid_id
-  base_df['date'] = pd.to_datetime(base_df['date'])
-  base_df['grid_id'] = base_df['grid_id'].astype('category')
+  grid_ids = pd.Series([f"grid_{i}" for i in range(NUMBER_OF_GRIDS)], dtype="category")
 
+  grid_ids_cat = pd.Categorical(grid_ids)
+
+  # Storage
+  dfs = []
+  chunk_size = 1000
+
+  base_df = pd.DataFrame(columns=["date", "grid_id"])
+
+  for i in tqdm(range(0, len(grid_ids_cat), chunk_size)):
+      grid_chunk = grid_ids_cat[i:i + chunk_size]
+
+      date_idx = np.repeat(np.arange(len(dates)), len(grid_chunk))
+      grid_idx = np.tile(np.arange(len(grid_chunk)), len(dates))
+
+      df_chunk = pd.DataFrame({
+          "date": dates[date_idx],
+          "grid_id": grid_chunk[grid_idx]
+      })
+
+      base_df = pd.concat([base_df, df_chunk])
+      del df_chunk, grid_chunk, date_idx, grid_idx
+
+  print("Sorting data")
   base_df.sort_values(by=["grid_id", "date"], inplace=True)
 
   return base_df
