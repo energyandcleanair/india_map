@@ -104,14 +104,13 @@ def generate_dataset(
     df[feature] = np.random.rand(len(df))
     df[feature] = df[feature].astype(np.double)
   
-  return df
+  return pa.Table.from_pandas(df)
 
-def save_dataset(df: pd.DataFrame, filename: str):
+def save_dataset(table: pa.Table, filename: str):
     """
     Saves the dataset to a Parquet file on GCS.
     """
     print(f"Saving dataset to {filename}")
-    table = pa.Table.from_pandas(df)
 
     parquet_format = ds.ParquetFileFormat()
 
@@ -121,7 +120,7 @@ def save_dataset(df: pd.DataFrame, filename: str):
     ds.write_dataset(
       table,
       filename,
-      file_system=fs,
+      filesystem=fs,
       format=parquet_format,
       partitioning=ds.partitioning(
           flavor="hive",
@@ -130,7 +129,7 @@ def save_dataset(df: pd.DataFrame, filename: str):
           ])
       ),
       existing_data_behavior="overwrite_or_ignore",
-      file_options=file_options
+      file_options=file_options,
   )
         
 
@@ -177,11 +176,11 @@ def main():
   for dataset_name, features in DATASETS.items():
     print(f"Generating dataset: {dataset_name}")
     renamed_features = [f"{dataset_name}_{feature}" for feature in features]
-    df = generate_dataset(base_df.copy(), renamed_features)
-    save_dataset(df, f"gs://india-map-data-test/data/datasets/{dataset_name}")
+    table = generate_dataset(base_df.copy(), renamed_features)
+    save_dataset(table, f"gs://india-map-data-test/data/datasets/{dataset_name}")
     print(f"Dataset {dataset_name} generated and saved.")
     
-    del df
+    del table
     # Free up memory
     import gc
     print("Freeing up memory")
