@@ -125,7 +125,7 @@ def save_dataset(table: pa.Table, filename: str):
     col_index = table.schema.get_field_index("grid_id")
     unique_ids = table.column(col_index).unique()
 
-    for value in unique_ids:
+    for value in tqdm(unique_ids):
         # Filter table to just this group
         filtered = table.filter(table["grid_id"] == value.as_py())
 
