@@ -120,13 +120,16 @@ def save_dataset(table: pa.Table, filename: str):
     base_fs = pa.fs.GcsFileSystem()
     fs = pa.fs.SubTreeFileSystem(base_path=filename, base_fs=base_fs)
 
+    month_array = pc.strftime(table["date"], format="%Y-%m")
+    table = table.append_column("month", month_array)
+
     ds.write_dataset(
         data=table,
         base_dir="",
         filesystem=fs,
         format="parquet",
-        partitioning=ds.partitioninsg(
-            pa.schema([("grid_id", pa.string())]), flavor="hive"
+        partitioning=ds.partitioning(
+            pa.schema([("month", pa.string())]), flavor="hive"
         ),
         existing_data_behavior="overwrite_or_ignore",
     )
