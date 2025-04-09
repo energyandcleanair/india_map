@@ -116,11 +116,9 @@ def save_dataset(table: pa.Table, filename: str):
 
     file_options = ds.ParquetFileFormat().make_write_options(compression='snappy')
 
-    fs = pa.fs.GcsFileSystem()
     ds.write_dataset(
       table,
       filename,
-      filesystem=fs,
       format=parquet_format,
       partitioning=ds.partitioning(
           flavor="hive",
