@@ -128,7 +128,7 @@ def save_dataset(table: pa.Table, filename: str):
 
     for value in tqdm(unique_ids):
         # Filter table to just this group
-        mask = pc.equal(table[partition_col], value)
+        mask = pc.equal(table["grid_id"], value)
         filtered = table.filter(mask)
 
         # Write only that group
