@@ -122,20 +122,22 @@ def save_dataset(table: pa.Table, filename: str):
         base_fs=base_fs
     )
 
-    ds.write_dataset(
-      table,
-      base_dir="",
-      filesystem=fs,
-      format=parquet_format,
-      partitioning=ds.partitioning(
-          flavor="hive",
-          schema=pa.schema([
-              ("grid_id", pa.string()),
-          ])
-      ),
-      existing_data_behavior="overwrite_or_ignore",
-      file_options=file_options,
-  )
+    col_index = table.schema.get_field_index("grid_id")
+    unique_ids = table.column(col_index).unique()
+
+    for value in unique_ids:
+        # Filter table to just this group
+        filtered = table.filter(table["grid_id"] == value.as_py())
+
+        # Write only that group
+        ds.write_dataset(
+            data=filtered,
+            base_dir="",
+            filesystem=fs,
+            format="parquet",
+            partitioning=ds.partitioning(pa.schema([("grid_id", pa.string())]), flavor="hive"),
+            existing_data_behavior="overwrite_or_ignore"
+        )
         
 
 def generate_base_df():
