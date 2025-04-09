@@ -118,7 +118,8 @@ def save_dataset(table: pa.Table, filename: str):
 
     ds.write_dataset(
       table,
-      filename,
+      base_dir=filename,
+      filesystem=pa.fs.GcsFileSystem(),
       format=parquet_format,
       partitioning=ds.partitioning(
           flavor="hive",
