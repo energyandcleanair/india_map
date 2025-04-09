@@ -116,10 +116,16 @@ def save_dataset(table: pa.Table, filename: str):
 
     file_options = ds.ParquetFileFormat().make_write_options(compression='snappy')
 
+    base_fs = pa.fs.GcsFileSystem()
+    fs = pa.fs.SubTreeFileSystem(
+        base_path=filename,
+        base_fs=base_fs
+    )
+
     ds.write_dataset(
       table,
-      base_dir=filename,
-      filesystem=pa.fs.GcsFileSystem(),
+      base_dir="",
+      filesystem=fs,
       format=parquet_format,
       partitioning=ds.partitioning(
           flavor="hive",
@@ -176,7 +182,7 @@ def main():
     print(f"Generating dataset: {dataset_name}")
     renamed_features = [f"{dataset_name}_{feature}" for feature in features]
     table = generate_dataset(base_df.copy(), renamed_features)
-    save_dataset(table, f"gs://india-map-data-test/data/datasets/{dataset_name}")
+    save_dataset(table, f"india-map-data-test/data/datasets/{dataset_name}")
     print(f"Dataset {dataset_name} generated and saved.")
     
     del table
