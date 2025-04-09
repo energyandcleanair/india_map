@@ -118,10 +118,11 @@ def save_dataset(df: pd.DataFrame, filename: str):
     file_options = ds.ParquetFileFormat().make_write_options(compression='snappy')
 
     fs = gcsfs.GCSFileSystem()
-    with fs.open(filename, 'wb') as f:
+    with fs.open(filename, 'wb') as file:
         ds.write_dataset(
             table,
-            f,
+            file,
+            filesystem=fs,
             format=parquet_format,
             partitioning=ds.partitioning(
                 flavor="hive",
