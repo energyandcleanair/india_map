@@ -130,7 +130,6 @@ def save_dataset(df: pd.DataFrame, filename: str):
         )
 
 def generate_base_df():
-  
   print("Generating date range")
   # Create a date range for the years and months
   date_range = pd.date_range(start=f"{YEAR_START}-01-01", end=f"{YEAR_END}-12-31", freq="D")
@@ -140,11 +139,20 @@ def generate_base_df():
   grid_ids = [f"grid_{i}" for i in range(NUMBER_OF_GRIDS)]
   
   print("Generating date*grid_id combinations")
-  # Create a DataFrame with all combinations of date and grid ID
-  base_df = pd.DataFrame({
-      "date": np.repeat(date_range.values, len(grid_ids)),
-      "grid_id": np.tile(grid_ids, len(date_range))
-  })
+  # Use a generator to avoid creating a massive DataFrame in memory
+  def data_generator():
+    for date in date_range:
+      for grid_id in grid_ids:
+        yield {"date": date, "grid_id": grid_id}
+  
+  # Create the DataFrame in chunks and concatenate
+  chunk_size = 1_000_000  # Adjust chunk size based on available memory
+  chunks = []
+  for chunk in itertools.islice(data_generator(), 0, None, chunk_size):
+    chunks.append(pd.DataFrame(chunk))
+  
+  base_df = pd.concat(chunks, ignore_index=True)
+  
   # Ensure correct types for date and grid_id
   base_df['date'] = pd.to_datetime(base_df['date'])
   base_df['grid_id'] = base_df['grid_id'].astype('category')
