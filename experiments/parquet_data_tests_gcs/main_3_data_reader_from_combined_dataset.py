@@ -58,7 +58,7 @@ def read_from_presample(sampled_df):
     query = """
         SELECT *
         FROM sampled
-        LEFT JOIN read_parquet('gcs://india-map-data-test/data/fully_combined_dataset') AS combined_dataset USING (date, grid_id)
+        LEFT JOIN read_parquet('gcs://india-map-data-test/data/fully_combined_dataset/part-0.parquet') AS combined_dataset USING (date, grid_id)
     """
 
     start_time = datetime.now()
