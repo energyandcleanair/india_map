@@ -81,7 +81,7 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
             tqdm.write(f"Joining tables for month: {month}")
 
             def join_two_tables(left_table, right_table):
-                return left_table.join(right_table, keys='key', join_type='full outer')
+                return left_table.join(right_table, keys=["grid_id", "date"], join_type="full outer")
 
             # Function to manage the parallel joining process
             def parallel_outer_join(tables):
