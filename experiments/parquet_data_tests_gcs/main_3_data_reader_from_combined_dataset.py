@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import gcsfs
+import requests
+
+from google.cloud import storage
 
 # This script shows the effectiveness of using DuckDB to read a large single Parquet file
 # and sampling data from it (without loading the entire file into memory).
@@ -39,6 +42,19 @@ def generate_sampled_df():
 
     return sampled_df
 
+def get_credentials_for_gcs():
+    client = storage.Client()
+
+    # Get the VM's attached service account from the metadata server
+    sa_email = requests.get(
+        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+        headers={"Metadata-Flavor": "Google"}
+    ).text
+
+    hmac_key = client.create_hmac_key(sa_email)
+
+    return hmac_key
+
 def read_from_presample(sampled_df):
     con = duckdb.connect()
 
@@ -47,6 +63,18 @@ def read_from_presample(sampled_df):
     con.query("SET enable_progress_bar = true")
 
     con.register("sampled", sampled_df)
+
+    credentials = get_credentials_for_gcs()
+
+    con.execute(
+        f"""
+        CREATE SECRET (
+            TYPE gcs,
+            KEY_ID '{credentials.access_key}',
+            SECRET '{credentials.secret_key}',
+        );
+        """
+    )
 
     # Single query using USING (date, grid_id)
     query = """
