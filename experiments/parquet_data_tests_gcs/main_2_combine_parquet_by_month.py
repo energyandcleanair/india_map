@@ -49,14 +49,24 @@ def combine_parquet_by_month(input_dir: str, output_file: str):
 
     # Concatenate all datasets and write them to the output file
     combined_dataset = ds.dataset(all_datasets)
-    with fs.open(output_file, 'wb') as f:
-        pq.write_table(combined_dataset.to_table(), f)
+
+    parquet_format = ds.ParquetFileFormat()
+
+    file_options = parquet_format.make_write_options(compression="snappy")
+
+    ds.write_dataset(
+        combined_dataset,
+        output_file,
+        filesystem=fs,
+        format=parquet_format,
+        file_options=file_options,
+    )
 
     print(f"Data successfully combined into {output_file}")
 
 def main():
-    input_dir = "india-map-data-test/data/monthly_splits"
-    output_file = "india-map-data-test/data/recombined_dataset.parquet"
+    input_dir = "india-map-data-test/data/combined_monthly"
+    output_file = "india-map-data-test/data/fully_combined_dataset.parquet"
 
     combine_parquet_by_month(input_dir, output_file)
 
