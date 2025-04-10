@@ -106,15 +106,6 @@ def generate_dataset(df: pd.DataFrame, features: list[str]):
 
     table = pa.Table.from_pandas(df)
 
-    month_array = pc.strftime(table["date"], format="%Y-%m")
-    table = table.append_column("month", month_array)
-
-    table = table.sort_by([
-        ("month", "ascending"),
-        ("grid_id", "ascending"),
-        ("date", "ascending"),
-    ])
-
     return table
 
 
@@ -150,6 +141,7 @@ def generate_base_df():
     dates = pd.date_range(
         start=f"{YEAR_START}-01-01", end=f"{YEAR_END}-12-31", freq="D"
     )
+    months = pd.Categorical(dates.strftime("%Y-%m"))
 
     print("Generating grid IDs")
     # Create a grid of grid IDs
@@ -163,7 +155,7 @@ def generate_base_df():
     dfs = []
     chunk_size = 1000
 
-    base_df = pd.DataFrame(columns=["date", "grid_id"])
+    base_df = pd.DataFrame(columns=["date", "grid_id", "month"])
 
     for i in tqdm(range(0, len(grid_ids_cat), chunk_size)):
         grid_chunk = grid_ids_cat[i : i + chunk_size]
@@ -172,14 +164,18 @@ def generate_base_df():
         grid_idx = np.tile(np.arange(len(grid_chunk)), len(dates))
 
         df_chunk = pd.DataFrame(
-            {"date": dates[date_idx], "grid_id": grid_chunk[grid_idx]}
+            {
+                "month": months[date_idx],
+                "date": dates[date_idx],
+                "grid_id": grid_chunk[grid_idx],
+            }
         )
 
         base_df = pd.concat([base_df, df_chunk])
         del df_chunk, grid_chunk, date_idx, grid_idx
 
     print("Sorting data")
-    base_df.sort_values(by=["grid_id", "date"], inplace=True)
+    base_df.sort_values(by=["month", "grid_id", "date"], inplace=True)
 
     return base_df
 
