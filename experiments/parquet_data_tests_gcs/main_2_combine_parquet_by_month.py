@@ -28,34 +28,14 @@ def combine_parquet_by_month(input_dir: str, output_file: str):
         print("No month directories found.")
         raise FileNotFoundError("No month directories found.")
 
-    all_datasets = []
-
-    for month_dir in tqdm(sorted(month_dirs, key=lambda x: x['name']), desc="Processing months", unit="month"):
-        month_path = month_dir['name']
-
-        # Look for the Parquet file in the month directory
-        parquet_file = f"{month_path}/data.parquet"
-        if not fs.exists(parquet_file):
-            print(f"Parquet file not found in {month_path}. Skipping...")
-            continue
-
-        # Load the dataset instead of individual tables
-        dataset = ds.dataset(parquet_file, filesystem=fs, format="parquet")
-        all_datasets.append(dataset)
-
-    if not all_datasets:
-        print("No valid Parquet datasets found to combine.")
-        return
-
-    # Concatenate all datasets and write them to the output file
-    combined_dataset = ds.dataset(all_datasets)
+    dataset = ds.dataset(input_dir, format="parquet", partitioning="hive", filesystem=fs)
 
     parquet_format = ds.ParquetFileFormat()
 
     file_options = parquet_format.make_write_options(compression="snappy")
 
     ds.write_dataset(
-        combined_dataset,
+        dataset,
         output_file,
         filesystem=fs,
         format=parquet_format,
