@@ -74,7 +74,7 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
 
         if month_tables:
             combined = reduce(
-                lambda a, b: a.join(b, ["month", "date"], join_type="inner"),
+                lambda a, b: a.join(b, ["grid_id", "date"], join_type="inner"),
                 month_tables,
             )
 
