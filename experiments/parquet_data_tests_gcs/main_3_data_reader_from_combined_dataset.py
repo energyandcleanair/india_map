@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 import gcsfs
 import requests
+from fsspec import filesystem
 
 from google.cloud import storage
 
@@ -42,20 +43,9 @@ def generate_sampled_df():
 
     return sampled_df
 
-def get_credentials_for_gcs():
-    client = storage.Client()
-
-    # Get the VM's attached service account from the metadata server
-    sa_email = requests.get(
-        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
-        headers={"Metadata-Flavor": "Google"}
-    ).text
-
-    hmac_key = client.create_hmac_key(sa_email)
-
-    return hmac_key
-
 def read_from_presample(sampled_df):
+    duckdb.register_filesystem(filesystem('gcs'))
+
     con = duckdb.connect()
 
     print("Read from presample")
@@ -64,23 +54,11 @@ def read_from_presample(sampled_df):
 
     con.register("sampled", sampled_df)
 
-    credentials = get_credentials_for_gcs()
-
-    con.execute(
-        f"""
-        CREATE SECRET (
-            TYPE gcs,
-            KEY_ID '{credentials.access_key}',
-            SECRET '{credentials.secret_key}',
-        );
-        """
-    )
-
     # Single query using USING (date, grid_id)
     query = """
         SELECT *
         FROM sampled
-        LEFT JOIN read_parquet('gs://india-map-data-test/data/fully_combined_dataset') AS combined_dataset USING (date, grid_id)
+        LEFT JOIN read_parquet('gcs://india-map-data-test/data/fully_combined_dataset') AS combined_dataset USING (date, grid_id)
     """
 
     start_time = datetime.now()
