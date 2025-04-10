@@ -25,6 +25,14 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
     dataset_names = [
         d for d in fs.ls(input_dir) if fs.isdir(f"{input_dir}/{d}")
     ]
+
+    print(f"Found datasets: {dataset_names}")
+    if not dataset_names:
+        print("No datasets found.")
+        raise FileNotFoundError("No datasets found.")
+    
+    print(f"Found {len(dataset_names)} datasets.")
+
     all_months = sorted(
         set(
             os.path.basename(m).split("=")[1]
@@ -33,6 +41,12 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
             if m.startswith("month=")
         )
     )
+
+    if not all_months:
+        print("No months found.")
+        raise FileNotFoundError("No months found.")
+    
+    print(f"Found months: {all_months}")
 
     for month in tqdm(all_months, desc="Processing months", unit="month"):
         month_tables = []
