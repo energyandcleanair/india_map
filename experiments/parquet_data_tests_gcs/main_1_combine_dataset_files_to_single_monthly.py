@@ -53,16 +53,15 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
     print(f"Found months: {all_months}")
 
     for month in tqdm(all_months, desc="Processing months", unit="month"):
-        month_tables = []
         tqdm.write(f"Processing month: {month}")
-        for dataset in dataset_names:
+        def process_dataset(dataset):
             tqdm.write(f"Reading dataset: {dataset}")
             partition_path = f"{input_dir}/{dataset}/month={month}"
             if not fs.exists(partition_path):
-                continue
+                return None
             files = [f for f in fs.ls(partition_path) if f.endswith(".parquet")]
             if not files:
-                continue
+                return None
 
             tables = []
             for f in files:
@@ -71,15 +70,35 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
                     table = table.drop(["__index_level_0__"])
                 tables.append(table)
 
-            table = pa.concat_tables(tables)
-            month_tables.append(table)
+            return pa.concat_tables(tables)
+
+        with ThreadPoolExecutor() as executor:
+            results = list(tqdm(executor.map(process_dataset, dataset_names), total=len(dataset_names), desc="Processing datasets", unit="dataset"))
+
+        month_tables = filter(None, results)
 
         if month_tables:
             tqdm.write(f"Joining tables for month: {month}")
-            combined = reduce(
-                lambda a, b: a.join(b, ["grid_id", "date"], join_type="inner"),
-                month_tables,
-            )
+
+            def join_two_tables(left_table, right_table):
+                return left_table.join(right_table, keys='key', join_type='full outer')
+
+            # Function to manage the parallel joining process
+            def parallel_outer_join(tables):
+                with ThreadPoolExecutor() as executor:
+                    # Initial join operations
+                    while len(tables) > 1:
+                        # Pair tables for joining
+                        table_pairs = list(zip(tables[0::2], tables[1::2]))
+                        # Perform joins in parallel
+                        tables = list(executor.map(lambda p: join_two_tables(*p), table_pairs))
+                        # If there's an odd table out, append it to the list
+                        if len(tables) % 2 == 1:
+                            tables.append(tables.pop(0))
+                return tables[0]
+
+            # Performing the parallel full outer join
+            combined = parallel_outer_join(month_tables)
 
             tqdm.write(f"Writing combined table for month: {month}")
             month_output_path = f"{output_dir}/month={month}/part-0.parquet"
