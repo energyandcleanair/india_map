@@ -109,7 +109,11 @@ def generate_dataset(df: pd.DataFrame, features: list[str]):
     month_array = pc.strftime(table["date"], format="%Y-%m")
     table = table.append_column("month", month_array)
 
-    table = table.sort_by(["month", "grid_id", "date"])
+    table = table.sort_by([
+        ("month", "ascending"),
+        ("grid_id", "ascending"),
+        ("date", "ascending"),
+    ])
 
     return table
 
