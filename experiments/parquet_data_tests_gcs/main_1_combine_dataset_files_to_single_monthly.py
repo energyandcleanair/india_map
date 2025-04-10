@@ -1,0 +1,79 @@
+import os
+import glob
+from tqdm import tqdm
+from functools import reduce
+from pyarrow import parquet as pq
+from pyarrow import compute as pc
+import pyarrow as pa
+from concurrent.futures import ThreadPoolExecutor
+import gcsfs
+
+# This demonstrates the effectiveness of using pyarrow to join a large number of
+# Parquet files into a single file without loading them all into memory at once.
+
+
+def combine_and_join_by_month(input_dir: str, output_dir: str):
+    fs = gcsfs.GCSFileSystem()
+
+    # Delete existing output directory if it exists
+    try:
+        if fs.exists(output_dir):
+            fs.rm(output_dir, recursive=True)
+    except FileNotFoundError:
+        pass
+
+    dataset_names = [
+        d for d in fs.ls(input_dir) if fs.isdir(f"{input_dir}/{d}")
+    ]
+    all_months = sorted(
+        set(
+            os.path.basename(m).split("=")[1]
+            for dataset in dataset_names
+            for m in fs.ls(f"{input_dir}/{dataset}")
+            if m.startswith("month=")
+        )
+    )
+
+    for month in tqdm(all_months, desc="Processing months", unit="month"):
+        month_tables = []
+        for dataset in dataset_names:
+            partition_path = f"{input_dir}/{dataset}/month={month}"
+            if not fs.exists(partition_path):
+                continue
+            files = [f for f in fs.ls(partition_path) if f.endswith(".parquet")]
+            if not files:
+                continue
+
+            tables = []
+            for f in files:
+                table = pq.read_table(fs.open(f, 'rb'))
+                if "__index_level_0__" in table.column_names:
+                    table = table.drop(["__index_level_0__"])
+                tables.append(table)
+
+            table = pa.concat_tables(tables)
+            month_tables.append(table)
+
+        if month_tables:
+            combined = reduce(
+                lambda a, b: a.join(b, ["month", "date"], join_type="inner"),
+                month_tables,
+            )
+
+            month_output_path = f"{output_dir}/month={month}/combined.parquet"
+            fs.makedirs(os.path.dirname(month_output_path), exist_ok=True)
+            with fs.open(month_output_path, 'wb') as f:
+                writer = pq.ParquetWriter(f, combined.schema)
+                writer.write_table(combined)
+                writer.close()
+
+def main():
+    input_dir = "india-map-data-test/data/datasets"
+    output_dir = "india-map-data-test/data/combined_monthly"
+    combine_and_join_by_month(input_dir, output_dir)
+
+
+if __name__ == "__main__":
+    print("Starting the script...")
+    main()
+    print("Script execution completed.")
