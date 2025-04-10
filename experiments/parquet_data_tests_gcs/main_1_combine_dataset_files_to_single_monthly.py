@@ -54,7 +54,9 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
 
     for month in tqdm(all_months, desc="Processing months", unit="month"):
         month_tables = []
+        tqdm.write(f"Processing month: {month}")
         for dataset in dataset_names:
+            tqdm.write(f"Reading dataset: {dataset}")
             partition_path = f"{input_dir}/{dataset}/month={month}"
             if not fs.exists(partition_path):
                 continue
@@ -73,11 +75,13 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
             month_tables.append(table)
 
         if month_tables:
+            tqdm.write(f"Joining tables for month: {month}")
             combined = reduce(
                 lambda a, b: a.join(b, ["grid_id", "date"], join_type="inner"),
                 month_tables,
             )
 
+            tqdm.write(f"Writing combined table for month: {month}")
             month_output_path = f"{output_dir}/month={month}/part-0.parquet"
             fs.makedirs(os.path.dirname(month_output_path), exist_ok=True)
             with fs.open(month_output_path, 'wb') as f:
