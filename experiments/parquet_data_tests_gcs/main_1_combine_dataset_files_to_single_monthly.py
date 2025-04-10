@@ -23,7 +23,7 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
         pass
 
     dataset_names = [
-        d for d in fs.ls(input_dir) if fs.isdir(f"{input_dir}/{d}")
+        os.path.basename(d["name"]) for d in fs.ls(input_dir, detail=True) if d["type"] == "directory"
     ]
 
     print(f"Found datasets: {dataset_names}")
@@ -33,12 +33,16 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
     
     print(f"Found {len(dataset_names)} datasets.")
 
+    dataset_dirs = [
+        f"{input_dir}/{dataset}" for dataset in dataset_names
+    ]
+
     all_months = sorted(
         set(
             os.path.basename(m).split("=")[1]
-            for dataset in dataset_names
-            for m in fs.ls(f"{input_dir}/{dataset}")
-            if m.startswith("month=")
+            for dataset_dir in dataset_dirs
+            for m in fs.ls(dataset_dir)
+            if os.path.basename(m).startswith("month=")
         )
     )
 
@@ -74,7 +78,7 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
                 month_tables,
             )
 
-            month_output_path = f"{output_dir}/month={month}/combined.parquet"
+            month_output_path = f"{output_dir}/month={month}/part-0.parquet"
             fs.makedirs(os.path.dirname(month_output_path), exist_ok=True)
             with fs.open(month_output_path, 'wb') as f:
                 writer = pq.ParquetWriter(f, combined.schema)
