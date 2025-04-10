@@ -75,7 +75,7 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
         with ThreadPoolExecutor() as executor:
             results = list(tqdm(executor.map(process_dataset, dataset_names), total=len(dataset_names), desc="Processing datasets", unit="dataset"))
 
-        month_tables = filter(None, results)
+        month_tables = [result for result in results if result is not None]
 
         if month_tables:
             tqdm.write(f"Joining tables for month: {month}")
