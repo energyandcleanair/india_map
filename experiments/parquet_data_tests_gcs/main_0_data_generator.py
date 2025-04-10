@@ -127,7 +127,8 @@ def save_dataset(table: pa.Table, filename: str):
         data=table,
         base_dir="",
         filesystem=fs,
-        format="parquet",
+        format=parquet_format,
+        file_options=file_options,
         partitioning=ds.partitioning(
             pa.schema([("month", pa.string())]), flavor="hive"
         ),
