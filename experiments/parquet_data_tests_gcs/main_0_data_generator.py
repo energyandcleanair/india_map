@@ -104,7 +104,14 @@ def generate_dataset(df: pd.DataFrame, features: list[str]):
         df[feature] = np.random.rand(len(df))
         df[feature] = df[feature].astype(np.double)
 
-    return pa.Table.from_pandas(df)
+    table = pa.Table.from_pandas(df)
+
+    month_array = pc.strftime(table["date"], format="%Y-%m")
+    table = table.append_column("month", month_array)
+
+    table = table.sort_by(["month", "grid_id", "date"])
+
+    return table
 
 
 def save_dataset(table: pa.Table, filename: str):
@@ -119,9 +126,6 @@ def save_dataset(table: pa.Table, filename: str):
 
     base_fs = pa.fs.GcsFileSystem()
     fs = pa.fs.SubTreeFileSystem(base_path=filename, base_fs=base_fs)
-
-    month_array = pc.strftime(table["date"], format="%Y-%m")
-    table = table.append_column("month", month_array)
 
     ds.write_dataset(
         data=table,
