@@ -46,7 +46,7 @@ def combine_parquet_by_month(input_dir: str, output_file: str):
 
 def main():
     input_dir = "india-map-data-test/data/combined_monthly"
-    output_file = "india-map-data-test/data/fully_combined_dataset.parquet"
+    output_file = "india-map-data-test/data/fully_combined_dataset"
 
     combine_parquet_by_month(input_dir, output_file)
 
