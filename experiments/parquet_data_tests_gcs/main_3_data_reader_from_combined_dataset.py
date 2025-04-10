@@ -44,9 +44,13 @@ def generate_sampled_df():
     return sampled_df
 
 def read_from_presample(sampled_df):
-    duckdb.register_filesystem(filesystem('gcs'))
 
     con = duckdb.connect()
+
+    duckdb.register_filesystem(
+        gcsfs.GCSFileSystem(),
+        connection=con,
+    )
 
     print("Read from presample")
 
