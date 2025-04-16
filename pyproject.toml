@@ -15,6 +15,7 @@ xgboost = "^3.0.0"
 geopandas = "^1.0.1"
 metpy = "^1.6.3"
 pyarrow = "^19.0.1"
+lightgbm = "^4.6.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -26,6 +27,8 @@ xarray = "^2025.3.1"
 netcdf4 = "^1.7.2"
 dask = "^2025.3.0"
 h5netcdf = "^1.6.1"
+polars = "^1.27.1"
+rioxarray = "^0.18.2"
 
 [build-system]
 requires = ["poetry-core"]
