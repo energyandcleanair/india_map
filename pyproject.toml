@@ -29,6 +29,11 @@ dask = "^2025.3.0"
 h5netcdf = "^1.6.1"
 polars = "^1.27.1"
 rioxarray = "^0.18.2"
+pyarrow = "^19.0.1"
+duckdb = "^1.2.1"
+tqdm = "^4.67.1"
+fastparquet = "^2024.11.0"
+gcsfs = "^2025.3.2"
 
 [build-system]
 requires = ["poetry-core"]
