@@ -16,6 +16,9 @@ needed. To run them in the cloud, we recommend you use a spot VM. A spot VM
 lives for at most 24 hours (and might be shut down any time within those
 24 hours).
 
+> [!WARNING]
+> No data will be persisted on the VM with the configuration below.
+
 To create a VM that is suitable for testing:
 ```
 gcloud compute instances create instance-20250409-082242 \
