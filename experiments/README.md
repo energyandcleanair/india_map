@@ -17,7 +17,8 @@ lives for at most 24 hours (and might be shut down any time within those
 24 hours).
 
 > [!WARNING]
-> No data will be persisted on the VM with the configuration below.
+> No data will be persisted on the VM with the configuration below when it is
+> automatically shut down.
 
 To create a VM that is suitable for testing:
 ```
