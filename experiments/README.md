@@ -1,6 +1,6 @@
 
-To run this code, you need gcloud set up and authenticated locally against the
-project you wish to run this against.
+To run this code, you need the Google Cloud CLI `gcloud` set up and
+authenticated locally against the project you wish to run this against.
 
 > [!WARNING]
 > Most of these scripts make assumptions about how the infrastructure is set up
@@ -11,7 +11,12 @@ project you wish to run this against.
 
 ### Running experiments
 
-To run the tests on a spot VM, first, create a new spot VM:
+Many of these experiments are designed to be thrown away, but can be reran if
+needed. To run them in the cloud, we recommend you use a spot VM. A spot VM
+lives for at most 24 hours (and might be shut down any time within those
+24 hours).
+
+To create a VM that is suitable for testing:
 ```
 gcloud compute instances create instance-20250409-082242 \
     --zone=europe-west1-b \
