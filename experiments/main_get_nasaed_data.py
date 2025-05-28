@@ -75,7 +75,7 @@ def main(dataset: str, varname: str, var_label: str, outfilename: str,
         data_out.to_csv(outfile, index=False)
 
         # 5) clean up the downloaded file
-        # os.remove(file)
+        os.remove(file)
 
 
 def get_grid():
