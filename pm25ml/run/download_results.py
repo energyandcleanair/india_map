@@ -1,14 +1,15 @@
-from time import sleep
 from arrow import Arrow, get
 import ee
 
-import pyarrow.fs as pafs
+from pyarrow.fs import GcsFileSystem
 
 from ee import FeatureCollection
 
-from pm25ml.collectors.tasks import (
-    TaskBuilder,
+from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
+from pm25ml.collectors.feature_planner import (
+    FeatureCollectionPlanner,
 )
+from pm25ml.logging import logger
 
 from pm25ml.collectors.export_pipeline import GeeExportPipeline
 from concurrent.futures import ThreadPoolExecutor
@@ -28,9 +29,15 @@ if __name__ == "__main__":
     month_start = get(f"{MONTH_SHORT}-01")
     grid = FeatureCollection(INDIA_SHAPEFILE_ASSET)
 
-    builder = TaskBuilder(grid=grid, bucket_name=CSV_BUCKET_NAME)
+    feature_planner = FeatureCollectionPlanner(grid=grid)
 
-    gcs_filesystem = pafs.GcsFileSystem()
+    gcs_filesystem = GcsFileSystem()
+
+    gee_export_pipeline_storage = GeeExportPipelineStorage(
+        filesystem=gcs_filesystem,
+        intermediate_bucket=CSV_BUCKET_NAME,
+        destination_bucket=INGEST_ARCHIVE_BUCKET_NAME,
+    )
 
     month_end_exclusive = month_start.shift(months=1)
 
@@ -38,19 +45,21 @@ if __name__ == "__main__":
         Arrow.range("day", start=month_start, end=month_end_exclusive)
     )
 
-    processors = [
-        GeeExportPipeline(
-            filesystem=gcs_filesystem,
-            task=builder.build_grid_daily_average_task(
+    pipeline_constructor = GeeExportPipeline.with_storage(
+        gee_export_pipeline_storage=gee_export_pipeline_storage,
+    )
+
+    processors: list[GeeExportPipeline] = [
+        pipeline_constructor.construct(
+            plan=feature_planner.plan_grid_daily_average(
                 collection_name="COPERNICUS/S5P/OFFL/L3_CO",
                 selected_bands=["CO_column_number_density"],
                 dates=dates_in_month,
             ),
             result_subpath=f"dataset=copernicus_s5p_co/month={MONTH_SHORT}",
         ),
-        GeeExportPipeline(
-            filesystem=gcs_filesystem,
-            task=builder.build_grid_daily_average_task(
+        pipeline_constructor.construct(
+            plan=feature_planner.plan_grid_daily_average(
                 collection_name="ECMWF/ERA5_LAND/DAILY_AGGR",
                 selected_bands=[
                     "dewpoint_temperature_2m",
@@ -65,4 +74,12 @@ if __name__ == "__main__":
     ]
 
     with ThreadPoolExecutor() as executor:
-        executor.map(lambda processor: processor.upload(), processors)
+        results = executor.map(lambda processor: processor.upload(), processors)
+
+        try:
+            for result in results:
+                pass
+        except Exception as e:
+            logger.error(f"An error occurred during processing", exc_info=True, stack_info=True)
+            raise e
+        
