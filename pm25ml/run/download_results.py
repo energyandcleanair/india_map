@@ -1,7 +1,7 @@
 from arrow import Arrow, get
 import ee
 
-from pyarrow.fs import GcsFileSystem
+from gcsfs import GCSFileSystem
 
 from ee import FeatureCollection
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     feature_planner = FeatureCollectionPlanner(grid=grid)
 
-    gcs_filesystem = GcsFileSystem()
+    gcs_filesystem = GCSFileSystem()
 
     gee_export_pipeline_storage = GeeExportPipelineStorage(
         filesystem=gcs_filesystem,

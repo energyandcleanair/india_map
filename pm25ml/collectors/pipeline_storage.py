@@ -1,7 +1,6 @@
 from pm25ml.logging import logger
 
-
-import pyarrow.fs as pafs
+from fsspec import AbstractFileSystem
 import pyarrow.parquet as pq
 from pyarrow import Table
 from pyarrow.csv import ReadOptions, read_csv
@@ -10,7 +9,7 @@ from pyarrow.csv import ReadOptions, read_csv
 class GeeExportPipelineStorage:
     def __init__(
         self,
-        filesystem: pafs.GcsFileSystem,
+        filesystem: AbstractFileSystem,
         intermediate_bucket: str,
         destination_bucket: str,
     ):
@@ -24,8 +23,9 @@ class GeeExportPipelineStorage:
         """
         csv_file_path = f"{self.intermediate_bucket}/{id}.csv"
         logger.info(f"Reading intermediate CSV file from {csv_file_path}")
-        with self.filesystem.open_input_file(csv_file_path) as csv_file:
-            table = read_csv(csv_file, read_options=ReadOptions(use_threads=True))
+        with self.filesystem.open(csv_file_path) as f:
+            read_options = ReadOptions(block_size=64 * 1024 * 1024)
+            table = read_csv(f, read_options=read_options)
         return table
 
     def delete_intermediate_by_id(self, id: str):
@@ -34,7 +34,7 @@ class GeeExportPipelineStorage:
         """
         csv_file_path = f"{self.intermediate_bucket}/{id}.csv"
         logger.info(f"Deleting intermediate CSV file {csv_file_path}")
-        self.filesystem.delete_file(csv_file_path)
+        self.filesystem.delete(csv_file_path)
 
     def write_to_destination(self, table: Table, result_subpath: str):
         """

@@ -1309,13 +1309,13 @@ files = [
 
 [[package]]
 name = "fsspec"
-version = "2025.3.2"
+version = "2025.5.1"
 description = "File-system specification"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "fsspec-2025.3.2-py3-none-any.whl", hash = "sha256:2daf8dc3d1dfa65b6aa37748d112773a7a08416f6c70d96b264c96476ecaf711"},
-    {file = "fsspec-2025.3.2.tar.gz", hash = "sha256:e52c77ef398680bbd6a98c0e628fbc469491282981209907bbc8aea76a04fdc6"},
+    {file = "fsspec-2025.5.1-py3-none-any.whl", hash = "sha256:24d3a2e663d5fc735ab256263c4075f374a174c3410c0b25e5bd1970bceaa462"},
+    {file = "fsspec-2025.5.1.tar.gz", hash = "sha256:2e55e47a540b91843b755e83ded97c6e897fa0942b11490113f09e9c443c2475"},
 ]
 
 [package.extras]
@@ -1348,19 +1348,19 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "gcsfs"
-version = "2025.3.2"
+version = "2025.5.1"
 description = "Convenient Filesystem interface over GCS"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "gcsfs-2025.3.2-py2.py3-none-any.whl", hash = "sha256:1bdecb530fbf3604a31f00f858a208e0770baf24d405a0b9df99fdde35737745"},
-    {file = "gcsfs-2025.3.2.tar.gz", hash = "sha256:fe300179492e63e309fecb11e4de7c15a51172eefa2b846d4b3659960216bba8"},
+    {file = "gcsfs-2025.5.1-py2.py3-none-any.whl", hash = "sha256:48712471ff71ac83d3e2152ba4dc232874698466e344d5e700feba06b0a0de7b"},
+    {file = "gcsfs-2025.5.1.tar.gz", hash = "sha256:ba945530cf4857cd9d599ccb3ae729c65c39088880b11c4df1fecac30df5f3e3"},
 ]
 
 [package.dependencies]
 aiohttp = "<4.0.0a0 || >4.0.0a0,<4.0.0a1 || >4.0.0a1"
 decorator = ">4.1.2"
-fsspec = "2025.3.2"
+fsspec = "2025.5.1"
 google-auth = ">=1.2"
 google-auth-oauthlib = "*"
 google-cloud-storage = "*"
@@ -3678,19 +3678,19 @@ pyasn1 = ">=0.1.3"
 
 [[package]]
 name = "s3fs"
-version = "2025.3.2"
+version = "2025.5.1"
 description = "Convenient Filesystem interface over S3"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "s3fs-2025.3.2-py3-none-any.whl", hash = "sha256:81eae3f37b4b04bcc08845d7bcc607c6ca45878813ef7e6a28d77b2688417130"},
-    {file = "s3fs-2025.3.2.tar.gz", hash = "sha256:6798f896ec76dd3bfd8beb89f0bb7c5263cb2760e038bae0978505cd172a307c"},
+    {file = "s3fs-2025.5.1-py3-none-any.whl", hash = "sha256:7475e7c40a3a112f17144907ffae50782ab6c03487fe0b45a9c3942bb7a5c606"},
+    {file = "s3fs-2025.5.1.tar.gz", hash = "sha256:84beffa231b8ed94f8d667e93387b38351e1c4447aedea5c2c19dd88b7fcb658"},
 ]
 
 [package.dependencies]
 aiobotocore = ">=2.5.4,<3.0.0"
 aiohttp = "<4.0.0a0 || >4.0.0a0,<4.0.0a1 || >4.0.0a1"
-fsspec = "==2025.3.2.*"
+fsspec = "2025.5.1"
 
 [package.extras]
 awscli = ["aiobotocore[awscli] (>=2.5.4,<3.0.0)"]
@@ -4467,4 +4467,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "0d4aa38128b9e2a7dfea066458a2a843055950b86d777a0832ac25e633fa543c"
+content-hash = "c3476f12aae284fc92a56ee5efc80224c7ac98220eefb27dfd288fa7a9ed4fb5"
