@@ -56,7 +56,7 @@ if __name__ == "__main__":
                 selected_bands=["CO_column_number_density"],
                 dates=dates_in_month,
             ),
-            result_subpath=f"dataset=copernicus_s5p_co/month={MONTH_SHORT}",
+            result_subpath=f"country=india/dataset=copernicus_s5p_co/month={MONTH_SHORT}",
         ),
         pipeline_constructor.construct(
             plan=feature_planner.plan_grid_daily_average(
@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 ],
                 dates=dates_in_month,
             ),
-            result_subpath=f"dataset=era5_land/month={MONTH_SHORT}",
+            result_subpath=f"country=india/dataset=era5_land/month={MONTH_SHORT}",
         ),
     ]
 
