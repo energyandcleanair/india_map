@@ -8,6 +8,13 @@ Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil D
 
 ### Contributing
 
+#### Testing
+
+Add unit tests for new classes and functions. When committing, make sure the tests run
+
+We use pytest for the tests. The test files live alongside with original file with the suffix:
+`__test.py`.
+
 #### Code standards
 
 We use the "ALL" rules configuration provided by ruff, with an extended line-length of 100
