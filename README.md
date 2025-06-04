@@ -10,7 +10,8 @@ Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil D
 
 #### Code standards
 
-We use the default configuration provided by ruff, with an extended line-length of 100 characters.
+We use the "ALL" rules configuration provided by ruff, with an extended line-length of 100
+characters.
 
 To make sure your code meets our code standards, install the [`pre-commit`](https://pre-commit.com/)
 configuration provided so that your code is checked before committing:
