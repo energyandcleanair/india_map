@@ -3,3 +3,6 @@ data/
 example_data/
 
 .vscode
+
+tmp
+

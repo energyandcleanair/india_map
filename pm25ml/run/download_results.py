@@ -7,7 +7,7 @@ from ee import FeatureCollection
 
 from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
 from pm25ml.collectors.feature_planner import (
-    FeatureCollectionPlanner,
+    GriddedFeatureCollectionPlanner,
 )
 from pm25ml.logging import logger
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     month_start = get(f"{MONTH_SHORT}-01")
     grid = FeatureCollection(INDIA_SHAPEFILE_ASSET)
 
-    feature_planner = FeatureCollectionPlanner(grid=grid)
+    feature_planner = GriddedFeatureCollectionPlanner(grid=grid)
 
     gcs_filesystem = GCSFileSystem()
 
@@ -51,26 +51,71 @@ if __name__ == "__main__":
 
     processors: list[GeeExportPipeline] = [
         pipeline_constructor.construct(
-            plan=feature_planner.plan_grid_daily_average(
+            plan=feature_planner.plan_daily_average(
                 collection_name="COPERNICUS/S5P/OFFL/L3_CO",
                 selected_bands=["CO_column_number_density"],
                 dates=dates_in_month,
             ),
-            result_subpath=f"country=india/dataset=copernicus_s5p_co/month={MONTH_SHORT}",
+            result_subpath=f"country=india/dataset=s5p_co/month={MONTH_SHORT}",
         ),
         pipeline_constructor.construct(
-            plan=feature_planner.plan_grid_daily_average(
+            plan=feature_planner.plan_daily_average(
+                collection_name="COPERNICUS/S5P/OFFL/L3_NO2",
+                selected_bands=["NO2_column_number_density"],
+                dates=dates_in_month,
+            ),
+            result_subpath=f"country=india/dataset=s5p_no2/month={MONTH_SHORT}",
+        ),
+        pipeline_constructor.construct(
+            plan=feature_planner.plan_daily_average(
                 collection_name="ECMWF/ERA5_LAND/DAILY_AGGR",
                 selected_bands=[
+                    "temperature_2m",
                     "dewpoint_temperature_2m",
-                    "surface_pressure",
-                    "total_precipitation_sum",
                     "u_component_of_wind_10m",
+                    "v_component_of_wind_10m",
+                    "total_precipitation_sum",
+                    "surface_net_thermal_radiation_sum",
+                    "surface_pressure",
+                    "leaf_area_index_high_vegetation",
+                    "leaf_area_index_low_vegetation",
                 ],
                 dates=dates_in_month,
             ),
             result_subpath=f"country=india/dataset=era5_land/month={MONTH_SHORT}",
         ),
+        pipeline_constructor.construct(
+            plan=feature_planner.plan_daily_average(
+                collection_name="MODIS/061/MCD19A2_GRANULES",
+                selected_bands=["Optical_Depth_047", "Optical_Depth_055"],
+                dates=dates_in_month,
+            ),
+            result_subpath=f"country=india/dataset=modis_aod/month={MONTH_SHORT}",
+        ),
+        pipeline_constructor.construct(
+            plan=feature_planner.plan_static_feature(
+                image_name="USGS/SRTMGL1_003",
+                selected_bands=["elevation"],
+            ),
+            result_subpath=f"country=india/dataset=srtm_elevation",
+        ),
+        pipeline_constructor.construct(
+            plan=feature_planner.plan_summarise_annual_classified_pixels(
+                collection_name="MODIS/061/MCD12Q1",
+                classification_band="LC_Type1",
+                output_names_to_class_values={
+                    "forest": [
+                        1, 2, 3, 4, 5
+                    ],
+                    "shrub": [6, 7],
+                    "savanna": [9],
+                    "urban": [13],
+                    "water": [17],
+                },
+                year=2023,
+            ),
+            result_subpath=f"country=india/dataset=modis_land_cover/year=2023",
+        )
     ]
 
     with ThreadPoolExecutor() as executor:

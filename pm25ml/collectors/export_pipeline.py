@@ -86,7 +86,7 @@ class GeeExportPipeline:
             bucket=self.gee_export_pipeline_storage.intermediate_bucket,
             fileNamePrefix=temporary_file_prefix,
             fileFormat="CSV",
-            selectors=exported_properties,
+            selectors=exported_properties if not self.plan.ignore_selectors else None,
         )
 
     def _complete_task(self, *, task_name: str, task: Export):
@@ -102,7 +102,7 @@ class GeeExportPipeline:
 
             if not task.status().get("state") == "COMPLETED":
                 error_message = task.status().get("error_message", "No error message")
-                raise RuntimeError(f"Task {task.description} failed: {error_message}")
+                raise RuntimeError(f"Task {task_name} failed: {error_message}")
         finally:
             try:
                 task.cancel()
