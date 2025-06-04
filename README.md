@@ -6,6 +6,18 @@
 ## Citation
 Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil Dahiya, Inés Azevedo, and Marshall Burke. "Improved daily PM2. 5 estimates in India reveal inequalities in recent enhancement of air quality." Science Advances 11, no. 4 (2025): eadq1071.
 
+### Contributing
+
+#### Code standards
+
+We use the default configuration provided by ruff, with an extended line-length of 100 characters.
+
+To make sure your code meets our code standards, install the [`pre-commit`](https://pre-commit.com/)
+configuration provided so that your code is checked before committing:
+1. Install `pre-commit`, if you haven't already
+2. [Install the git hook scripts](https://pre-commit.com/#3-install-the-git-hook-scripts)
+
+
 ### Process dependencies overview
 
 This shows the overall process flow and dependencies for the modelling.
