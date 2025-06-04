@@ -10,7 +10,7 @@ Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil D
 
 #### Testing
 
-Add unit tests for new classes and functions. When committing, make sure the tests run
+Add unit tests for new classes and functions. When committing, make sure the tests pass.
 
 We use pytest for the tests. The test files live alongside with original file with the suffix:
 `__test.py`.
