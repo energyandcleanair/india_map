@@ -3,10 +3,10 @@
 import contextlib
 import uuid
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from arrow import now
-from ee.batch import Export
+from ee.batch import Export, Task
 from pyarrow import Table
 
 from pm25ml.collectors.feature_planner import FeaturePlan
@@ -75,7 +75,7 @@ class GeeExportPipeline:
         logger.info(f"Task {task_name}: deleting task old CSV file from GCS")
         self.gee_export_pipeline_storage.delete_intermediate_by_id(temporary_file_prefix)
 
-    def _define_task(self, task_name: str, temporary_file_prefix: str) -> Export:
+    def _define_task(self, task_name: str, temporary_file_prefix: str) -> Task:
         exported_properties = self.plan.intermediate_columns
         return Export.table.toCloudStorage(
             description=task_name,
@@ -86,12 +86,12 @@ class GeeExportPipeline:
             selectors=exported_properties if not self.plan.ignore_selectors else None,
         )
 
-    def _complete_task(self, *, task_name: str, task: Export) -> None:
+    def _complete_task(self, *, task_name: str, task: Task) -> None:
         try:
             task.start()
-            delay_backoff = 1
+            delay_backoff = 1.0
             growth_factor = 1.5
-            max_delay = 10
+            max_delay = 10.0
             while task.active():
                 logger.debug(
                     f"Task {task_name}: waiting for task to complete ({delay_backoff}s delay)",
@@ -144,7 +144,9 @@ class GeeExportPipeline:
         ]
         columns_to_sort = [col for col in preferred_sort_order if col in table.column_names]
         if columns_to_sort:
-            sort_orders = [(col, "descending") for col in columns_to_sort]
+            sort_orders: list[tuple[str, Literal["ascending", "descending"]]] = [
+                (col, "descending") for col in columns_to_sort
+            ]
             table = table.sort_by(sort_orders)
         return table
 

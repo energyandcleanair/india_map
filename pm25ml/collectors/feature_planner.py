@@ -1,8 +1,12 @@
 """Feature planning for gridded feature collections."""
 
 from arrow import Arrow
-from ee import FeatureCollection, Image, ImageCollection, Reducer
 from ee.ee_number import Number
+from ee.element import Element
+from ee.featurecollection import FeatureCollection
+from ee.image import Image
+from ee.imagecollection import ImageCollection
+from ee.reducer import Reducer
 
 from pm25ml.collectors.constants import INDIA_CRS
 
@@ -85,7 +89,7 @@ class GriddedFeatureCollectionPlanner:
         def average_grid_value_for_date(im: Image) -> FeatureCollection:
             image_date = im.get("date")
 
-            def carry_date_through(f: Image) -> Image:
+            def carry_date_through(f: Image) -> Element:
                 return f.set("date", image_date)
 
             return im.reduceRegions(
@@ -149,7 +153,7 @@ class GriddedFeatureCollectionPlanner:
         *,
         collection_name: str,
         classification_band: str,
-        output_names_to_class_values: dict[str, int],
+        output_names_to_class_values: dict[str, list[int]],
         year: int,
     ) -> "FeaturePlan":
         """

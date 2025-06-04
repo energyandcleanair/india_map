@@ -1,9 +1,9 @@
 """The logging configuration for the pm25ml package."""
 
 import sys
-from logging import DEBUG, Formatter, StreamHandler, getLogger
+from logging import DEBUG, Formatter, Logger, StreamHandler, getLogger
 
-logger = getLogger("pm25ml")
+logger: Logger = getLogger("pm25ml")
 logger.setLevel(DEBUG)
 console_handler = StreamHandler(sys.stdout)
 console_handler.setLevel(DEBUG)

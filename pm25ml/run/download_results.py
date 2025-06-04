@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import ee
 from arrow import Arrow, get
-from ee import FeatureCollection
+from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
 
 from pm25ml.collectors.export_pipeline import GeeExportPipeline

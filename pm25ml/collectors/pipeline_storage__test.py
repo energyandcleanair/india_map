@@ -1,6 +1,7 @@
 import os
 
 import pyarrow as pa
+import pyarrow.csv as pa_csv
 import pytest
 from fsspec.implementations.memory import MemoryFileSystem
 
@@ -24,7 +25,7 @@ def example_table():
 def mock_csv_file(example_table):
     # Create a mock CSV file from the example table
     csv_buffer = pa.BufferOutputStream()
-    pa.csv.write_csv(example_table, csv_buffer)
+    pa_csv.write_csv(example_table, csv_buffer)
     return pa.BufferReader(csv_buffer.getvalue())
 
 
@@ -35,7 +36,7 @@ def in_memory_filesystem():
 
 def test_get_intermediate_by_id(in_memory_filesystem, example_table) -> None:
     with in_memory_filesystem.open(os.path.join(INTERMEDIATE_BUCKET, "test_id.csv"), "wb") as f:
-        pa.csv.write_csv(example_table, f)
+        pa_csv.write_csv(example_table, f)
 
     # Use LocalFileSystem pointing to the temp directory
     storage = GeeExportPipelineStorage(
@@ -69,7 +70,7 @@ def test_delete_intermediate_by_id(in_memory_filesystem, example_table) -> None:
     # Create a temporary file to simulate the intermediate file
     file_path = os.path.join(INTERMEDIATE_BUCKET, "test_id.csv")
     with in_memory_filesystem.open(file_path, "wb") as f:
-        pa.csv.write_csv(example_table, f)
+        pa_csv.write_csv(example_table, f)
 
     storage = GeeExportPipelineStorage(
         filesystem=in_memory_filesystem,

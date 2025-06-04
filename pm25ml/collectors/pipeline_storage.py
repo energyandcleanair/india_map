@@ -37,9 +37,9 @@ class GeeExportPipelineStorage:
         """
         csv_file_path = f"{self.intermediate_bucket}/{file_id}.csv"
         logger.info(f"Reading intermediate CSV file from {csv_file_path}")
-        with self.filesystem.open(csv_file_path) as f:
+        with self.filesystem.open(csv_file_path) as file:
             read_options = ReadOptions(block_size=64 * 1024 * 1024)
-            return read_csv(f, read_options=read_options)
+            return read_csv(file, read_options=read_options)  # type: ignore[arg-type]
 
     def delete_intermediate_by_id(self, file_id: str) -> None:
         """

@@ -24,6 +24,8 @@ gcsfs = "^2025.5.1"
 ipykernel = "^6.29.5"
 pytest = "^8.3.5"
 ruff = "^0.11.12"
+mypy = "^1.16.0"
+pyarrow-stubs = "^19.4"
 
 [tool.poetry.group.experiment.dependencies]
 earthaccess = "^0.14.0"
@@ -80,3 +82,15 @@ ignore = [
     "D203",
     "D212",
 ]
+
+[tool.mypy]
+files = [
+    "pm25ml/**/*.py",
+]
+exclude = [
+    "pm25ml/**/*__test.py",
+]
+
+[[tool.mypy.overrides]]
+module = ["fsspec.*", "gcsfs.*"]
+ignore_missing_imports = true
