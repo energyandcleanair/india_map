@@ -1,5 +1,8 @@
-from ee import ImageCollection, Reducer, FeatureCollection, Image
+"""Feature planning for gridded feature collections."""
+
 from arrow import Arrow
+from ee import FeatureCollection, Image, ImageCollection, Reducer
+from ee.ee_number import Number
 
 from pm25ml.collectors.constants import INDIA_CRS
 
@@ -18,9 +21,9 @@ class GriddedFeatureCollectionPlanner:
     Reference: how the "scale" arguments works in Earth Engine: https://developers.google.com/earth-engine/guides/scale
     """
 
-    def __init__(self, grid: FeatureCollection):
+    def __init__(self, grid: FeatureCollection) -> None:
         """
-        Initializes the planner with a grid.
+        Initialize the planner with a grid.
 
         :param grid: The grid to which the features will be mapped.
         :type grid: FeatureCollection
@@ -35,8 +38,9 @@ class GriddedFeatureCollectionPlanner:
         dates: list[Arrow],
     ) -> "FeaturePlan":
         """
-        Creates a daily average feature plan by aggregating pixel-wise mean values for each day
-        and mapping them to the grid.
+        Create a daily average feature plan.
+
+        Aggregate pixel-wise mean values for each day and mapping them to the grid.
 
         :param collection_name: The name of the Earth Engine image collection.
         :type collection_name: str
@@ -47,7 +51,6 @@ class GriddedFeatureCollectionPlanner:
         :return: A feature plan containing the processed collection and column mappings.
         :rtype: FeaturePlan
         """
-
         original_raster_scale = self._get_collection_scale(collection_name)
 
         ids = ["date", "grid_id"]
@@ -56,9 +59,7 @@ class GriddedFeatureCollectionPlanner:
         )
         exported_properties = ids + transformed_band_names
         wanted_properties = ids + selected_bands
-        column_mappings = {
-            exported: wanted for exported, wanted in zip(exported_properties, wanted_properties)
-        }
+        column_mappings = dict(zip(exported_properties, wanted_properties))
 
         # This gets the whole collection and selects the properties we want.
         collection = ImageCollection(collection_name).select(selected_bands)
@@ -77,11 +78,11 @@ class GriddedFeatureCollectionPlanner:
                 # to the final export.
                 .set("date", date.format(ISO8601_DATE_ONLY))
                 for date in dates
-            ]
+            ],
         )
 
         # We then average the values for each grid cell for each date.
-        def average_grid_value_for_date(im: Image):
+        def average_grid_value_for_date(im: Image) -> FeatureCollection:
             image_date = im.get("date")
 
             def carry_date_through(f: Image) -> Image:
@@ -98,7 +99,7 @@ class GriddedFeatureCollectionPlanner:
         processed_images: FeatureCollection = images.map(average_grid_value_for_date).flatten()
 
         return FeaturePlan(
-            type="grid-daily-average",
+            feature_type="grid-daily-average",
             planned_collection=processed_images,
             column_mappings=column_mappings,
         )
@@ -110,7 +111,7 @@ class GriddedFeatureCollectionPlanner:
         selected_bands: list[str],
     ) -> "FeaturePlan":
         """
-        Creates a static feature plan by regridding a single image to the grid.
+        Create a static feature plan by regridding a single image to the grid.
 
         :param image_name: The name of the Earth Engine image.
         :type image_name: str
@@ -127,9 +128,7 @@ class GriddedFeatureCollectionPlanner:
         )
         exported_properties = ids + transformed_band_names
         wanted_properties = ids + selected_bands
-        column_mappings = {
-            exported: wanted for exported, wanted in zip(exported_properties, wanted_properties)
-        }
+        column_mappings = dict(zip(exported_properties, wanted_properties))
 
         image = Image(image_name).select(selected_bands)
         # The only thing we need to do for this is to regrid.
@@ -140,7 +139,7 @@ class GriddedFeatureCollectionPlanner:
             scale=original_raster_scale,
         )
         return FeaturePlan(
-            type="single-image-grid",
+            feature_type="single-image-grid",
             planned_collection=processed_image,
             column_mappings=column_mappings,
         )
@@ -154,8 +153,10 @@ class GriddedFeatureCollectionPlanner:
         year: int,
     ) -> "FeaturePlan":
         """
-        Creates a feature plan for summarizing annual classified pixel data by
-        creating boolean bands for each class and aggregating them over the year.
+        Create a feature plan for summarizing annual classified pixel data.
+
+        Aggregate by creating boolean bands for each class and taking the mean
+        over the year.
 
         This will give, for each grid cell in the specified year, the percentage
         of time that the pixels in that cell were classified as each of the
@@ -172,7 +173,6 @@ class GriddedFeatureCollectionPlanner:
         :return: A feature plan containing the processed collection and column mappings.
         :rtype: FeaturePlan
         """
-
         original_raster_scale = self._get_collection_scale(collection_name)
 
         def add_classes_as_boolean_bands(original_image: Image) -> Image:
@@ -182,7 +182,10 @@ class GriddedFeatureCollectionPlanner:
             for output_name, class_values in output_names_to_class_values.items():
                 new_image = new_image.addBands(
                     band_column.remap(
-                        class_values, [1] * len(class_values), 0, classification_band
+                        class_values,
+                        [1] * len(class_values),
+                        0,
+                        classification_band,
                     ).rename(output_name),
                     [output_name],
                 )
@@ -200,8 +203,9 @@ class GriddedFeatureCollectionPlanner:
         # and then taking the mean
         image_for_year = Image(
             with_pivoted_columns.filterDate(
-                f"{year}-01-01T00:00:00", f"{year + 1}-01-01T00:00:00"
-            ).reduce(Reducer.mean())
+                f"{year}-01-01T00:00:00",
+                f"{year + 1}-01-01T00:00:00",
+            ).reduce(Reducer.mean()),
         )
 
         collection_for_year = image_for_year.reduceRegions(
@@ -216,42 +220,24 @@ class GriddedFeatureCollectionPlanner:
         id_columns = ["grid_id"]
         wanted_columns = id_columns + list(output_names_to_class_values.keys())
         exported_columns = id_columns + [
-            f"{output_name}_mean" for output_name in output_names_to_class_values.keys()
+            f"{output_name}_mean" for output_name in output_names_to_class_values
         ]
 
-        column_mappings = {
-            exported: wanted for exported, wanted in zip(exported_columns, wanted_columns)
-        }
+        column_mappings = dict(zip(exported_columns, wanted_columns))
 
         return FeaturePlan(
-            type="annual-classified-pixels",
+            feature_type="annual-classified-pixels",
             planned_collection=flattened,
             column_mappings=column_mappings,
             ignore_selectors=True,
         )
 
     @staticmethod
-    def _get_collection_scale(collection_name: str):
-        """
-        Retrieves the nominal scale of the first image in the specified collection.
-
-        :param collection_name: The name of the Earth Engine image collection.
-        :type collection_name: str
-        :return: The nominal scale of the collection.
-        :rtype: float
-        """
+    def _get_collection_scale(collection_name: str) -> Number:
         return ImageCollection(collection_name).first().projection().nominalScale()
 
     @staticmethod
-    def _get_image_scale(image_name: str):
-        """
-        Retrieves the nominal scale of the specified image.
-
-        :param image_name: The name of the Earth Engine image.
-        :type image_name: str
-        :return: The nominal scale of the image.
-        :rtype: float
-        """
+    def _get_image_scale(image_name: str) -> Number:
         return Image(image_name).projection().nominalScale()
 
 
@@ -265,16 +251,17 @@ class FeaturePlan:
 
     def __init__(
         self,
-        type: str,
+        *,
+        feature_type: str,
         planned_collection: FeatureCollection,
         column_mappings: dict[str, str],
         ignore_selectors: bool = False,
-    ):
+    ) -> None:
         """
-        Initializes a feature plan.
+        Initialize a feature plan.
 
-        :param type: The type of the feature plan (e.g., "grid-daily-average").
-        :type type: str
+        :param feature_type: The type of the feature plan (e.g., "grid-daily-average").
+        :type feature_type: str
         :param planned_collection: The proposed feature collection.
         :type planned_collection: FeatureCollection
         :param column_mappings: A mapping of exported column names to desired column names.
@@ -282,7 +269,7 @@ class FeaturePlan:
         :param ignore_selectors: Whether to ignore selectors during processing. Defaults to False.
         :type ignore_selectors: bool, optional
         """
-        self.type = type
+        self.feature_type = feature_type
         self.planned_collection = planned_collection
         self.column_mappings = column_mappings
         self.ignore_selectors = ignore_selectors
@@ -290,7 +277,7 @@ class FeaturePlan:
     @property
     def intermediate_columns(self) -> list[str]:
         """
-        Returns the columns that will be exported to the intermediate storage.
+        Return the columns that will be exported to the intermediate storage.
 
         :return: The keys of the column_mappings dictionary.
         :rtype: list[str]
@@ -300,7 +287,7 @@ class FeaturePlan:
     @property
     def wanted_columns(self) -> list[str]:
         """
-        Returns the columns that are wanted in the final export.
+        Return the columns that are wanted in the final export.
 
         :return: The values of the column_mappings dictionary.
         :rtype: list[str]

@@ -1,9 +1,10 @@
-import pytest
-import pyarrow as pa
-from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
 import os
 
+import pyarrow as pa
+import pytest
 from fsspec.implementations.memory import MemoryFileSystem
+
+from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
 
 INTERMEDIATE_BUCKET = "intermediate_bucket"
 DESTINATION_BUCKET = "destination_bucket"
@@ -29,10 +30,10 @@ def mock_csv_file(example_table):
 
 @pytest.fixture
 def in_memory_filesystem():
-    yield MemoryFileSystem()
+    return MemoryFileSystem()
 
 
-def test_get_intermediate_by_id(in_memory_filesystem, example_table):
+def test_get_intermediate_by_id(in_memory_filesystem, example_table) -> None:
     with in_memory_filesystem.open(os.path.join(INTERMEDIATE_BUCKET, "test_id.csv"), "wb") as f:
         pa.csv.write_csv(example_table, f)
 
@@ -49,7 +50,7 @@ def test_get_intermediate_by_id(in_memory_filesystem, example_table):
 
 
 # Update test_write_to_destination to use a valid FileSystem
-def test_write_to_destination(in_memory_filesystem, example_table):
+def test_write_to_destination(in_memory_filesystem, example_table) -> None:
     # Use LocalFileSystem pointing to the temp directory
     storage = GeeExportPipelineStorage(
         filesystem=in_memory_filesystem,
@@ -64,7 +65,7 @@ def test_write_to_destination(in_memory_filesystem, example_table):
     assert in_memory_filesystem.exists(result_path)
 
 
-def test_delete_intermediate_by_id(in_memory_filesystem, example_table):
+def test_delete_intermediate_by_id(in_memory_filesystem, example_table) -> None:
     # Create a temporary file to simulate the intermediate file
     file_path = os.path.join(INTERMEDIATE_BUCKET, "test_id.csv")
     with in_memory_filesystem.open(file_path, "wb") as f:

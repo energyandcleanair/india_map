@@ -1,44 +1,64 @@
-from pm25ml.logging import logger
+"""Feature planning for gridded feature collections."""
 
-from fsspec import AbstractFileSystem
 import pyarrow.parquet as pq
+from fsspec import AbstractFileSystem
 from pyarrow import Table
 from pyarrow.csv import ReadOptions, read_csv
 
+from pm25ml.logging import logger
+
 
 class GeeExportPipelineStorage:
+    """Handles the storage operations for the GeeExportPipeline."""
+
     def __init__(
         self,
         filesystem: AbstractFileSystem,
         intermediate_bucket: str,
         destination_bucket: str,
-    ):
+    ) -> None:
+        """
+        Initialize the GeeExportPipelineStorage with the filesystem and bucket paths.
+
+        :param filesystem: The filesystem to use for reading and writing files.
+        :param intermediate_bucket: The bucket name where intermediate CSV files are stored.
+        :param destination_bucket: The bucket name where processed Parquet files will be written.
+        """
         self.filesystem = filesystem
         self.intermediate_bucket = intermediate_bucket
         self.destination_bucket = destination_bucket
 
-    def get_intermediate_by_id(self, id: str) -> Table:
+    def get_intermediate_by_id(self, file_id: str) -> Table:
         """
-        Reads a CSV file from the intermediate bucket by its ID and returns it as a Table.
+        Read the CSV file by ID from the intermediate bucket.
+
+        :param file_id: The ID of the file to read.
+        :return: A pyarrow Table containing the data from the CSV file.
         """
-        csv_file_path = f"{self.intermediate_bucket}/{id}.csv"
+        csv_file_path = f"{self.intermediate_bucket}/{file_id}.csv"
         logger.info(f"Reading intermediate CSV file from {csv_file_path}")
         with self.filesystem.open(csv_file_path) as f:
             read_options = ReadOptions(block_size=64 * 1024 * 1024)
-            table = read_csv(f, read_options=read_options)
-        return table
+            return read_csv(f, read_options=read_options)
 
-    def delete_intermediate_by_id(self, id: str):
+    def delete_intermediate_by_id(self, file_id: str) -> None:
         """
-        Deletes a CSV file from the intermediate bucket by its ID.
+        Delete the CSV file from the intermediate bucket by its ID.
+
+        :param file_id: The ID of the file to delete.
+        :return: None
         """
-        csv_file_path = f"{self.intermediate_bucket}/{id}.csv"
+        csv_file_path = f"{self.intermediate_bucket}/{file_id}.csv"
         logger.info(f"Deleting intermediate CSV file {csv_file_path}")
         self.filesystem.delete(csv_file_path)
 
-    def write_to_destination(self, table: Table, result_subpath: str):
+    def write_to_destination(self, table: Table, result_subpath: str) -> None:
         """
-        Writes the processed Table to the destination bucket in Parquet format.
+        Write the processed Table to the destination bucket.
+
+        :param table: The pyarrow Table to write.
+        :param result_subpath: The subpath in the destination bucket where the
+        table will be written.
         """
         parquet_file_path = f"{self.destination_bucket}/{result_subpath}/"
         logger.info(f"Writing processed table to {parquet_file_path}")

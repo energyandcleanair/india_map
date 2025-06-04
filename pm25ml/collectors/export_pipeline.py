@@ -1,30 +1,32 @@
-from time import sleep
+"""Export pipeline for Google Earth Engine data to the underlying storage."""
+
+import contextlib
 import uuid
+from time import sleep
+from typing import TYPE_CHECKING
 
 from arrow import now
-from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
+from ee.batch import Export
+from pyarrow import Table
+
 from pm25ml.collectors.feature_planner import FeaturePlan
 from pm25ml.logging import logger
 
-from ee.batch import Export
-
-from pyarrow import Table
+if TYPE_CHECKING:
+    from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
 
 
 class GeeExportPipeline:
-    """
-    Handles the export of data from Google Earth Engine (GEE) to parquet in Google Cloud Storage (GCS).
-    This class defines a pipeline that exports data based on a given FeaturePlan, processes the data,
-    and writes the processed data to a specified location.
-    """
+    """Handles the export of data from GEE to the specified storage."""
 
     @staticmethod
     def with_storage(
         gee_export_pipeline_storage: "GeeExportPipelineStorage",
     ) -> "GeePipelineConstructor":
         """
-        Create a GeePipelineConstructor with the given storage. This allows for a more fluent
-        interface when constructing pipelines.
+        Create a GeePipelineConstructor with the given storage.
+
+        This allows for a more fluent interface when constructing pipelines.
         """
         return GeePipelineConstructor(gee_export_pipeline_storage)
 
@@ -33,16 +35,21 @@ class GeeExportPipeline:
         gee_export_pipeline_storage: "GeeExportPipelineStorage",
         plan: FeaturePlan,
         result_subpath: str,
-    ):
+    ) -> None:
+        """Initialize the GeeExportPipeline with the storage and plan."""
         self.gee_export_pipeline_storage = gee_export_pipeline_storage
         self.plan = plan
         self.result_subpath = result_subpath
 
-    def upload(self):
+    def upload(self) -> None:
+        """Upload the data from GEE to the underlying storage."""
         temporary_file_prefix = str(uuid.uuid4())
-        task_name = f"{self.plan.type}_{temporary_file_prefix}_{now().strftime('%Y%m%d_%H%M%S')}"
+        task_name = (
+            f"{self.plan.feature_type}_{temporary_file_prefix}_{now().strftime('%Y%m%d_%H%M%S')}"
+        )
 
-        # First, we define the task to export the data to GCS, run it, and then wait until it completes.
+        # First, we define the task to export the data to GCS, run it, and then wait until it
+        # completes.
         logger.info(f"Task {task_name}: starting task")
         task = self._define_task(
             task_name=task_name,
@@ -58,7 +65,7 @@ class GeeExportPipeline:
         logger.info(f"Task {task_name}: processing raw CSV table for task")
         processed_table = self._process(raw_table)
 
-        # Then we write the processed table to the destination bucket in Parquet format.
+        # Then we write the processed table to the destination bucket format.
         logger.info(f"Task {task_name}: writing task processed table to GCS {self.result_subpath}")
         self.gee_export_pipeline_storage.write_to_destination(processed_table, self.result_subpath)
 
@@ -79,7 +86,7 @@ class GeeExportPipeline:
             selectors=exported_properties if not self.plan.ignore_selectors else None,
         )
 
-    def _complete_task(self, *, task_name: str, task: Export):
+    def _complete_task(self, *, task_name: str, task: Export) -> None:
         try:
             task.start()
             delay_backoff = 1
@@ -87,19 +94,18 @@ class GeeExportPipeline:
             max_delay = 10
             while task.active():
                 logger.debug(
-                    f"Task {task_name}: waiting for task to complete ({delay_backoff}s delay)"
+                    f"Task {task_name}: waiting for task to complete ({delay_backoff}s delay)",
                 )
                 sleep(delay_backoff)
                 delay_backoff = min(max_delay, delay_backoff * growth_factor)
 
-            if not task.status().get("state") == "COMPLETED":
+            if task.status().get("state") != "COMPLETED":
                 error_message = task.status().get("error_message", "No error message")
-                raise RuntimeError(f"Task {task_name} failed: {error_message}")
+                msg = f"Task {task_name} failed: {error_message}"
+                raise RuntimeError(msg)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 task.cancel()
-            except Exception:
-                pass
 
     def _process(self, table: Table) -> Table:
         mappings = self.plan.column_mappings
@@ -108,15 +114,17 @@ class GeeExportPipeline:
         # Ensure the table has the expected columns
         missing_columns = [col for col in expected_columns if col not in table.column_names]
         if missing_columns:
-            raise ValueError(f"Table is missing expected columns: {', '.join(missing_columns)}")
+            msg = f"Table is missing expected columns: {', '.join(missing_columns)}"
+            raise ValueError(msg)
 
         # Test that the columns aren't all null values
         columns_null_values = [
             col for col in expected_columns if table.column(col).null_count == table.num_rows
         ]
         if columns_null_values:
+            msg = f"Table has columns with all null values: {', '.join(columns_null_values)}"
             raise ValueError(
-                f"Table has columns with all null values: {', '.join(columns_null_values)}"
+                msg,
             )
 
         # Drop extra columns that are not in the expected columns
@@ -144,10 +152,12 @@ class GeeExportPipeline:
 class GeePipelineConstructor:
     """
     A constructor for GeeExportPipeline that allows for a more fluent interface.
+
     Should be used with `GeeExportPipeline.with_storage()`.
     """
 
-    def __init__(self, gee_export_pipeline_storage: "GeeExportPipelineStorage"):
+    def __init__(self, gee_export_pipeline_storage: "GeeExportPipelineStorage") -> None:
+        """Initialize the GeePipelineConstructor with the storage."""
         self.gee_export_pipeline_storage = gee_export_pipeline_storage
 
     def construct(
@@ -155,6 +165,13 @@ class GeePipelineConstructor:
         plan: FeaturePlan,
         result_subpath: str,
     ) -> "GeeExportPipeline":
+        """
+        Construct a GeeExportPipeline with the given plan and result subpath.
+
+        :param plan: The feature plan to use for the export.
+        :param result_subpath: The subpath in the destination bucket where the results will be
+        stored.
+        """
         return GeeExportPipeline(
             gee_export_pipeline_storage=self.gee_export_pipeline_storage,
             plan=plan,

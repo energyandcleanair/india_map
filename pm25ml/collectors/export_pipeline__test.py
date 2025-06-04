@@ -1,6 +1,8 @@
-import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
+
 import pyarrow as pa
+import pytest
+
 from pm25ml.collectors.export_pipeline import GeeExportPipeline
 from pm25ml.collectors.feature_planner import FeaturePlan
 
@@ -31,12 +33,11 @@ def mock_sleep():
 @pytest.fixture
 def example_feature_plan():
     planned_collection = MagicMock()
-    plan = FeaturePlan(
-        type="mock_type",
+    return FeaturePlan(
+        feature_type="mock_type",
         column_mappings={"col1": "mapped_col1", "col2": "mapped_col2"},
         planned_collection=planned_collection,
     )
-    return plan
 
 
 @pytest.fixture
@@ -99,8 +100,8 @@ def mock_storage_all_null_values():
 
 
 def test_GeeExportPipeline_upload_taskExecutionAndStorageHandling(
-    mock_storage_valid_table, example_feature_plan, mock_successful_export, mock_task
-):
+    mock_storage_valid_table, example_feature_plan, mock_successful_export, mock_task,
+) -> None:
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_valid_table,
         plan=example_feature_plan,
@@ -131,8 +132,8 @@ def test_GeeExportPipeline_upload_taskExecutionAndStorageHandling(
 
 
 def test_GeeExportPipeline_upload_taskFailure(
-    mock_storage_valid_table, example_feature_plan, mock_task
-):
+    mock_storage_valid_table, example_feature_plan, mock_task,
+) -> None:
     # Simulate a task ending with a FAILURE status
     mock_task.status.return_value = {
         "state": "FAILED",
@@ -150,8 +151,8 @@ def test_GeeExportPipeline_upload_taskFailure(
 
 
 def test_GeeExportPipeline_process_tableProcessingLogic(
-    mock_storage_valid_table, example_feature_plan
-):
+    mock_storage_valid_table, example_feature_plan,
+) -> None:
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_valid_table,
         plan=example_feature_plan,
@@ -177,8 +178,8 @@ def test_GeeExportPipeline_process_tableProcessingLogic(
 
 
 def test_GeeExportPipeline_upload_exponentialBackoff(
-    mock_storage_valid_table, example_feature_plan, mock_sleep
-):
+    mock_storage_valid_table, example_feature_plan, mock_sleep,
+) -> None:
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_valid_table,
         plan=example_feature_plan,
@@ -200,13 +201,13 @@ def test_GeeExportPipeline_upload_exponentialBackoff(
             [
                 call(1),
                 call(1.5),
-            ]
+            ],
         )
 
 
 def test_GeeExportPipeline_upload_missingColumns(
-    mock_storage_missing_columns, example_feature_plan
-):
+    mock_storage_missing_columns, example_feature_plan,
+) -> None:
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_missing_columns,
         plan=example_feature_plan,
@@ -218,8 +219,8 @@ def test_GeeExportPipeline_upload_missingColumns(
 
 
 def test_GeeExportPipeline_upload_allNullColumns(
-    mock_storage_all_null_values, example_feature_plan
-):
+    mock_storage_all_null_values, example_feature_plan,
+) -> None:
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_all_null_values,
         plan=example_feature_plan,

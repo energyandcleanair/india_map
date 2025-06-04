@@ -1,19 +1,19 @@
-from arrow import Arrow, get
-import ee
+"""Runner to get the data from a variety of sources."""
 
+import os
+from concurrent.futures import ThreadPoolExecutor
+
+import ee
+from arrow import Arrow, get
+from ee import FeatureCollection
 from gcsfs import GCSFileSystem
 
-from ee import FeatureCollection
-
-from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
+from pm25ml.collectors.export_pipeline import GeeExportPipeline
 from pm25ml.collectors.feature_planner import (
     GriddedFeatureCollectionPlanner,
 )
+from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
 from pm25ml.logging import logger
-
-from pm25ml.collectors.export_pipeline import GeeExportPipeline
-from concurrent.futures import ThreadPoolExecutor
-import os
 
 GCP_PROJECT = os.environ["GCP_PROJECT"]
 INDIA_SHAPEFILE_ASSET = os.environ["INDIA_SHAPEFILE_ASSET"]
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     month_end_exclusive = month_start.shift(months=1)
 
     dates_in_month: list[Arrow] = list(
-        Arrow.range("day", start=month_start, end=month_end_exclusive)
+        Arrow.range("day", start=month_start, end=month_end_exclusive),
     )
 
     pipeline_constructor = GeeExportPipeline.with_storage(
@@ -120,8 +120,8 @@ if __name__ == "__main__":
         results = executor.map(lambda processor: processor.upload(), processors)
 
         try:
-            for result in results:
+            for _result in results:
                 pass
-        except Exception as e:
+        except Exception:
             logger.error("An error occurred during processing", exc_info=True, stack_info=True)
-            raise e
+            raise

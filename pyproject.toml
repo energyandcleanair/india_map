@@ -69,4 +69,14 @@ include = [
     "pyproject.toml",
     "./pm25ml/**/*.py",
 ]
+exclude = [
+    "./pm25ml/**/*__test.py",
+]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",
+    "D212",
+]

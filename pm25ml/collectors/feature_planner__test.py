@@ -1,18 +1,19 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from arrow import get
 
 from pm25ml.collectors.feature_planner import (
-    GriddedFeatureCollectionPlanner,
     FeaturePlan,
+    GriddedFeatureCollectionPlanner,
 )
 
 
-def test__FeaturePlan_intermediate_columns__correct_keys__returned():
+def test__FeaturePlan_intermediate_columns__correct_keys__returned() -> None:
     mock_feature_collection = MagicMock()
     column_mappings = {"key1": "value1", "key2": "value2"}
     feature_plan = FeaturePlan(
-        type="test-type",
+        feature_type="test-type",
         planned_collection=mock_feature_collection,
         column_mappings=column_mappings,
     )
@@ -20,11 +21,11 @@ def test__FeaturePlan_intermediate_columns__correct_keys__returned():
     assert feature_plan.intermediate_columns == ["key1", "key2"]
 
 
-def test__FeaturePlan_wanted_columns__correct_values__returned():
+def test__FeaturePlan_wanted_columns__correct_values__returned() -> None:
     mock_feature_collection = MagicMock()
     column_mappings = {"key1": "value1", "key2": "value2"}
     feature_plan = FeaturePlan(
-        type="test-type",
+        feature_type="test-type",
         planned_collection=mock_feature_collection,
         column_mappings=column_mappings,
     )
@@ -70,14 +71,14 @@ def mock_gee_for_daily_average():
 
 def test__GriddedFeatureCollectionPlanner_plan_daily_average__columns_specified__correct_columns_suggested(
     mock_gee_for_daily_average,
-):
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     selected_bands = ["AOD", "PM25"]
     date = get("2023-04-01")
 
     planner.plan_daily_average(
-        collection_name="FAKE/COLLECTION", selected_bands=selected_bands, dates=[date]
+        collection_name="FAKE/COLLECTION", selected_bands=selected_bands, dates=[date],
     )
 
     # Check that we selected the correct bands
@@ -86,7 +87,7 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__columns_specified_
 
 def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_dates__dated_images_processed_correctly(
     mock_gee_for_daily_average,
-):
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     dates = [get("2023-01-01"), get("2023-01-02")]
@@ -120,14 +121,14 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_dates__dated_
         [
             mock_gee_for_daily_average["fake_image"],
             mock_gee_for_daily_average["fake_image"],
-        ]
+        ],
     )
     mock_gee_for_daily_average["from_images_mock"].map.assert_called_once()
 
 
 def test__GriddedFeatureCollectionPlanner_plan_daily_average__gridding__gridding_logic_is_handled_correctly(
     mock_gee_for_daily_average,
-):
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     dates = [get("2023-01-01"), get("2023-01-02")]
@@ -175,7 +176,7 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__gridding__gridding
 
 
 @pytest.mark.parametrize(
-    "bands,expected_column_mappings",
+    ("bands", "expected_column_mappings"),
     [
         (
             ["PM25"],
@@ -195,8 +196,8 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__gridding__gridding
 )
 @pytest.mark.usefixtures("mock_gee_for_daily_average")
 def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_bands__correct_column_mappings_specified(
-    bands, expected_column_mappings
-):
+    bands, expected_column_mappings,
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     result = planner.plan_daily_average(
@@ -237,7 +238,7 @@ def mock_gee_for_static_feature():
 
 def test__GriddedFeatureCollectionPlanner_static_feature__columns_specified__correct_columns_suggested(
     mock_gee_for_static_feature,
-):
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     selected_bands = ["AOD", "PM25"]
@@ -246,13 +247,13 @@ def test__GriddedFeatureCollectionPlanner_static_feature__columns_specified__cor
 
     # Check that we selected the correct bands
     mock_gee_for_static_feature["mock_image_instance"].select.assert_called_once_with(
-        selected_bands
+        selected_bands,
     )
 
 
 def test__GriddedFeatureCollectionPlanner_static_feature__gridding__gridding_logic_is_handled_correctly(
     mock_gee_for_static_feature,
-):
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     selected_bands = ["PM25"]
@@ -272,7 +273,7 @@ def test__GriddedFeatureCollectionPlanner_static_feature__gridding__gridding_log
 
 
 @pytest.mark.parametrize(
-    "selected_bands,expected_column_mappings",
+    ("selected_bands", "expected_column_mappings"),
     [
         (
             ["NO2"],
@@ -286,8 +287,8 @@ def test__GriddedFeatureCollectionPlanner_static_feature__gridding__gridding_log
     ids=["single_band", "multiple_bands"],
 )
 def test__GriddedFeatureCollectionPlanner_static_feature__column_mappings__correct_mappings_specified(
-    mock_gee_for_static_feature, selected_bands, expected_column_mappings
-):
+    mock_gee_for_static_feature, selected_bands, expected_column_mappings,
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
 
@@ -332,7 +333,7 @@ def mock_gee_for_annual_classified_pixels():
 
 def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__columns_specified__correct_columns_suggested(
     mock_gee_for_annual_classified_pixels,
-):
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     classification_band = "land_cover"
@@ -348,13 +349,13 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__columns_spec
 
     # Check that we selected the correct classification band
     mock_gee_for_annual_classified_pixels["mock_ic_instance"].select.assert_called_once_with(
-        classification_band
+        classification_band,
     )
 
 
 def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gridding_logic_is_handled_correctly(
     mock_gee_for_annual_classified_pixels,
-):
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     classification_band = "land_cover"
@@ -389,7 +390,7 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gr
 
 
 @pytest.mark.parametrize(
-    "classification_band,output_names_to_class_values,expected_column_mappings",
+    ("classification_band", "output_names_to_class_values", "expected_column_mappings"),
     [
         (
             "land_cover",
@@ -410,8 +411,8 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gr
 )
 @pytest.mark.usefixtures("mock_gee_for_annual_classified_pixels")
 def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__column_mappings__correct_mappings_specified(
-    classification_band, output_names_to_class_values, expected_column_mappings
-):
+    classification_band, output_names_to_class_values, expected_column_mappings,
+) -> None:
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
 
