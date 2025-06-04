@@ -2,7 +2,11 @@ import pytest
 from unittest.mock import patch, MagicMock
 from arrow import get
 
-from pm25ml.collectors.feature_planner import GriddedFeatureCollectionPlanner, FeaturePlan
+from pm25ml.collectors.feature_planner import (
+    GriddedFeatureCollectionPlanner,
+    FeaturePlan,
+)
+
 
 def test__FeaturePlan_intermediate_columns__correct_keys__returned():
     mock_feature_collection = MagicMock()
@@ -15,6 +19,7 @@ def test__FeaturePlan_intermediate_columns__correct_keys__returned():
 
     assert feature_plan.intermediate_columns == ["key1", "key2"]
 
+
 def test__FeaturePlan_wanted_columns__correct_values__returned():
     mock_feature_collection = MagicMock()
     column_mappings = {"key1": "value1", "key2": "value2"}
@@ -26,16 +31,15 @@ def test__FeaturePlan_wanted_columns__correct_values__returned():
 
     assert feature_plan.wanted_columns == ["value1", "value2"]
 
+
 @pytest.fixture
 def mock_gee_for_daily_average():
-    with patch("pm25ml.collectors.feature_planner.ImageCollection") as MockImageCollection, patch(
-        "pm25ml.collectors.feature_planner.Reducer"
-    ) as MockReducer, patch(
-        "pm25ml.collectors.feature_planner.Image"
-    ) as MockImage, patch(
-        "pm25ml.collectors.feature_planner.FeatureCollection"
-    ) as MockFeatureCollection:
-
+    with (
+        patch("pm25ml.collectors.feature_planner.ImageCollection") as MockImageCollection,
+        patch("pm25ml.collectors.feature_planner.Reducer") as MockReducer,
+        patch("pm25ml.collectors.feature_planner.Image") as MockImage,
+        patch("pm25ml.collectors.feature_planner.FeatureCollection") as MockFeatureCollection,
+    ):
         mock_ic_instance = MagicMock()
         MockImageCollection.return_value = mock_ic_instance
         mock_ic_instance.select.return_value = mock_ic_instance
@@ -64,7 +68,9 @@ def mock_gee_for_daily_average():
         }
 
 
-def test__GriddedFeatureCollectionPlanner_plan_daily_average__columns_specified__correct_columns_suggested(mock_gee_for_daily_average):
+def test__GriddedFeatureCollectionPlanner_plan_daily_average__columns_specified__correct_columns_suggested(
+    mock_gee_for_daily_average,
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     selected_bands = ["AOD", "PM25"]
@@ -77,7 +83,10 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__columns_specified_
     # Check that we selected the correct bands
     mock_gee_for_daily_average["mock_ic_instance"].select.assert_called_once_with(selected_bands)
 
-def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_dates__dated_images_processed_correctly(mock_gee_for_daily_average):
+
+def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_dates__dated_images_processed_correctly(
+    mock_gee_for_daily_average,
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     dates = [get("2023-01-01"), get("2023-01-02")]
@@ -91,23 +100,34 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_dates__dated_
     # Assert filterDate was called for each date
     # Assert filterDate was called with correct date ranges for each date
     assert mock_gee_for_daily_average["mock_ic_instance"].filterDate.call_count == 2
-    assert mock_gee_for_daily_average["mock_ic_instance"].filterDate.call_args_list[0][0] == ("2023-01-01T00:00:00", "2023-01-02T00:00:00")
-    assert mock_gee_for_daily_average["mock_ic_instance"].filterDate.call_args_list[1][0] == ("2023-01-02T00:00:00", "2023-01-03T00:00:00")
+    assert mock_gee_for_daily_average["mock_ic_instance"].filterDate.call_args_list[0][0] == (
+        "2023-01-01T00:00:00",
+        "2023-01-02T00:00:00",
+    )
+    assert mock_gee_for_daily_average["mock_ic_instance"].filterDate.call_args_list[1][0] == (
+        "2023-01-02T00:00:00",
+        "2023-01-03T00:00:00",
+    )
 
     # Assert reduce and set were called for each date
     assert mock_gee_for_daily_average["fake_image"].set.call_count == 2
     assert mock_gee_for_daily_average["fake_image"].set.call_args_list[0][0][1] == "2023-01-01"
     assert mock_gee_for_daily_average["fake_image"].set.call_args_list[1][0][1] == "2023-01-02"
-    
+
     assert mock_gee_for_daily_average["fake_image"].reduce.call_count == 2
 
-    mock_gee_for_daily_average["MockImageCollection"].fromImages.assert_called_once_with([
-        mock_gee_for_daily_average["fake_image"], mock_gee_for_daily_average["fake_image"]
-    ])
+    mock_gee_for_daily_average["MockImageCollection"].fromImages.assert_called_once_with(
+        [
+            mock_gee_for_daily_average["fake_image"],
+            mock_gee_for_daily_average["fake_image"],
+        ]
+    )
     mock_gee_for_daily_average["from_images_mock"].map.assert_called_once()
 
-def test__GriddedFeatureCollectionPlanner_plan_daily_average__gridding__gridding_logic_is_handled_correctly(mock_gee_for_daily_average):
 
+def test__GriddedFeatureCollectionPlanner_plan_daily_average__gridding__gridding_logic_is_handled_correctly(
+    mock_gee_for_daily_average,
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     dates = [get("2023-01-01"), get("2023-01-02")]
@@ -174,7 +194,9 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__gridding__gridding
     ids=["single_band", "multiple_bands"],
 )
 @pytest.mark.usefixtures("mock_gee_for_daily_average")
-def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_bands__correct_column_mappings_specified(bands, expected_column_mappings):
+def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_bands__correct_column_mappings_specified(
+    bands, expected_column_mappings
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     result = planner.plan_daily_average(
@@ -188,12 +210,11 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_bands__correc
 
 @pytest.fixture
 def mock_gee_for_static_feature():
-    with patch("pm25ml.collectors.feature_planner.Image") as MockImage, patch(
-        "pm25ml.collectors.feature_planner.Reducer"
-    ) as MockReducer, patch(
-        "pm25ml.collectors.feature_planner.FeatureCollection"
-    ) as MockFeatureCollection:
-
+    with (
+        patch("pm25ml.collectors.feature_planner.Image") as MockImage,
+        patch("pm25ml.collectors.feature_planner.Reducer") as MockReducer,
+        patch("pm25ml.collectors.feature_planner.FeatureCollection") as MockFeatureCollection,
+    ):
         mock_image_instance = MagicMock()
         MockImage.return_value = mock_image_instance
         mock_image_instance.select.return_value = mock_image_instance
@@ -213,19 +234,25 @@ def mock_gee_for_static_feature():
             "fake_mean": fake_mean,
         }
 
-def test__GriddedFeatureCollectionPlanner_static_feature__columns_specified__correct_columns_suggested(mock_gee_for_static_feature):
+
+def test__GriddedFeatureCollectionPlanner_static_feature__columns_specified__correct_columns_suggested(
+    mock_gee_for_static_feature,
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     selected_bands = ["AOD", "PM25"]
 
-    planner.plan_static_feature(
-        image_name="FAKE/IMAGE", selected_bands=selected_bands
-    )
+    planner.plan_static_feature(image_name="FAKE/IMAGE", selected_bands=selected_bands)
 
     # Check that we selected the correct bands
-    mock_gee_for_static_feature["mock_image_instance"].select.assert_called_once_with(selected_bands)
+    mock_gee_for_static_feature["mock_image_instance"].select.assert_called_once_with(
+        selected_bands
+    )
 
-def test__GriddedFeatureCollectionPlanner_static_feature__gridding__gridding_logic_is_handled_correctly(mock_gee_for_static_feature):
+
+def test__GriddedFeatureCollectionPlanner_static_feature__gridding__gridding_logic_is_handled_correctly(
+    mock_gee_for_static_feature,
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     selected_bands = ["PM25"]
@@ -242,6 +269,7 @@ def test__GriddedFeatureCollectionPlanner_static_feature__gridding__gridding_log
         crs="EPSG:7755",  # Updated to match INDIA_CRS
         scale=mock_gee_for_static_feature["mock_image_instance"].projection().nominalScale(),
     )
+
 
 @pytest.mark.parametrize(
     "selected_bands,expected_column_mappings",
@@ -270,16 +298,15 @@ def test__GriddedFeatureCollectionPlanner_static_feature__column_mappings__corre
 
     assert result.column_mappings == expected_column_mappings
 
+
 @pytest.fixture
 def mock_gee_for_annual_classified_pixels():
-    with patch("pm25ml.collectors.feature_planner.ImageCollection") as MockImageCollection, patch(
-        "pm25ml.collectors.feature_planner.Reducer"
-    ) as MockReducer, patch(
-        "pm25ml.collectors.feature_planner.Image"
-    ) as MockImage, patch(
-        "pm25ml.collectors.feature_planner.FeatureCollection"
-    ) as MockFeatureCollection:
-
+    with (
+        patch("pm25ml.collectors.feature_planner.ImageCollection") as MockImageCollection,
+        patch("pm25ml.collectors.feature_planner.Reducer") as MockReducer,
+        patch("pm25ml.collectors.feature_planner.Image") as MockImage,
+        patch("pm25ml.collectors.feature_planner.FeatureCollection") as MockFeatureCollection,
+    ):
         mock_ic_instance = MagicMock()
         MockImageCollection.return_value = mock_ic_instance
         mock_ic_instance.select.return_value = mock_ic_instance
@@ -302,7 +329,10 @@ def mock_gee_for_annual_classified_pixels():
             "fake_mean": fake_mean,
         }
 
-def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__columns_specified__correct_columns_suggested(mock_gee_for_annual_classified_pixels):
+
+def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__columns_specified__correct_columns_suggested(
+    mock_gee_for_annual_classified_pixels,
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     classification_band = "land_cover"
@@ -317,9 +347,14 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__columns_spec
     )
 
     # Check that we selected the correct classification band
-    mock_gee_for_annual_classified_pixels["mock_ic_instance"].select.assert_called_once_with(classification_band)
+    mock_gee_for_annual_classified_pixels["mock_ic_instance"].select.assert_called_once_with(
+        classification_band
+    )
 
-def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gridding_logic_is_handled_correctly(mock_gee_for_annual_classified_pixels):
+
+def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gridding_logic_is_handled_correctly(
+    mock_gee_for_annual_classified_pixels,
+):
     grid = MagicMock()
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     classification_band = "land_cover"
@@ -334,7 +369,9 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gr
     )
 
     # Capture the function passed into the map call
-    captured_map_function = mock_gee_for_annual_classified_pixels["mock_ic_instance"].map.call_args[0][0]
+    captured_map_function = mock_gee_for_annual_classified_pixels["mock_ic_instance"].map.call_args[
+        0
+    ][0]
 
     # Mock an image with a classification band
     mock_image = MagicMock()
@@ -350,6 +387,7 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gr
     # Verify the result
     assert result == mock_image
 
+
 @pytest.mark.parametrize(
     "classification_band,output_names_to_class_values,expected_column_mappings",
     [
@@ -361,7 +399,11 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__gridding__gr
         (
             "land_use",
             {"agriculture": [3], "water": [4]},
-            {"grid_id": "grid_id", "agriculture_mean": "agriculture", "water_mean": "water"},
+            {
+                "grid_id": "grid_id",
+                "agriculture_mean": "agriculture",
+                "water_mean": "water",
+            },
         ),
     ],
     ids=["land_cover", "land_use"],
@@ -381,4 +423,3 @@ def test__GriddedFeatureCollectionPlanner_annual_classified_pixels__column_mappi
     )
 
     assert result.column_mappings == expected_column_mappings
-

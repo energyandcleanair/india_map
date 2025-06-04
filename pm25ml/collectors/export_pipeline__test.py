@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
-from pyarrow import Table
 import pyarrow as pa
 from pm25ml.collectors.export_pipeline import GeeExportPipeline
 from pm25ml.collectors.feature_planner import FeaturePlan
@@ -15,16 +14,19 @@ def mock_now():
         mock_now.return_value.strftime.return_value = CURRENT_TIME
         yield mock_now
 
+
 @pytest.fixture(autouse=True)
 def mock_uuid():
     with patch("pm25ml.collectors.export_pipeline.uuid.uuid4") as mock_uuid:
         mock_uuid.return_value = FIXED_UUID
         yield mock_uuid
 
+
 @pytest.fixture(autouse=True)
 def mock_sleep():
     with patch("pm25ml.collectors.export_pipeline.sleep") as mock_sleep:
         yield mock_sleep
+
 
 @pytest.fixture
 def example_feature_plan():
@@ -36,9 +38,9 @@ def example_feature_plan():
     )
     return plan
 
+
 @pytest.fixture
 def mock_storage_valid_table():
-
     data = {
         "col1": [1, 2, 3],
         "col2": [4, 5, 6],
@@ -51,12 +53,17 @@ def mock_storage_valid_table():
     storage.get_intermediate_by_id.return_value = table
     return storage
 
+
 @pytest.fixture
 def mock_task():
     task = MagicMock()
-    task.active.side_effect = [True, False]  # Simulate task becoming inactive after one iteration
+    task.active.side_effect = [
+        True,
+        False,
+    ]  # Simulate task becoming inactive after one iteration
     task.status.return_value = {"state": "COMPLETED"}
     return task
+
 
 # This is autoused by default but can be overridden in tests if needed
 @pytest.fixture(autouse=True)
@@ -64,6 +71,7 @@ def mock_successful_export(mock_task):
     with patch("pm25ml.collectors.export_pipeline.Export") as MockExport:
         MockExport.table.toCloudStorage.return_value = mock_task
         yield MockExport
+
 
 @pytest.fixture
 def mock_storage_missing_columns():
@@ -75,6 +83,7 @@ def mock_storage_missing_columns():
     storage = MagicMock()
     storage.get_intermediate_by_id.return_value = table
     return storage
+
 
 @pytest.fixture
 def mock_storage_all_null_values():
@@ -88,10 +97,10 @@ def mock_storage_all_null_values():
     storage.get_intermediate_by_id.return_value = table
     return storage
 
+
 def test_GeeExportPipeline_upload_taskExecutionAndStorageHandling(
     mock_storage_valid_table, example_feature_plan, mock_successful_export, mock_task
 ):
-
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_valid_table,
         plan=example_feature_plan,
@@ -120,11 +129,15 @@ def test_GeeExportPipeline_upload_taskExecutionAndStorageHandling(
     mock_storage_valid_table.write_to_destination.assert_called_once()
     mock_storage_valid_table.delete_intermediate_by_id.assert_called_once_with(FIXED_UUID)
 
+
 def test_GeeExportPipeline_upload_taskFailure(
     mock_storage_valid_table, example_feature_plan, mock_task
 ):
     # Simulate a task ending with a FAILURE status
-    mock_task.status.return_value = {"state": "FAILED", "error_message": "Task failed due to an unknown error."}
+    mock_task.status.return_value = {
+        "state": "FAILED",
+        "error_message": "Task failed due to an unknown error.",
+    }
 
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_valid_table,
@@ -134,6 +147,7 @@ def test_GeeExportPipeline_upload_taskFailure(
 
     with pytest.raises(RuntimeError, match="Task failed due to an unknown error."):
         pipeline.upload()
+
 
 def test_GeeExportPipeline_process_tableProcessingLogic(
     mock_storage_valid_table, example_feature_plan
@@ -161,10 +175,10 @@ def test_GeeExportPipeline_process_tableProcessingLogic(
     expected_table = pa.Table.from_pydict(expected_data)
     assert processed_table.equals(expected_table)
 
+
 def test_GeeExportPipeline_upload_exponentialBackoff(
     mock_storage_valid_table, example_feature_plan, mock_sleep
 ):
-
     pipeline = GeeExportPipeline(
         gee_export_pipeline_storage=mock_storage_valid_table,
         plan=example_feature_plan,
@@ -182,10 +196,13 @@ def test_GeeExportPipeline_upload_exponentialBackoff(
         pipeline.upload()
 
         # Check that sleep was called with exponential backoff values
-        mock_sleep.assert_has_calls([
-            call(1),
-            call(1.5),
-        ])
+        mock_sleep.assert_has_calls(
+            [
+                call(1),
+                call(1.5),
+            ]
+        )
+
 
 def test_GeeExportPipeline_upload_missingColumns(
     mock_storage_missing_columns, example_feature_plan
@@ -198,6 +215,7 @@ def test_GeeExportPipeline_upload_missingColumns(
 
     with pytest.raises(ValueError, match="Table is missing expected columns: col2"):
         pipeline.upload()
+
 
 def test_GeeExportPipeline_upload_allNullColumns(
     mock_storage_all_null_values, example_feature_plan

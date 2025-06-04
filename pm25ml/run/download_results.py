@@ -97,16 +97,14 @@ if __name__ == "__main__":
                 image_name="USGS/SRTMGL1_003",
                 selected_bands=["elevation"],
             ),
-            result_subpath=f"country=india/dataset=srtm_elevation",
+            result_subpath="country=india/dataset=srtm_elevation",
         ),
         pipeline_constructor.construct(
             plan=feature_planner.plan_summarise_annual_classified_pixels(
                 collection_name="MODIS/061/MCD12Q1",
                 classification_band="LC_Type1",
                 output_names_to_class_values={
-                    "forest": [
-                        1, 2, 3, 4, 5
-                    ],
+                    "forest": [1, 2, 3, 4, 5],
                     "shrub": [6, 7],
                     "savanna": [9],
                     "urban": [13],
@@ -114,8 +112,8 @@ if __name__ == "__main__":
                 },
                 year=2023,
             ),
-            result_subpath=f"country=india/dataset=modis_land_cover/year=2023",
-        )
+            result_subpath="country=india/dataset=modis_land_cover/year=2023",
+        ),
     ]
 
     with ThreadPoolExecutor() as executor:
@@ -125,6 +123,5 @@ if __name__ == "__main__":
             for result in results:
                 pass
         except Exception as e:
-            logger.error(f"An error occurred during processing", exc_info=True, stack_info=True)
+            logger.error("An error occurred during processing", exc_info=True, stack_info=True)
             raise e
-        

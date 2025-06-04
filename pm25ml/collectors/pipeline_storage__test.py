@@ -1,16 +1,13 @@
 import pytest
-from unittest.mock import MagicMock
 import pyarrow as pa
-import pyarrow.fs as pafs
-from pyarrow.csv import ReadOptions
 from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
-import tempfile
 import os
 
 from fsspec.implementations.memory import MemoryFileSystem
 
 INTERMEDIATE_BUCKET = "intermediate_bucket"
 DESTINATION_BUCKET = "destination_bucket"
+
 
 @pytest.fixture
 def example_table():
@@ -20,6 +17,7 @@ def example_table():
     }
     return pa.Table.from_pydict(data)
 
+
 # Update test_get_intermediate_by_id to use a valid NativeFile
 @pytest.fixture
 def mock_csv_file(example_table):
@@ -28,9 +26,11 @@ def mock_csv_file(example_table):
     pa.csv.write_csv(example_table, csv_buffer)
     return pa.BufferReader(csv_buffer.getvalue())
 
+
 @pytest.fixture
 def in_memory_filesystem():
     yield MemoryFileSystem()
+
 
 def test_get_intermediate_by_id(in_memory_filesystem, example_table):
     with in_memory_filesystem.open(os.path.join(INTERMEDIATE_BUCKET, "test_id.csv"), "wb") as f:
@@ -47,6 +47,7 @@ def test_get_intermediate_by_id(in_memory_filesystem, example_table):
 
     assert table.equals(example_table)
 
+
 # Update test_write_to_destination to use a valid FileSystem
 def test_write_to_destination(in_memory_filesystem, example_table):
     # Use LocalFileSystem pointing to the temp directory
@@ -61,6 +62,7 @@ def test_write_to_destination(in_memory_filesystem, example_table):
     # Validate that the Parquet file was written to the temp directory
     result_path = os.path.join(DESTINATION_BUCKET, "result_path")
     assert in_memory_filesystem.exists(result_path)
+
 
 def test_delete_intermediate_by_id(in_memory_filesystem, example_table):
     # Create a temporary file to simulate the intermediate file
