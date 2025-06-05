@@ -8,10 +8,7 @@ from arrow import Arrow, get
 from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
 
-from pm25ml.collectors.export_pipeline import GeeExportPipeline
-from pm25ml.collectors.feature_planner import (
-    GriddedFeatureCollectionPlanner,
-)
+from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
 from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
 from pm25ml.logging import logger
 
