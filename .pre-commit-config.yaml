@@ -4,6 +4,12 @@ repos:
   hooks:
     - id: ruff
       types_or: [ python, pyi ]
-      args: [ --fix ]
+      args: [ "--fix", "--exclude=reference,experiments,*__test.py" ]
     - id: ruff-format
       types_or: [ python, pyi ]
+      args: [ "--exclude=reference,experiments,*__test.py" ]
+
+exclude: |
+  ^reference.*
+  ^experiments.*
+  ^.*__test.py
