@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, call, patch
 
-import pyarrow as pa
+from polars import DataFrame
 import pytest
 
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
@@ -68,7 +68,7 @@ def mock_intermediate_storage_valid_table():
         "col2": [4, 5, 6],
         "extra_col": [7, 8, 9],
     }
-    table = pa.Table.from_pydict(data)
+    table = DataFrame(data)
 
     storage = MagicMock(spec=GeeIntermediateStorage)
     storage.bucket = "mock_bucket"
@@ -83,7 +83,7 @@ def mock_intermediate_storage_missing_columns():
         "col1": [1, 2, 3],
         "extra_col": [7, 8, 9],
     }
-    table = pa.Table.from_pydict(data)
+    table = DataFrame(data)
     storage = MagicMock(spec=GeeIntermediateStorage)
     storage.bucket = "mock_bucket"
     storage.get_intermediate_by_id.return_value = table
@@ -97,7 +97,7 @@ def mock_intermediate_storage_all_null_values():
         "col2": [None, None, None],
         "extra_col": [7, 8, 9],
     }
-    table = pa.Table.from_pydict(data)
+    table = DataFrame(data)
     storage = MagicMock(spec=GeeIntermediateStorage)
     storage.bucket = "mock_bucket"
     storage.get_intermediate_by_id.return_value = table
@@ -107,6 +107,31 @@ def mock_intermediate_storage_all_null_values():
 def mock_archive_storage():
     storage = MagicMock(spec=IngestArchiveStorage)
     storage.destination_bucket = "mock_destination_bucket"
+    return storage
+
+@pytest.fixture
+def example_plan_with_date_and_Grid():
+    planned_collection = MagicMock()
+    
+    return FeaturePlan(
+        feature_type="mock_type",
+        column_mappings={"date": "date", "grid_id": "grid_id", "col1": "mapped_col1", "col2": "mapped_col2"},
+        planned_collection=planned_collection,
+    )
+
+@pytest.fixture
+def mock_intermediate_storage_out_of_order():
+    data = {
+        "col1": [3, 1, 2, 4],
+        "col2": [6, 4, 5, 4],
+        "date": ["2025-06-03", "2025-06-01", "2025-06-02", "2025-06-01"],
+        "grid_id": ["grid_1", "grid_1", "grid_2", "grid_3"],
+    }
+    table = DataFrame(data)
+
+    storage = MagicMock(spec=GeeIntermediateStorage)
+    storage.bucket = "mock_bucket"
+    storage.get_intermediate_by_id.return_value = table
     return storage
 
 
@@ -180,14 +205,14 @@ def test_GeeExportPipeline_process_tableProcessingLogic(
     processed_table = mock_archive_storage.write_to_destination.call_args[0][0]
 
     # Check that extra columns were dropped
-    assert "extra_col" not in processed_table.column_names
+    assert "extra_col" not in processed_table.columns
 
     # Check that the table was sorted
     expected_data = {
         "mapped_col1": [1, 2, 3],
         "mapped_col2": [4, 5, 6],
     }
-    expected_table = pa.Table.from_pydict(expected_data)
+    expected_table = DataFrame(expected_data)
     assert processed_table.equals(expected_table)
 
 
@@ -246,3 +271,23 @@ def test_GeeExportPipeline_upload_allNullColumns(
 
     with pytest.raises(ValueError, match="Table has columns with all null values: col2"):
         pipeline.upload()
+
+def test_GeeExportPipeline_process_tableSortingByDateAndGridId_outOfOrder(
+    mock_intermediate_storage_out_of_order, example_plan_with_date_and_Grid, mock_archive_storage
+) -> None:
+    pipeline = GeeExportPipeline(
+        archive_storage=mock_archive_storage,
+        intermediate_storage=mock_intermediate_storage_out_of_order,
+        plan=example_plan_with_date_and_Grid,
+        result_subpath="mock/result/path",
+    )
+
+    # Call the public upload method
+    pipeline.upload()
+
+    # Validate that the processed table is sorted by date and then grid_id
+    processed_table: DataFrame = mock_archive_storage.write_to_destination.call_args[0][0]
+
+    # Check that the table was sorted by date and then grid_id
+    sorted_table = processed_table.sort(["date", "grid_id"])
+    assert processed_table.equals(sorted_table)

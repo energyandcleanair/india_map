@@ -3,11 +3,11 @@
 import contextlib
 import uuid
 from time import sleep
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from arrow import now
 from ee.batch import Export, Task
-from pyarrow import Table
+from polars import DataFrame
 
 from pm25ml.collectors.export_pipeline import ExportPipeline
 from pm25ml.logging import logger
@@ -119,19 +119,19 @@ class GeeExportPipeline(ExportPipeline):
             with contextlib.suppress(Exception):
                 task.cancel()
 
-    def _process(self, table: Table) -> Table:
+    def _process(self, table: DataFrame) -> DataFrame:
         mappings = self.plan.column_mappings
         expected_columns = self.plan.intermediate_columns
 
         # Ensure the table has the expected columns
-        missing_columns = [col for col in expected_columns if col not in table.column_names]
+        missing_columns = [col for col in expected_columns if col not in table.columns]
         if missing_columns:
             msg = f"Table is missing expected columns: {', '.join(missing_columns)}"
             raise ValueError(msg)
 
         # Test that the columns aren't all null values
         columns_null_values = [
-            col for col in expected_columns if table.column(col).null_count == table.num_rows
+            col for col in expected_columns if table[col].null_count() == table.height
         ]
         if columns_null_values:
             msg = f"Table has columns with all null values: {', '.join(columns_null_values)}"
@@ -140,26 +140,24 @@ class GeeExportPipeline(ExportPipeline):
             )
 
         # Drop extra columns that are not in the expected columns
-        extra_columns = [col for col in table.column_names if col not in expected_columns]
+        extra_columns = [col for col in table.columns if col not in expected_columns]
         if extra_columns:
             logger.warning(f"Dropping extra columns from table: {', '.join(extra_columns)}")
             table = table.drop(extra_columns)
 
         # Rename columns according to the mappings
-        new_names = [mappings.get(col, col) for col in table.column_names]
-        table = table.rename_columns(new_names)
+        table = table.rename(mappings)
 
         # Sort the table (if possible) by preferred order
         preferred_sort_order = [
             "date",
             "grid_id",
         ]
-        columns_to_sort = [col for col in preferred_sort_order if col in table.column_names]
+        columns_to_sort = [col for col in preferred_sort_order if col in table.columns]
         if columns_to_sort:
-            sort_orders: list[tuple[str, Literal["ascending", "descending"]]] = [
-                (col, "descending") for col in columns_to_sort
-            ]
-            table = table.sort_by(sort_orders)
+            table = table.sort(
+                by=columns_to_sort,
+            )
         return table
 
 

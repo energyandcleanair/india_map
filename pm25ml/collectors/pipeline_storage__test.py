@@ -1,7 +1,6 @@
 import os
 
-import pyarrow as pa
-import pyarrow.csv as pa_csv
+import polars as pl
 import pytest
 from fsspec.implementations.memory import MemoryFileSystem
 
@@ -16,7 +15,7 @@ def example_table():
         "col1": [1, 2, 3],
         "col2": [4, 5, 6],
     }
-    return pa.Table.from_pydict(data)
+    return pl.DataFrame(data)
 
 
 @pytest.fixture
@@ -35,5 +34,5 @@ def test_write_to_destination(in_memory_filesystem, example_table) -> None:
     storage.write_to_destination(example_table, "result_path")
 
     # Validate that the Parquet file was written to the temp directory
-    result_path = os.path.join(DESTINATION_BUCKET, "result_path")
+    result_path = os.path.join(DESTINATION_BUCKET, "result_path", "data.parquet")
     assert in_memory_filesystem.exists(result_path)
