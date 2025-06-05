@@ -9,7 +9,8 @@ from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
 
 from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
-from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
+from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
+from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 from pm25ml.logging import logger
 
 GCP_PROJECT = os.environ["GCP_PROJECT"]
@@ -30,9 +31,13 @@ if __name__ == "__main__":
 
     gcs_filesystem = GCSFileSystem()
 
-    gee_export_pipeline_storage = GeeExportPipelineStorage(
+    intermediate_storage = GeeIntermediateStorage(
         filesystem=gcs_filesystem,
-        intermediate_bucket=CSV_BUCKET_NAME,
+        bucket=CSV_BUCKET_NAME,
+    )
+
+    archive_storage = IngestArchiveStorage(
+        filesystem=gcs_filesystem,
         destination_bucket=INGEST_ARCHIVE_BUCKET_NAME,
     )
 
@@ -43,7 +48,8 @@ if __name__ == "__main__":
     )
 
     pipeline_constructor = GeeExportPipeline.with_storage(
-        gee_export_pipeline_storage=gee_export_pipeline_storage,
+        intermediate_storage=intermediate_storage,
+        archive_storage=archive_storage,
     )
 
     processors: list[GeeExportPipeline] = [

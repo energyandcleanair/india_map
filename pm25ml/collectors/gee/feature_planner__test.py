@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from arrow import get
 
-from pm25ml.collectors.feature_planner import (
+from pm25ml.collectors.gee.feature_planner import (
     FeaturePlan,
     GriddedFeatureCollectionPlanner,
 )
@@ -36,10 +36,10 @@ def test__FeaturePlan_wanted_columns__correct_values__returned() -> None:
 @pytest.fixture
 def mock_gee_for_daily_average():
     with (
-        patch("pm25ml.collectors.feature_planner.ImageCollection") as MockImageCollection,
-        patch("pm25ml.collectors.feature_planner.Reducer") as MockReducer,
-        patch("pm25ml.collectors.feature_planner.Image") as MockImage,
-        patch("pm25ml.collectors.feature_planner.FeatureCollection") as MockFeatureCollection,
+        patch("pm25ml.collectors.gee.feature_planner.ImageCollection") as MockImageCollection,
+        patch("pm25ml.collectors.gee.feature_planner.Reducer") as MockReducer,
+        patch("pm25ml.collectors.gee.feature_planner.Image") as MockImage,
+        patch("pm25ml.collectors.gee.feature_planner.FeatureCollection") as MockFeatureCollection,
     ):
         mock_ic_instance = MagicMock()
         MockImageCollection.return_value = mock_ic_instance
@@ -212,9 +212,9 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__with_bands__correc
 @pytest.fixture
 def mock_gee_for_static_feature():
     with (
-        patch("pm25ml.collectors.feature_planner.Image") as MockImage,
-        patch("pm25ml.collectors.feature_planner.Reducer") as MockReducer,
-        patch("pm25ml.collectors.feature_planner.FeatureCollection") as MockFeatureCollection,
+        patch("pm25ml.collectors.gee.feature_planner.Image") as MockImage,
+        patch("pm25ml.collectors.gee.feature_planner.Reducer") as MockReducer,
+        patch("pm25ml.collectors.gee.feature_planner.FeatureCollection") as MockFeatureCollection,
     ):
         mock_image_instance = MagicMock()
         MockImage.return_value = mock_image_instance
@@ -303,10 +303,10 @@ def test__GriddedFeatureCollectionPlanner_static_feature__column_mappings__corre
 @pytest.fixture
 def mock_gee_for_annual_classified_pixels():
     with (
-        patch("pm25ml.collectors.feature_planner.ImageCollection") as MockImageCollection,
-        patch("pm25ml.collectors.feature_planner.Reducer") as MockReducer,
-        patch("pm25ml.collectors.feature_planner.Image") as MockImage,
-        patch("pm25ml.collectors.feature_planner.FeatureCollection") as MockFeatureCollection,
+        patch("pm25ml.collectors.gee.feature_planner.ImageCollection") as MockImageCollection,
+        patch("pm25ml.collectors.gee.feature_planner.Reducer") as MockReducer,
+        patch("pm25ml.collectors.gee.feature_planner.Image") as MockImage,
+        patch("pm25ml.collectors.gee.feature_planner.FeatureCollection") as MockFeatureCollection,
     ):
         mock_ic_instance = MagicMock()
         MockImageCollection.return_value = mock_ic_instance

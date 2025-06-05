@@ -10,11 +10,14 @@ from ee.batch import Export, Task
 from pyarrow import Table
 
 from pm25ml.collectors.export_pipeline import ExportPipeline
-from pm25ml.collectors.feature_planner import FeaturePlan
 from pm25ml.logging import logger
 
+from .feature_planner import FeaturePlan
+
 if TYPE_CHECKING:
-    from pm25ml.collectors.pipeline_storage import GeeExportPipelineStorage
+    from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+
+    from .intermediate_storage import GeeIntermediateStorage
 
 
 class GeeExportPipeline(ExportPipeline):
@@ -22,23 +25,31 @@ class GeeExportPipeline(ExportPipeline):
 
     @staticmethod
     def with_storage(
-        gee_export_pipeline_storage: "GeeExportPipelineStorage",
+        *,
+        archive_storage: "IngestArchiveStorage",
+        intermediate_storage: "GeeIntermediateStorage",
     ) -> "GeePipelineConstructor":
         """
         Create a GeePipelineConstructor with the given storage.
 
         This allows for a more fluent interface when constructing pipelines.
         """
-        return GeePipelineConstructor(gee_export_pipeline_storage)
+        return GeePipelineConstructor(
+            archive_storage=archive_storage,
+            intermediate_storage=intermediate_storage,
+        )
 
     def __init__(
         self,
-        gee_export_pipeline_storage: "GeeExportPipelineStorage",
+        *,
+        intermediate_storage: "GeeIntermediateStorage",
+        archive_storage: "IngestArchiveStorage",
         plan: FeaturePlan,
         result_subpath: str,
     ) -> None:
         """Initialize the GeeExportPipeline with the storage and plan."""
-        self.gee_export_pipeline_storage = gee_export_pipeline_storage
+        self.archive_storage = archive_storage
+        self.intermediate_storage = intermediate_storage
         self.plan = plan
         self.result_subpath = result_subpath
 
@@ -60,7 +71,7 @@ class GeeExportPipeline(ExportPipeline):
 
         # Now that the task is complete, we can read the CSV file from GCS.
         logger.info(f"Task {task_name}: reading task result CSV from GCS")
-        raw_table = self.gee_export_pipeline_storage.get_intermediate_by_id(temporary_file_prefix)
+        raw_table = self.intermediate_storage.get_intermediate_by_id(temporary_file_prefix)
 
         # After reading the CSV file, we process it.
         logger.info(f"Task {task_name}: processing raw CSV table for task")
@@ -68,20 +79,20 @@ class GeeExportPipeline(ExportPipeline):
 
         # Then we write the processed table to the destination bucket format.
         logger.info(f"Task {task_name}: writing task processed table to GCS {self.result_subpath}")
-        self.gee_export_pipeline_storage.write_to_destination(processed_table, self.result_subpath)
+        self.archive_storage.write_to_destination(processed_table, self.result_subpath)
 
         # Finally, we delete the temporary CSV file from the intermediate bucket. This should happen
         # in the future anyway with the bucket lifecycle, but we do it now to clean up the
         # intermediate storage.
         logger.info(f"Task {task_name}: deleting task old CSV file from GCS")
-        self.gee_export_pipeline_storage.delete_intermediate_by_id(temporary_file_prefix)
+        self.intermediate_storage.delete_intermediate_by_id(temporary_file_prefix)
 
     def _define_task(self, task_name: str, temporary_file_prefix: str) -> Task:
         exported_properties = self.plan.intermediate_columns
         return Export.table.toCloudStorage(
             description=task_name,
             collection=self.plan.planned_collection,
-            bucket=self.gee_export_pipeline_storage.intermediate_bucket,
+            bucket=self.intermediate_storage.bucket,
             fileNamePrefix=temporary_file_prefix,
             fileFormat="CSV",
             selectors=exported_properties if not self.plan.ignore_selectors else None,
@@ -159,9 +170,15 @@ class GeePipelineConstructor:
     Should be used with `GeeExportPipeline.with_storage()`.
     """
 
-    def __init__(self, gee_export_pipeline_storage: "GeeExportPipelineStorage") -> None:
+    def __init__(
+        self,
+        *,
+        intermediate_storage: "GeeIntermediateStorage",
+        archive_storage: "IngestArchiveStorage",
+    ) -> None:
         """Initialize the GeePipelineConstructor with the storage."""
-        self.gee_export_pipeline_storage = gee_export_pipeline_storage
+        self.archive_storage = archive_storage
+        self.intermediate_storage = intermediate_storage
 
     def construct(
         self,
@@ -176,7 +193,8 @@ class GeePipelineConstructor:
         stored.
         """
         return GeeExportPipeline(
-            gee_export_pipeline_storage=self.gee_export_pipeline_storage,
+            archive_storage=self.archive_storage,
+            intermediate_storage=self.intermediate_storage,
             plan=plan,
             result_subpath=result_subpath,
         )
