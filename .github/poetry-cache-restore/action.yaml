@@ -4,14 +4,14 @@ runs:
   using: "composite"
   steps:
     - name: Load poetry install
-      uses: actions/restore@v3
+      uses: actions/cache/restore@v3
       with:
         path: ~/.local
         key: poetry-${{ env.POETRY_VERSION }}
 
     - name: Load dependencies
       id: cache-deps
-      uses: actions/restore@v3
+      uses: actions/cache/restore@v3
       with:
         path: .venv
         key: pydeps-${{ hashFiles('**/poetry.lock') }}
