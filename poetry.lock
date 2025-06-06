@@ -4191,6 +4191,17 @@ docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
 test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,<8.2)", "pytest-mock", "pytest-mypy-testing"]
 
 [[package]]
+name = "types-nanoid"
+version = "2.0.0.20240601"
+description = "Typing stubs for nanoid"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-nanoid-2.0.0.20240601.tar.gz", hash = "sha256:7246ee685ed55a367fc160d87cde75a550296ecca26e0602619552dae72efda0"},
+    {file = "types_nanoid-2.0.0.20240601-py3-none-any.whl", hash = "sha256:5219f721b80748d82b14edd5429cc888d32eb816966d2a4719730ef3f2e3a417"},
+]
+
+[[package]]
 name = "types-python-dateutil"
 version = "2.9.0.20250516"
 description = "Typing stubs for python-dateutil"
@@ -4527,4 +4538,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "021957ee88034bcd2eedd6aa6d3b005a73bd0dd9aeceafc026c5da1301ea98dc"
+content-hash = "42a3cdb90fe2afdbb7a25a768b365209f40769c482620f1a8c24716e76ae66b8"
