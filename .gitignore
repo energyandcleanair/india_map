@@ -5,4 +5,4 @@ example_data/
 .vscode
 
 tmp
-
+.env

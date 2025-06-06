@@ -1,30 +1,22 @@
 from unittest.mock import MagicMock, call, patch
 
-from polars import DataFrame
 import pytest
+from polars import DataFrame
 
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 
-from .gee_export_pipeline import GeeExportPipeline
 from .feature_planner import FeaturePlan
+from .gee_export_pipeline import GeeExportPipeline
 
-CURRENT_TIME = "20250529_123456"
-FIXED_UUID = "12345678-1234-5678-1234-567812345678"
-
-
-@pytest.fixture(autouse=True)
-def mock_now():
-    with patch("pm25ml.collectors.gee.gee_export_pipeline.now") as mock_now:
-        mock_now.return_value.strftime.return_value = CURRENT_TIME
-        yield mock_now
+FIXED_NANO_ID = "12345678-1234-5678-1234-567812345678"
 
 
 @pytest.fixture(autouse=True)
-def mock_uuid():
-    with patch("pm25ml.collectors.gee.gee_export_pipeline.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value = FIXED_UUID
-        yield mock_uuid
+def mock_nanoid():
+    with patch("pm25ml.collectors.gee.gee_export_pipeline.generate") as mock_nanoid:
+        mock_nanoid.return_value = FIXED_NANO_ID
+        yield mock_nanoid
 
 
 @pytest.fixture(autouse=True)
@@ -37,7 +29,7 @@ def mock_sleep():
 def example_feature_plan():
     planned_collection = MagicMock()
     return FeaturePlan(
-        feature_type="mock_type",
+        feature_name="mock_type",
         column_mappings={"col1": "mapped_col1", "col2": "mapped_col2"},
         planned_collection=planned_collection,
     )
@@ -61,6 +53,7 @@ def mock_successful_export(mock_task):
         MockExport.table.toCloudStorage.return_value = mock_task
         yield MockExport
 
+
 @pytest.fixture
 def mock_intermediate_storage_valid_table():
     data = {
@@ -74,7 +67,6 @@ def mock_intermediate_storage_valid_table():
     storage.bucket = "mock_bucket"
     storage.get_intermediate_by_id.return_value = table
     return storage
-
 
 
 @pytest.fixture
@@ -103,21 +95,29 @@ def mock_intermediate_storage_all_null_values():
     storage.get_intermediate_by_id.return_value = table
     return storage
 
+
 @pytest.fixture
 def mock_archive_storage():
     storage = MagicMock(spec=IngestArchiveStorage)
     storage.destination_bucket = "mock_destination_bucket"
     return storage
 
+
 @pytest.fixture
 def example_plan_with_date_and_Grid():
     planned_collection = MagicMock()
-    
+
     return FeaturePlan(
-        feature_type="mock_type",
-        column_mappings={"date": "date", "grid_id": "grid_id", "col1": "mapped_col1", "col2": "mapped_col2"},
+        feature_name="mock_name",
+        column_mappings={
+            "date": "date",
+            "grid_id": "grid_id",
+            "col1": "mapped_col1",
+            "col2": "mapped_col2",
+        },
         planned_collection=planned_collection,
     )
+
 
 @pytest.fixture
 def mock_intermediate_storage_out_of_order():
@@ -136,7 +136,11 @@ def mock_intermediate_storage_out_of_order():
 
 
 def test_GeeExportPipeline_upload_taskExecutionAndStorageHandling(
-    mock_intermediate_storage_valid_table, example_feature_plan, mock_successful_export, mock_task, mock_archive_storage
+    mock_intermediate_storage_valid_table,
+    example_feature_plan,
+    mock_successful_export,
+    mock_task,
+    mock_archive_storage,
 ) -> None:
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,
@@ -147,12 +151,14 @@ def test_GeeExportPipeline_upload_taskExecutionAndStorageHandling(
 
     pipeline.upload()
 
+    file_name = f"{FIXED_NANO_ID}__mock_type"
+
     # Check that the task was defined correctly
     mock_successful_export.table.toCloudStorage.assert_called_once_with(
-        description=f"mock_type_{FIXED_UUID}_{CURRENT_TIME}",
+        description=file_name,
         collection=example_feature_plan.planned_collection,
         bucket="mock_bucket",
-        fileNamePrefix=FIXED_UUID,
+        fileNamePrefix=file_name,
         fileFormat="CSV",
         selectors=["col1", "col2"],
     )
@@ -163,13 +169,18 @@ def test_GeeExportPipeline_upload_taskExecutionAndStorageHandling(
     mock_task.status.assert_called()
 
     # Check that intermediate storage methods were called
-    mock_intermediate_storage_valid_table.get_intermediate_by_id.assert_called_once_with(FIXED_UUID)
-    mock_intermediate_storage_valid_table.delete_intermediate_by_id.assert_called_once_with(FIXED_UUID)
+    mock_intermediate_storage_valid_table.get_intermediate_by_id.assert_called_once_with(file_name)
+    mock_intermediate_storage_valid_table.delete_intermediate_by_id.assert_called_once_with(
+        file_name,
+    )
     mock_archive_storage.write_to_destination.assert_called_once()
 
 
 def test_GeeExportPipeline_upload_taskFailure(
-    mock_intermediate_storage_valid_table, example_feature_plan, mock_task, mock_archive_storage
+    mock_intermediate_storage_valid_table,
+    example_feature_plan,
+    mock_task,
+    mock_archive_storage,
 ) -> None:
     # Simulate a task ending with a FAILURE status
     mock_task.status.return_value = {
@@ -189,7 +200,9 @@ def test_GeeExportPipeline_upload_taskFailure(
 
 
 def test_GeeExportPipeline_process_tableProcessingLogic(
-    mock_intermediate_storage_valid_table, example_feature_plan, mock_archive_storage
+    mock_intermediate_storage_valid_table,
+    example_feature_plan,
+    mock_archive_storage,
 ) -> None:
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,
@@ -217,7 +230,10 @@ def test_GeeExportPipeline_process_tableProcessingLogic(
 
 
 def test_GeeExportPipeline_upload_exponentialBackoff(
-    mock_intermediate_storage_valid_table, example_feature_plan, mock_sleep, mock_archive_storage
+    mock_intermediate_storage_valid_table,
+    example_feature_plan,
+    mock_sleep,
+    mock_archive_storage,
 ) -> None:
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,
@@ -246,7 +262,9 @@ def test_GeeExportPipeline_upload_exponentialBackoff(
 
 
 def test_GeeExportPipeline_upload_missingColumns(
-    mock_intermediate_storage_missing_columns, example_feature_plan, mock_archive_storage
+    mock_intermediate_storage_missing_columns,
+    example_feature_plan,
+    mock_archive_storage,
 ) -> None:
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,
@@ -260,7 +278,9 @@ def test_GeeExportPipeline_upload_missingColumns(
 
 
 def test_GeeExportPipeline_upload_allNullColumns(
-    mock_intermediate_storage_all_null_values, example_feature_plan, mock_archive_storage
+    mock_intermediate_storage_all_null_values,
+    example_feature_plan,
+    mock_archive_storage,
 ) -> None:
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,
@@ -272,8 +292,11 @@ def test_GeeExportPipeline_upload_allNullColumns(
     with pytest.raises(ValueError, match="Table has columns with all null values: col2"):
         pipeline.upload()
 
+
 def test_GeeExportPipeline_process_tableSortingByDateAndGridId_outOfOrder(
-    mock_intermediate_storage_out_of_order, example_plan_with_date_and_Grid, mock_archive_storage
+    mock_intermediate_storage_out_of_order,
+    example_plan_with_date_and_Grid,
+    mock_archive_storage,
 ) -> None:
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,

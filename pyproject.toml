@@ -19,6 +19,7 @@ arrow = "^1.3.0"
 fsspec = "^2025.5.1"
 gcsfs = "^2025.5.1"
 polars = "^1.30.0"
+nanoid = "^2.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -72,6 +73,7 @@ include = [
 ]
 exclude = [
     "./pm25ml/**/*__test.py",
+    "./pm25ml/**/*__it.py",
 ]
 line-length = 100
 
@@ -88,6 +90,7 @@ files = [
 ]
 exclude = [
     ".*__test.py",
+    ".*__it.py",
 ]
 
 [[tool.mypy.overrides]]

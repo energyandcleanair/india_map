@@ -18,6 +18,7 @@ def example_table():
     }
     return pl.DataFrame(data)
 
+
 @pytest.fixture
 def in_memory_filesystem():
     return MemoryFileSystem()

@@ -1,12 +1,11 @@
 """Export pipeline for Google Earth Engine data to the underlying storage."""
 
 import contextlib
-import uuid
 from time import sleep
 from typing import TYPE_CHECKING
 
-from arrow import now
 from ee.batch import Export, Task
+from nanoid import generate
 from polars import DataFrame
 
 from pm25ml.collectors.export_pipeline import ExportPipeline
@@ -55,23 +54,20 @@ class GeeExportPipeline(ExportPipeline):
 
     def upload(self) -> None:
         """Upload the data from GEE to the underlying storage."""
-        temporary_file_prefix = str(uuid.uuid4())
-        task_name = (
-            f"{self.plan.feature_type}_{temporary_file_prefix}_{now().strftime('%Y%m%d_%H%M%S')}"
-        )
+        temporary_file_prefix = generate(size=10)
+        task_name = f"{temporary_file_prefix}__{self.plan.feature_name}"[:100]
 
         # First, we define the task to export the data to GCS, run it, and then wait until it
         # completes.
         logger.info(f"Task {task_name}: starting task")
         task = self._define_task(
             task_name=task_name,
-            temporary_file_prefix=temporary_file_prefix,
         )
         self._complete_task(task_name=task_name, task=task)
 
         # Now that the task is complete, we can read the CSV file from GCS.
         logger.info(f"Task {task_name}: reading task result CSV from GCS")
-        raw_table = self.intermediate_storage.get_intermediate_by_id(temporary_file_prefix)
+        raw_table = self.intermediate_storage.get_intermediate_by_id(task_name)
 
         # After reading the CSV file, we process it.
         logger.info(f"Task {task_name}: processing raw CSV table for task")
@@ -85,15 +81,15 @@ class GeeExportPipeline(ExportPipeline):
         # in the future anyway with the bucket lifecycle, but we do it now to clean up the
         # intermediate storage.
         logger.info(f"Task {task_name}: deleting task old CSV file from GCS")
-        self.intermediate_storage.delete_intermediate_by_id(temporary_file_prefix)
+        self.intermediate_storage.delete_intermediate_by_id(task_name)
 
-    def _define_task(self, task_name: str, temporary_file_prefix: str) -> Task:
+    def _define_task(self, task_name: str) -> Task:
         exported_properties = self.plan.intermediate_columns
         return Export.table.toCloudStorage(
             description=task_name,
             collection=self.plan.planned_collection,
             bucket=self.intermediate_storage.bucket,
-            fileNamePrefix=temporary_file_prefix,
+            fileNamePrefix=task_name,
             fileFormat="CSV",
             selectors=exported_properties if not self.plan.ignore_selectors else None,
         )

@@ -1,6 +1,11 @@
 """Feature planning for gridded feature collections."""
 
+from typing import Any
+
 from arrow import Arrow
+from ee.computedobject import ComputedObject
+from ee.ee_date import Date
+from ee.ee_list import List
 from ee.ee_number import Number
 from ee.element import Element
 from ee.featurecollection import FeatureCollection
@@ -55,7 +60,7 @@ class GriddedFeatureCollectionPlanner:
         :return: A feature plan containing the processed collection and column mappings.
         :rtype: FeaturePlan
         """
-        original_raster_scale = self._get_collection_scale(collection_name)
+        original_raster_scale = self._get_collection_scale(collection_name, selected_bands)
 
         ids = ["date", "grid_id"]
         transformed_band_names = (
@@ -68,21 +73,31 @@ class GriddedFeatureCollectionPlanner:
         # This gets the whole collection and selects the properties we want.
         collection = ImageCollection(collection_name).select(selected_bands)
 
-        # We create an ImageCollection of daily composites for the month, each
-        # the pixel-wise mean value for the day.
-        images = ImageCollection.fromImages(
-            [
+        date_strings = [date.format(ISO8601_DATE_ONLY) for date in dates]
+        gee_dates = List(date_strings)
+
+        def daily_mean_image(date_string: ComputedObject) -> List:
+            start = Date(date_string)
+            end = start.advance(1, "day")
+
+            return (
                 collection.filterDate(
-                    date.format(ISO8601_WITHOUT_TZ),
-                    date.shift(days=1).format(ISO8601_WITHOUT_TZ),
+                    start,
+                    end,
                 )
+                .filterBounds(self.grid.geometry())
                 # Single value per pixel for the day for each band.
                 .reduce(Reducer.mean())
                 # We set the date property to the date to carry through
                 # to the final export.
-                .set("date", date.format(ISO8601_DATE_ONLY))
-                for date in dates
-            ],
+                .set("date", start)
+            )
+
+        # We create an ImageCollection of daily composites for the month, each
+        # the pixel-wise mean value for the day.
+        images = ImageCollection.fromImages(
+            # This does a server side map operation to create an image for each date.
+            gee_dates.map(daily_mean_image),
         )
 
         # We then average the values for each grid cell for each date.
@@ -102,8 +117,14 @@ class GriddedFeatureCollectionPlanner:
 
         processed_images: FeatureCollection = images.map(average_grid_value_for_date).flatten()
 
+        date_summary = self._common_granularity(dates)
+
         return FeaturePlan(
-            feature_type="grid-daily-average",
+            feature_name=self._generate_clean_name(
+                "grid-daily-average",
+                collection_name,
+                date_summary,
+            ),
             planned_collection=processed_images,
             column_mappings=column_mappings,
         )
@@ -124,7 +145,7 @@ class GriddedFeatureCollectionPlanner:
         :return: A feature plan containing the processed collection and column mappings.
         :rtype: FeaturePlan
         """
-        original_raster_scale = self._get_image_scale(image_name)
+        original_raster_scale = self._get_image_scale(image_name, selected_bands)
 
         ids = ["grid_id"]
         transformed_band_names = (
@@ -135,15 +156,19 @@ class GriddedFeatureCollectionPlanner:
         column_mappings = dict(zip(exported_properties, wanted_properties))
 
         image = Image(image_name).select(selected_bands)
+        collection = ImageCollection.fromImages([image])
         # The only thing we need to do for this is to regrid.
-        processed_image: FeatureCollection = image.reduceRegions(
-            collection=self.grid,
-            reducer=Reducer.mean(),
-            crs=INDIA_CRS,
-            scale=original_raster_scale,
-        )
+        processed_image: FeatureCollection = collection.map(
+            lambda img: img.reduceRegions(
+                collection=self.grid,
+                reducer=Reducer.mean(),
+                crs=INDIA_CRS,
+                scale=original_raster_scale,
+            ),
+        ).flatten()
+
         return FeaturePlan(
-            feature_type="single-image-grid",
+            feature_name=self._generate_clean_name("single-image-grid", image_name),
             planned_collection=processed_image,
             column_mappings=column_mappings,
         )
@@ -177,7 +202,7 @@ class GriddedFeatureCollectionPlanner:
         :return: A feature plan containing the processed collection and column mappings.
         :rtype: FeaturePlan
         """
-        original_raster_scale = self._get_collection_scale(collection_name)
+        original_raster_scale = self._get_collection_scale(collection_name, [classification_band])
 
         def add_classes_as_boolean_bands(original_image: Image) -> Image:
             band_column = original_image.select(classification_band)
@@ -196,30 +221,30 @@ class GriddedFeatureCollectionPlanner:
 
             return new_image
 
-        with_pivoted_columns = (
+        image = Image(
             ImageCollection(collection_name)
             .select(classification_band)
+            .filterBounds(self.grid.geometry())
+            .filterDate(
+                f"{year}-01-01T00:00:00",
+                f"{year + 1}-01-01T00:00:00",
+            )
             .map(add_classes_as_boolean_bands)
             .select(list(output_names_to_class_values.keys()))
+            .reduce(Reducer.mean()),
         )
 
         # We create an image for the year by filtering the collection
         # and then taking the mean
-        image_for_year = Image(
-            with_pivoted_columns.filterDate(
-                f"{year}-01-01T00:00:00",
-                f"{year + 1}-01-01T00:00:00",
-            ).reduce(Reducer.mean()),
-        )
 
-        collection_for_year = image_for_year.reduceRegions(
+        collection_for_year = image.reduceRegions(
             collection=self.grid,
             reducer=Reducer.mean(),
             crs=INDIA_CRS,
             scale=original_raster_scale,
         )
 
-        flattened = collection_for_year.flatten()
+        flattened = collection_for_year
 
         id_columns = ["grid_id"]
         wanted_columns = id_columns + list(output_names_to_class_values.keys())
@@ -230,19 +255,52 @@ class GriddedFeatureCollectionPlanner:
         column_mappings = dict(zip(exported_columns, wanted_columns))
 
         return FeaturePlan(
-            feature_type="annual-classified-pixels",
+            feature_name=self._generate_clean_name(
+                "annual-classified-pixels",
+                collection_name,
+                year,
+            ),
             planned_collection=flattened,
             column_mappings=column_mappings,
             ignore_selectors=True,
         )
 
     @staticmethod
-    def _get_collection_scale(collection_name: str) -> Number:
-        return ImageCollection(collection_name).first().projection().nominalScale()
+    def _get_collection_scale(collection_name: str, selected_bands: list[str]) -> Number:
+        return (
+            ImageCollection(collection_name)
+            .select(selected_bands)
+            .first()
+            .projection()
+            .nominalScale()
+        )
 
     @staticmethod
-    def _get_image_scale(image_name: str) -> Number:
-        return Image(image_name).projection().nominalScale()
+    def _get_image_scale(image_name: str, selected_bands: list[str]) -> Number:
+        return Image(image_name).select(selected_bands).projection().nominalScale()
+
+    @staticmethod
+    def _generate_clean_name(*args: list[Any]) -> str:
+        def clean_name_part(name: str) -> str:
+            return name.replace(" ", "-").replace("/", "-").replace("_", "-").lower()
+
+        return "__".join(clean_name_part(str(arg)) for arg in args)
+
+    @staticmethod
+    def _common_granularity(dates: list[Arrow]) -> str:
+        same_year = all(d.year == dates[0].year for d in dates)
+        if not same_year:
+            return "x"
+
+        same_month = all(d.month == dates[0].month for d in dates)
+        if not same_month:
+            return dates[0].format("YYYY")
+
+        same_day = all(d.day == dates[0].day for d in dates)
+        if not same_day:
+            return dates[0].format("YYYY-MM")
+
+        return dates[0].format("YYYY-MM-DD")
 
 
 class FeaturePlan:
@@ -256,7 +314,7 @@ class FeaturePlan:
     def __init__(
         self,
         *,
-        feature_type: str,
+        feature_name: str,
         planned_collection: FeatureCollection,
         column_mappings: dict[str, str],
         ignore_selectors: bool = False,
@@ -264,8 +322,10 @@ class FeaturePlan:
         """
         Initialize a feature plan.
 
-        :param feature_type: The type of the feature plan (e.g., "grid-daily-average").
-        :type feature_type: str
+        :param feature_name: The name of the feature plan.
+        :type feature_name: str
+        :param feature_name: The name of the feature plan.
+        :type feature_name: str
         :param planned_collection: The proposed feature collection.
         :type planned_collection: FeatureCollection
         :param column_mappings: A mapping of exported column names to desired column names.
@@ -273,7 +333,7 @@ class FeaturePlan:
         :param ignore_selectors: Whether to ignore selectors during processing. Defaults to False.
         :type ignore_selectors: bool, optional
         """
-        self.feature_type = feature_type
+        self.feature_name = feature_name
         self.planned_collection = planned_collection
         self.column_mappings = column_mappings
         self.ignore_selectors = ignore_selectors
