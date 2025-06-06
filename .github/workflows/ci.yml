@@ -41,7 +41,7 @@ jobs:
     needs: [deps]
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/poetry-cache-restore
+      - uses: ./.github/poetry-cache-restore
       - name: Install package
         run: poetry install --no-interaction
 
@@ -50,7 +50,7 @@ jobs:
     needs: [deps]
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/poetry-cache-restore
+      - uses: ./.github/poetry-cache-restore
       - name: Run tests
         run: poetry run pytest
   
@@ -59,7 +59,7 @@ jobs:
     needs: [deps]
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/poetry-cache-restore
+      - uses: ./.github/poetry-cache-restore
       - name: Run mypy
         run: poetry run mypy
 
