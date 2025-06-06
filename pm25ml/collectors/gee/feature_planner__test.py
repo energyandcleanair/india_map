@@ -258,12 +258,16 @@ def mock_gee_for_static_feature():
         mock_feature_collection_instance = MagicMock()
         mock_image_instance.reduceRegions.return_value = mock_feature_collection_instance
 
+        mock_image_collection_instance = MagicMock()
+        MockImageCollection.fromImages.return_value = mock_image_collection_instance
+
         yield {
             "MockImage": MockImage,
             "MockReducer": MockReducer,
             "MockFeatureCollection": MockFeatureCollection,
             "MockImageCollection": MockImageCollection,
             "mock_image_instance": mock_image_instance,
+            "mock_image_collection_instance": mock_image_collection_instance,
             "mock_feature_collection_instance": mock_feature_collection_instance,
             "fake_mean": fake_mean,
         }
@@ -291,17 +295,26 @@ def test__GriddedFeatureCollectionPlanner_static_feature__gridding__gridding_log
     planner = GriddedFeatureCollectionPlanner(grid=grid)
     selected_bands = ["PM25"]
 
+    mocked_image = mock_gee_for_static_feature["mock_image_instance"]
+    mocked_ic = mock_gee_for_static_feature["mock_image_collection_instance"]
+
+    def mocked_map_function(func):
+        [func(mocked_image)]
+        return mocked_ic
+
+    mocked_ic.map.side_effect = mocked_map_function
+
     planner.plan_static_feature(
         image_name="FAKE/IMAGE",
         selected_bands=selected_bands,
     )
 
     # Verify that reduceRegions was called with the correct parameters
-    mock_gee_for_static_feature["mock_image_instance"].reduceRegions.assert_called_once_with(
+    mocked_image.reduceRegions.assert_called_once_with(
         collection=grid,
         reducer=mock_gee_for_static_feature["MockReducer"].mean(),
         crs="EPSG:7755",  # Updated to match INDIA_CRS
-        scale=mock_gee_for_static_feature["mock_image_instance"].projection().nominalScale(),
+        scale=mocked_image.projection().nominalScale(),
     )
 
 
