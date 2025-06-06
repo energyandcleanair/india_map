@@ -86,13 +86,7 @@ ignore = [
 ]
 
 [tool.mypy]
-files = [
-    "pm25ml/**/*.py",
-]
-exclude = [
-    ".*__test.py",
-    ".*__it.py",
-]
+exclude = ".*(__test|__it)\\.py$"
 
 [[tool.mypy.overrides]]
 module = ["fsspec.*", "gcsfs.*"]

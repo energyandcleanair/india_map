@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/poetry-cache-restore
       - name: Run mypy
-        run: poetry run mypy
+        run: poetry run mypy pm25ml
 
   lint:
     runs-on: ubuntu-latest
