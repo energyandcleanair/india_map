@@ -1,7 +1,5 @@
 """Feature planning for gridded feature collections."""
 
-from typing import Any
-
 from arrow import Arrow
 from ee.computedobject import ComputedObject
 from ee.ee_date import Date
@@ -258,7 +256,7 @@ class GriddedFeatureCollectionPlanner:
             feature_name=self._generate_clean_name(
                 "annual-classified-pixels",
                 collection_name,
-                year,
+                str(year),
             ),
             planned_collection=flattened,
             column_mappings=column_mappings,
@@ -280,11 +278,11 @@ class GriddedFeatureCollectionPlanner:
         return Image(image_name).select(selected_bands).projection().nominalScale()
 
     @staticmethod
-    def _generate_clean_name(*args: list[Any]) -> str:
+    def _generate_clean_name(*args: str) -> str:
         def clean_name_part(name: str) -> str:
             return name.replace(" ", "-").replace("/", "-").replace("_", "-").lower()
 
-        return "__".join(clean_name_part(str(arg)) for arg in args)
+        return "__".join(clean_name_part(arg) for arg in args)
 
     @staticmethod
     def _common_granularity(dates: list[Arrow]) -> str:
