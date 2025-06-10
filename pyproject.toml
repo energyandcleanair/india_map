@@ -9,7 +9,8 @@ include = [
     "pm25ml"
 ]
 exclude = [
-    "**/*__test.py"
+    "**/*__test.py",
+    "**/*__it.py",
 ]
 
 [tool.poetry.dependencies]
@@ -60,12 +61,16 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-python_files = "*__test.py"
+markers = [
+    "integration: mark test as an integration test",
+]
+python_files = [ "*__test.py", "*__it.py" ]
 testpaths = [
     "pm25ml"
 ]
 faulthandler_timeout = 5
 pythonpath = "."
+
 
 [tool.ruff]
 include = [
