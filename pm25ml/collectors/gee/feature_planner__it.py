@@ -35,7 +35,7 @@ def check_env():
             "Environment variable IT_GEE_ASSET_ROOT must be set for integration tests.",
         )
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def initialize_gee():
     creds, project_id = google.auth.default()
     ee.Initialize(project=project_id, credentials=creds)
@@ -46,7 +46,8 @@ def check_ee_initialised() -> None:
     ee.data.getAssetRoots()
 
 @pytest.fixture(scope="module", autouse=True)
-def create_and_upload_dummy_tiffs() -> dict[str, str]:
+@pytest.mark.usefixtures("initialize_gee")
+def upload_dummy_tiffs() -> dict[str, str]:
     # We define these files manually up front as it's easier to manage than to
     # read from the directories and pull metadata out.
     assets_to_upload = [
@@ -196,18 +197,18 @@ def upload_to_ee(
 
 
 @pytest.fixture(scope="module")
-def feature_planner(create_and_upload_dummy_tiffs):
+def feature_planner(upload_dummy_tiffs):
     return GriddedFeatureCollectionPlanner(
-        grid=ee.FeatureCollection(create_and_upload_dummy_tiffs["grid"]),
+        grid=ee.FeatureCollection(upload_dummy_tiffs["grid"]),
     )
 
 
 def test_plan_daily_average(
     feature_planner: GriddedFeatureCollectionPlanner,
-    create_and_upload_dummy_tiffs,
+    upload_dummy_tiffs,
 ):
     daily_average_plan = feature_planner.plan_daily_average(
-        collection_name=create_and_upload_dummy_tiffs["image_collection"],
+        collection_name=upload_dummy_tiffs["image_collection"],
         selected_bands=["b1", "b2"],
         dates=[
             arrow.get("2023-01-01"),
