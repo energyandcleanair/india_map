@@ -6,16 +6,17 @@ from time import sleep
 
 import arrow
 import ee
-import google.auth.impersonated_credentials
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal
 
 from pm25ml.collectors.gee.feature_planner import FeaturePlan, GriddedFeatureCollectionPlanner
 
-import google.auth
-
 pytestmark = pytest.mark.integration
+
+# ### NOTE ####
+# See pm25ml/collectors/gee/feature_planner__it_assets/README.md for details on
+# the structure of the assets used in these tests.
 
 BUCKET_NAME = os.environ.get("IT_GEE_ASSET_BUCKET_NAME")
 GEE_IT_ASSET_ROOT = os.environ.get("IT_GEE_ASSET_ROOT")
@@ -68,7 +69,7 @@ def initialize_gee():
 def check_ee_initialised() -> None:
     ee.data.getAssetRoots()
 
-@pytest.fixture(scope="module", autouse=True, )
+@pytest.fixture(scope="module", autouse=True )
 def upload_dummy_tiffs(initialize_gee) -> dict[str, str]:
     # We define these files manually up front as it's easier to manage than to
     # read from the directories and pull metadata out.
@@ -298,21 +299,159 @@ def test_plan_daily_average(
         atol=0.2,
     )
 
+def test_plan_static_feature(
+    feature_planner: GriddedFeatureCollectionPlanner,
+    upload_dummy_tiffs,
+):
+    image_name = upload_dummy_tiffs["image_collection"] + "/2023-01-01"
+    static_feature_plan = feature_planner.plan_static_feature(
+        image_name=image_name,
+        selected_bands=["b1", "b2"],
+    )
+
+    actual_df = execute_plan_to_dataframe(static_feature_plan)
+    expected_df = pl.DataFrame(
+        {
+            "b1": [
+                14.5,
+                14.5,
+                6.5,
+                6.5,
+            ],
+            "b2": [
+                114.5,
+                114.5,
+                106.5,
+                106.5,
+            ],
+            "grid_id": [
+                0,
+                1,
+                2,
+                3,
+            ],
+        },
+    )
+
+    assert_frame_equal(
+        actual_df,
+        expected_df,
+        check_row_order=False,
+        check_column_order=False,
+        check_exact=False,
+        rtol=0,
+        atol=0.2,
+    )
+
+def test_plan_summarise_annual_classified_pixels(
+    feature_planner: GriddedFeatureCollectionPlanner,
+    upload_dummy_tiffs,
+):
+    collection_name = upload_dummy_tiffs["image_collection"]
+    category_band = "b11"
+    year = 2023
+
+    # "day 1" refers to 2023-01-01 and "day 2" refers to 2023-01-02
+
+    # "day 1"'s 4x4 grid has the following categories:
+    day_1_full_grid = [
+        32, 33, 34, 35,
+        36, 37, 38, 39,
+        40, 41, 42, 43,
+        44, 45, 46, 47,
+    ]
+
+    # "day 2"'s 4x4 grid has the following categories:
+    day_2_full_grid = [
+        48, 49, 50, 51,
+        52, 53, 54, 55,
+        56, 57, 58, 59,
+        60, 61, 62, 63,
+    ]
+
+    x_grid_mask = [
+        1, 0, 0, 1,
+        0, 1, 1, 0,
+        0, 1, 1, 0,
+        1, 0, 0, 1,
+    ]
+    top_left_grid_mask = [
+        1, 1, 0, 0,
+        1, 1, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+    ]
+
+    def filter_by_mask(grid, mask):
+        """Filter grid values by a mask."""
+        return [val for val, m in zip(grid, mask) if m]
+
+    output_names_to_class_values = {
+        "half_day_1_categories": filter_by_mask(day_1_full_grid, x_grid_mask),
+        "half_day_2_categories": filter_by_mask(day_2_full_grid, x_grid_mask),
+        "half_both_day_categories": filter_by_mask(day_1_full_grid, x_grid_mask) + filter_by_mask(day_2_full_grid, x_grid_mask),
+        "top_left_grid_categories":
+            filter_by_mask(
+                day_1_full_grid,
+                top_left_grid_mask,
+            ) + filter_by_mask(
+                day_2_full_grid,
+                top_left_grid_mask,
+            ),
+        "invalid_categories":
+            list(range(
+                32,
+            )),
+    }
+
+    annual_classified_plan = feature_planner.plan_summarise_annual_classified_pixels(
+        collection_name=collection_name,
+        classification_band=category_band,
+        output_names_to_class_values=output_names_to_class_values,
+        year=year,
+    )
+
+    actual_df = execute_plan_to_dataframe(annual_classified_plan)
+
+    expected_df = pl.DataFrame(
+        {
+            "half_day_1_categories_mean": [0.25, 0.25, 0.25, 0.25],
+            "half_day_2_categories_mean": [0.25, 0.25, 0.25, 0.25],
+            "half_both_day_categories_mean": [0.5, 0.5, 0.5, 0.5],
+            # the top left grid has the ID 2
+            "top_left_grid_categories_mean": [0.0, 0.0, 1.0, 0.0],
+            "invalid_categories_mean": [0.0, 0.0, 0.0, 0.0],
+            "grid_id": [0, 1, 2, 3],
+        },
+    )
+
+    assert_frame_equal(
+        actual_df,
+        expected_df,
+        check_row_order=False,
+        check_column_order=False,
+        check_exact=False,
+        check_dtypes= False,
+        rtol=0,
+        atol=0.05,
+    )
+
+
 
 def execute_plan_to_dataframe(feature_plan: FeaturePlan):
     """Extract features from the planned collection into a Polars DataFrame."""
 
     def convert_record(record):
         # Extract the date and grid_id from the record and then the any remaining properties
-        date = arrow.get(record["properties"]["date"]["value"]).date()
-        grid_id = record["properties"]["grid_id"]
-        properties = {k: v for k, v in record["properties"].items() if k not in ["date", "grid_id"]}
+        date = arrow.get(record["properties"]["date"]["value"]).date() if "date" in record["properties"] else None
+        properties = {k: v for k, v in record["properties"].items() if k not in ["date"]}
         # Flatten the properties into a single dictionary
-        return {
+        result = {
             "date": date,
-            "grid_id": grid_id,
             **properties,
         }
+        result = {k: v for k, v in result.items() if v is not None}
+        return result
 
     plan = feature_plan.planned_collection
 

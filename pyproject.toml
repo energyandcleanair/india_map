@@ -68,7 +68,6 @@ python_files = [ "*__test.py", "*__it.py" ]
 testpaths = [
     "pm25ml"
 ]
-faulthandler_timeout = 5
 pythonpath = "."
 
 
