@@ -44,8 +44,7 @@ def initialize_gee():
         sa_name = os.environ.get("GOOGLE_SERVICE_ACCOUNT_NAME")
         if not sa_name:
             raise ValueError(
-                "Environment variable GOOGLE_SERVICE_ACCOUNT_NAME must be set for integration tests in GitHub Actions. " +
-                "This should be set by the Google Cloud authentication action.",
+                "Environment variable GOOGLE_SERVICE_ACCOUNT_NAME must be set for integration tests in GitHub Actions."
             )
         target_creds = google.auth.impersonated_credentials.Credentials(
             source_credentials=source_creds,
