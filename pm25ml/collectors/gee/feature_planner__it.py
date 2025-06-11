@@ -115,6 +115,7 @@ def upload_to_ee(
     import ee.data
 
     ee.Initialize()
+    ee.Authenticate()
 
     # First we need to delete any existing assets in the root folder
     def delete_assets_recursively(asset_id):
