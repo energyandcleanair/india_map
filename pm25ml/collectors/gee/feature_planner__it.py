@@ -6,6 +6,7 @@ from time import sleep
 
 import arrow
 import ee
+import google.auth.impersonated_credentials
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal
@@ -38,7 +39,20 @@ def check_env():
 @pytest.fixture(scope="module")
 def initialize_gee():
     creds, project_id = google.auth.default()
-    ee.Initialize(project=project_id, credentials=creds)
+    source_creds, project_id = google.auth.default()
+    sa_name = os.environ.get("GOOGLE_SERVICE_ACCOUNT_NAME")
+
+    if os.environ.get("GITHUB_ACTIONS") == "true" and sa_name:
+        target_creds = google.auth.impersonated_credentials.Credentials(
+            source_credentials=source_creds,
+            target_principal=sa_name,
+            target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            lifetime=3600,
+        )
+        ee.Initialize(project=project_id, credentials=target_creds)
+    else:
+        print("Using default credentials (local/dev mode)")
+        ee.Initialize(project=project_id, credentials=source_creds)
 
     check_ee_initialised()
 
