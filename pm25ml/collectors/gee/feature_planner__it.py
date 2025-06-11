@@ -45,9 +45,8 @@ def initialize_gee():
 def check_ee_initialised() -> None:
     ee.data.getAssetRoots()
 
-@pytest.fixture(scope="module", autouse=True)
-@pytest.mark.usefixtures("initialize_gee")
-def upload_dummy_tiffs() -> dict[str, str]:
+@pytest.fixture(scope="module", autouse=True, )
+def upload_dummy_tiffs(initialize_gee) -> dict[str, str]:
     # We define these files manually up front as it's easier to manage than to
     # read from the directories and pull metadata out.
     assets_to_upload = [
