@@ -38,8 +38,7 @@ def check_env():
 
 @pytest.fixture(scope="module")
 def initialize_gee():
-    source_creds, project_id = google.auth.default()
-    ee.Initialize(project=project_id, credentials=source_creds)
+    ee.Initialize()
 
     check_ee_initialised()
 
