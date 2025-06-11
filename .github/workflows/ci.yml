@@ -36,13 +36,13 @@ jobs:
         env:
           # Used to invalidate the cache when the dependency installation command
           # changes.
-          VERSION: v1
+          VERSION: v2
         with:
           path: .venv
           key: pydeps-${{ env.VERSION }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
-        run: poetry install --no-interaction --no-root --with main,dev
+        run: poetry install --no-interaction --no-root --only main,dev
         if: steps.cache-deps.outputs.cache-hit != 'true'
 
   install-package:
