@@ -25,6 +25,7 @@ GEE_GRID_LOCATION = f"{GEE_IT_ASSET_ROOT}/grid"
 
 ASSET_DIR = Path("pm25ml", "collectors", "gee", "feature_planner__it_assets")
 
+
 @pytest.fixture(scope="module", autouse=True)
 def check_env():
     if not BUCKET_NAME:
@@ -38,7 +39,29 @@ def check_env():
 
 @pytest.fixture(scope="module")
 def initialize_gee():
-    ee.Initialize()
+    if os.environ.get("GITHUB_ACTIONS"):
+        secret_contents = os.environ.get("GEE_SERVICE_ACCOUNT_KEY")
+        service_account = os.environ.get("GOOGLE_SERVICE_ACCOUNT_NAME")
+        project_id = os.environ.get("GCP_PROJECT")
+        if not secret_contents:
+            raise ValueError(
+                "Environment variable GEE_SERVICE_ACCOUNT_KEY must be set for integration tests.",
+            )
+        if not service_account:
+            raise ValueError(
+                "Environment variable GOOGLE_SERVICE_ACCOUNT_NAME must be set for integration tests.",
+            )
+        if not project_id:
+            raise ValueError(
+                "Environment variable GCP_PROJECT must be set for integration tests.",
+            )
+        creds = ee.ServiceAccountCredentials(service_account, key_data=secret_contents)
+        ee.Initialize(
+            credentials=creds,
+            project=project_id,
+        )
+    else:
+        ee.Initialize()
 
     check_ee_initialised()
 

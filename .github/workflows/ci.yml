@@ -71,6 +71,7 @@ jobs:
       IT_GEE_ASSET_BUCKET_NAME: pm25ml-gee-integration-tests
       GCP_PROJECT: vital-form-455413-p8
       GOOGLE_SERVICE_ACCOUNT_NAME: crea-india-map-github-actions@vital-form-455413-p8.iam.gserviceaccount.com
+      GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
 
     steps:
       - uses: actions/checkout@v2
