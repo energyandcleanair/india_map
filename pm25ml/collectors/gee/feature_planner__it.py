@@ -12,6 +12,8 @@ from polars.testing import assert_frame_equal
 
 from pm25ml.collectors.gee.feature_planner import FeaturePlan, GriddedFeatureCollectionPlanner
 
+import google.auth
+
 pytestmark = pytest.mark.integration
 
 BUCKET_NAME = os.environ.get("IT_GEE_ASSET_BUCKET_NAME")
@@ -21,7 +23,6 @@ GEE_IMAGE_COLLECTION_ROOT = f"{GEE_IT_ASSET_ROOT}/dummy_data"
 GEE_GRID_LOCATION = f"{GEE_IT_ASSET_ROOT}/grid"
 
 ASSET_DIR = Path("pm25ml", "collectors", "gee", "feature_planner__it_assets")
-
 
 @pytest.fixture(scope="module", autouse=True)
 def check_env():
@@ -34,6 +35,15 @@ def check_env():
             "Environment variable IT_GEE_ASSET_ROOT must be set for integration tests.",
         )
 
+@pytest.fixture(scope="module", autouse=True)
+def initialize_gee():
+    creds, project_id = google.auth.default()
+    ee.Initialize(project=project_id, credentials=creds)
+
+    check_ee_initialised()
+
+def check_ee_initialised() -> None:
+    ee.data.getAssetRoots()
 
 @pytest.fixture(scope="module", autouse=True)
 def create_and_upload_dummy_tiffs() -> dict[str, str]:
@@ -114,8 +124,6 @@ def upload_to_ee(
     import ee
     import ee.data
 
-    ee.Initialize()
-    ee.Authenticate(auth_mode="gcloud", quiet=True)
 
     # First we need to delete any existing assets in the root folder
     def delete_assets_recursively(asset_id):
