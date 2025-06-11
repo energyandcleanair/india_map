@@ -115,7 +115,7 @@ def upload_to_ee(
     import ee.data
 
     ee.Initialize()
-    ee.Authenticate()
+    ee.Authenticate(auth_mode="gcloud", quiet=True)
 
     # First we need to delete any existing assets in the root folder
     def delete_assets_recursively(asset_id):
