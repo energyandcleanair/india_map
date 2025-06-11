@@ -64,7 +64,7 @@ jobs:
     needs: [deps]
     env:
       IT_GEE_ASSET_ROOT: projects/vital-form-455413-p8/assets/integration_tests
-      IT_GEE_ASSET_BUCKET_NAME: vital-form-455413-p8
+      IT_GEE_ASSET_BUCKET_NAME: pm25ml-gee-integration-tests
       GCP_PROJECT: vital-form-455413-p8
 
     steps:
