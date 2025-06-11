@@ -70,6 +70,7 @@ jobs:
       IT_GEE_ASSET_ROOT: projects/vital-form-455413-p8/assets/integration_tests
       IT_GEE_ASSET_BUCKET_NAME: pm25ml-gee-integration-tests
       GCP_PROJECT: vital-form-455413-p8
+      GOOGLE_SERVICE_ACCOUNT_NAME: crea-india-map-github-actions@vital-form-455413-p8.iam.gserviceaccount.com
 
     steps:
       - uses: actions/checkout@v2
@@ -77,7 +78,7 @@ jobs:
       - uses: 'google-github-actions/auth@v2'
         with:
           project_id: vital-form-455413-p8
-          service_account: crea-india-map-github-actions@vital-form-455413-p8.iam.gserviceaccount.com
+          service_account: ${{ env.GOOGLE_SERVICE_ACCOUNT_NAME }}
           workload_identity_provider: 'projects/716476042137/locations/global/workloadIdentityPools/github-wif-pool/providers/crea-org-actions-provider'
       - name: Run integration tests
         run: poetry run pytest -m "integration"

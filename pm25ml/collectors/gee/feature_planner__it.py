@@ -38,11 +38,15 @@ def check_env():
 
 @pytest.fixture(scope="module")
 def initialize_gee():
-    creds, project_id = google.auth.default()
     source_creds, project_id = google.auth.default()
-    sa_name = os.environ.get("GOOGLE_SERVICE_ACCOUNT_NAME")
 
-    if os.environ.get("GITHUB_ACTIONS") == "true" and sa_name:
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        sa_name = os.environ.get("GOOGLE_SERVICE_ACCOUNT_NAME")
+        if not sa_name:
+            raise ValueError(
+                "Environment variable GOOGLE_SERVICE_ACCOUNT_NAME must be set for integration tests in GitHub Actions. " +
+                "This should be set by the Google Cloud authentication action.",
+            )
         target_creds = google.auth.impersonated_credentials.Credentials(
             source_credentials=source_creds,
             target_principal=sa_name,
@@ -51,7 +55,6 @@ def initialize_gee():
         )
         ee.Initialize(project=project_id, credentials=target_creds)
     else:
-        print("Using default credentials (local/dev mode)")
         ee.Initialize(project=project_id, credentials=source_creds)
 
     check_ee_initialised()
