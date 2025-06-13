@@ -27,9 +27,9 @@ class MerraDataReader(NedDataReader):
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
         """Fetch data for the given date range."""
-        ds = xarray.open_dataset(cast("ReadBuffer", file), chunks="auto", engine="h5netcdf")
+        dataset = xarray.open_dataset(cast("ReadBuffer", file), chunks="auto", engine="h5netcdf")
 
-        begin_date = ds.attrs.get("RangeBeginningDate")
+        begin_date = dataset.attrs.get("RangeBeginningDate")
         if not begin_date:
             msg = "Dataset does not contain a valid 'RangeBeginningDate' attribute."
             raise ValueError(msg)
@@ -37,18 +37,22 @@ class MerraDataReader(NedDataReader):
         var_name = dataset_descriptor.source_variable_name
         filter_bounds = dataset_descriptor.filter_bounds
 
-        ds = ds[var_name].sel(
+        data_array = dataset[var_name].sel(
             lon=slice(filter_bounds[0], filter_bounds[2]),
             lat=slice(filter_bounds[1], filter_bounds[3]),
         )
 
-        if "lev" in ds.dims:
-            ds = ds.isel(lev=-1) if ds.lev.attrs["positive"] == "down" else ds.isel(lev=0)
+        if "lev" in data_array.dims:
+            data_array = (
+                data_array.isel(lev=-1)
+                if data_array.lev.attrs["positive"] == "down"
+                else data_array.isel(lev=0)
+            )
 
-        ds = ds.mean(dim="time", keep_attrs=True)
+        data_array = data_array.mean(dim="time", keep_attrs=True)
 
         expected_dimensions = 2
-        if len(ds.dims) != expected_dimensions:
-            msg = f"Data is not 2D for projection: dimensions are {ds.dims}"
+        if len(data_array.dims) != expected_dimensions:
+            msg = f"Data is not 2D for projection: dimensions are {data_array.dims}"
             raise ValueError(msg)
-        return NedDayData(data_array=ds, date=begin_date)
+        return NedDayData(data_array=data_array, date=begin_date)
