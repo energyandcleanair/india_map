@@ -1,0 +1,211 @@
+"""NASA EarthData pipeline for exporting data."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import polars as pl
+import xarray
+
+from pm25ml.collectors.export_pipeline import ExportPipeline
+from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
+from pm25ml.collectors.ned.errors import NedMissingDataError
+from pm25ml.logging import logger
+
+if TYPE_CHECKING:
+    from geopandas import GeoDataFrame
+
+    from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
+    from pm25ml.collectors.ned.data_retrievers import NedDataRetriever
+    from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
+    from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+
+
+class NedPipelineConstructor:
+    """
+    Constructs a NED export pipeline.
+
+    This class is used to create an instance of the NED export pipeline with the necessary
+    parameters.
+    """
+
+    def __init__(
+        self,
+        *,
+        archive_storage: IngestArchiveStorage,
+        grid: GeoDataFrame,
+    ) -> None:
+        """
+        Initialize the pipeline constructor with the archive storage and grid.
+
+        Args:
+            archive_storage (IngestArchiveStorage): The storage where the results will be archived.
+            grid (GeoDataFrame): The grid to which the data will be regridded.
+
+        """
+        self.archive_storage = archive_storage
+        self.grid = grid
+
+    def construct(
+        self,
+        *,
+        dataset_descriptor: NedDatasetDescriptor,
+        dataset_retriever: NedDataRetriever | None = None,
+        dataset_reader: NedDataReader,
+        result_subpath: str,
+    ) -> NedExportPipeline:
+        """
+        Construct the NED export pipeline with the given parameters.
+
+        Args:
+            dataset_descriptor (NedDatasetDescriptor): The descriptor for the dataset
+            to be exported.
+            dataset_retriever (NedDataRetriever, optional): The retriever for the dataset.
+            Defaults to the RawEarthAccessDataRetriever.
+            dataset_reader (NedDataReader): The reader for the dataset.
+            result_subpath (str): The subpath where the results will be stored.
+
+        Returns:
+            NedExportPipeline: An instance of the NED export pipeline.
+
+        """
+        return NedExportPipeline(
+            grid=self.grid,
+            archive_storage=self.archive_storage,
+            dataset_descriptor=dataset_descriptor,
+            dataset_reader=dataset_reader,
+            dataset_retriever=(
+                dataset_retriever
+                if dataset_retriever is not None
+                else RawEarthAccessDataRetriever()
+            ),
+            result_subpath=result_subpath,
+        )
+
+
+class NedExportPipeline(ExportPipeline):
+    """
+    ExportPipeline for the NED data.
+
+    This pipeline is responsible for orchestrating the exporting of the NED data from the origin,
+    transforming it into the grid format, and uploading it to the underlying storage.
+    """
+
+    @staticmethod
+    def with_args(
+        *,
+        grid: GeoDataFrame,
+        archive_storage: IngestArchiveStorage,
+    ) -> NedPipelineConstructor:
+        """
+        Create a NedPipelineConstructor with the given grid and archive storage.
+
+        This allows for a more fluent interface when constructing pipelines.
+        """
+        return NedPipelineConstructor(
+            archive_storage=archive_storage,
+            grid=grid,
+        )
+
+    def __init__(  # noqa: PLR0913
+        self,
+        *,
+        grid: GeoDataFrame,
+        archive_storage: IngestArchiveStorage,
+        dataset_descriptor: NedDatasetDescriptor,
+        dataset_retriever: NedDataRetriever,
+        dataset_reader: NedDataReader,
+        result_subpath: str,
+    ) -> None:
+        """
+        Initialize the NED export pipeline.
+
+        Args:
+            grid (GeoDataFrame): The grid to which the data will be regridded.
+            archive_storage (IngestArchiveStorage): The storage where the results will be archived.
+            dataset_descriptor (NedDatasetDescriptor): The descriptor for the dataset to be
+            exported.
+            dataset_retriever (NedDataRetriever): The retriever for the dataset.
+            dataset_reader (NedDataReader): The reader for the dataset.
+            result_subpath (str): The subpath where the results will be stored.
+
+        """
+        super().__init__()
+        self.dataset_descriptor = dataset_descriptor
+        self.dataset_reader = dataset_reader
+        self.dataset_retriever = dataset_retriever
+        self.result_subpath = result_subpath
+        self.grid = grid
+        self.archive_storage = archive_storage
+
+    def upload(self) -> None:
+        """
+        Upload the data to the archive storage.
+
+        This method retrieves the data files, regrids them to the specified grid,
+        and writes the transformed data to the archive storage.
+        """
+        partial_dfs = []
+
+        for file in self.dataset_retriever.stream_files(
+            dataset_descriptor=self.dataset_descriptor,
+        ):
+            logger.info(
+                "Loading %s for dataset %s",
+                file,
+                self.dataset_descriptor,
+            )
+            data = self.dataset_reader.extract_data(
+                file=file,
+                dataset_descriptor=self.dataset_descriptor,
+            )
+
+            source_var_name = self.dataset_descriptor.source_variable_name
+            target_var_name = self.dataset_descriptor.target_variable_name
+
+            logger.info(
+                "Regridding data for %s for dataset %s",
+                file,
+                self.dataset_descriptor,
+            )
+            transformed_data = self._regrid(data)
+            data_out = transformed_data[["grid_id", "date", source_var_name]].rename(
+                columns={
+                    source_var_name: target_var_name,
+                },
+            )
+
+            partial_dfs.append(pl.from_pandas(data_out))
+
+        if not partial_dfs:
+            msg = f"No data found for dataset {self.dataset_descriptor}."
+            raise NedMissingDataError(msg)
+
+        logger.info(
+            "Writing result for dataset %s",
+            self.dataset_descriptor,
+        )
+        # Concatenate all partial dataframes
+        full_df = pl.concat(partial_dfs)
+        self.archive_storage.write_to_destination(
+            table=full_df,
+            result_subpath=self.result_subpath,
+        )
+
+    def _regrid(self, data: NedDayData) -> xarray.DataArray:
+        """Regrid the data to the grid."""
+        sampled_values = data.data.interp(
+            lon=xarray.DataArray(self.grid["lon"], dims="points"),
+            lat=xarray.DataArray(self.grid["lat"], dims="points"),
+            method="linear",  # Or "linear" for bilinear interpolation
+        )
+
+        var_name = self.dataset_descriptor.source_variable_name
+
+        transformed_grid = self.grid
+        transformed_grid[var_name] = sampled_values.values
+
+        # add date string
+        transformed_grid["date"] = data.date
+
+        return transformed_grid

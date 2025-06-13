@@ -6,3 +6,5 @@ example_data/
 
 tmp
 .env
+
+experiments/notebooks/outputs

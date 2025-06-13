@@ -33,13 +33,9 @@ jobs:
       - name: Cache dependencies
         id: cache-deps
         uses: actions/cache@v3
-        env:
-          # Used to invalidate the cache when the dependency installation command
-          # changes.
-          VERSION: v2
         with:
           path: .venv
-          key: pydeps-${{ env.VERSION }}-${{ hashFiles('**/poetry.lock') }}
+          key: pydeps-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
         run: poetry install --no-interaction --no-root --only main,dev
