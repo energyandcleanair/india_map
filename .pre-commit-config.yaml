@@ -7,7 +7,7 @@ repos:
       args: [ "--fix", "--exclude=reference,experiments,*__test.py,*__it.py" ]
     - id: ruff-format
       types_or: [ python, pyi ]
-      args: [ "--exclude=reference,experiments,*__test.py,*__it.py" ]
+      args: [ "--exclude=reference,experiments" ]
 
 exclude: |
   ^reference.*
