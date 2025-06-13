@@ -57,7 +57,7 @@ def initialize_gee():
             raise ValueError(
                 "Environment variable GCP_PROJECT must be set for integration tests.",
             )
-        creds = ee.ServiceAccountCredentials(service_account, key_data=secret_contents)
+        creds = ee.ServiceAccountCredentials(service_account, key_data=secret_contents)  # type: ignore
         ee.Initialize(
             credentials=creds,
             project=project_id,
@@ -69,7 +69,7 @@ def initialize_gee():
 
 
 def check_ee_initialised() -> None:
-    ee.data.getAssetRoots()
+    ee.data.getAssetRoots()  # type: ignore
 
 
 @pytest.fixture(scope="module", autouse=True)
