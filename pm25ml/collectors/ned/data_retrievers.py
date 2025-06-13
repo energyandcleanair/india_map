@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from fsspec import AbstractFileSystem
+from fsspec.spec import AbstractBufferedFile
 
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 
@@ -20,8 +20,9 @@ class NedDataRetriever:
 
     def stream_files(
         self,
+        *,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> Iterable[AbstractFileSystem]:
+    ) -> Iterable[AbstractBufferedFile]:
         """Stream files from the source."""
         msg = "This method should be implemented by subclasses."
         raise NotImplementedError(msg)

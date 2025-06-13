@@ -1,14 +1,18 @@
 """Data reader for OMI NO2 data."""
 
-from ast import List, literal_eval
+from ast import literal_eval
+from typing import TYPE_CHECKING, cast
 
 import arrow
 import numpy as np
 import xarray
-from fsspec import AbstractFileSystem
+from fsspec.spec import AbstractBufferedFile
 
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
+
+if TYPE_CHECKING:
+    from xarray.core.types import ReadBuffer
 
 
 class Omno2dReader(NedDataReader):
@@ -25,7 +29,7 @@ class Omno2dReader(NedDataReader):
 
     def extract_data(
         self,
-        file: AbstractFileSystem,
+        file: AbstractBufferedFile,
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
         """Read the OMI NO2 data from the file."""
@@ -33,7 +37,10 @@ class Omno2dReader(NedDataReader):
 
         lon, lat = self._build_coords(file)
 
-        ds = xarray.open_dataset(file, group="HDFEOS/GRIDS/ColumnAmountNO2/Data Fields")
+        ds = xarray.open_dataset(
+            cast("ReadBuffer", file),
+            group="HDFEOS/GRIDS/ColumnAmountNO2/Data Fields",
+        )
 
         var_name = dataset_descriptor.source_variable_name
         filter_bounds = dataset_descriptor.filter_bounds
@@ -49,8 +56,11 @@ class Omno2dReader(NedDataReader):
 
         return NedDayData(data_array=data_array, date=date)
 
-    def _extract_date(self, file: AbstractFileSystem) -> str:
-        file_attributes = xarray.open_dataset(file, group="HDFEOS/ADDITIONAL/FILE_ATTRIBUTES")
+    def _extract_date(self, file: AbstractBufferedFile) -> str:
+        file_attributes = xarray.open_dataset(
+            cast("ReadBuffer", file),
+            group="HDFEOS/ADDITIONAL/FILE_ATTRIBUTES",
+        )
 
         year_str = file_attributes.attrs["GranuleYear"].item()
         month_str = file_attributes.attrs["GranuleMonth"].item()
@@ -58,15 +68,18 @@ class Omno2dReader(NedDataReader):
 
         return arrow.get(int(year_str), int(month_str), int(day_str)).format("YYYY-MM-DD")
 
-    def _build_coords(self, file: AbstractFileSystem) -> tuple[np.ndarray, np.ndarray]:
-        grid_info = xarray.open_dataset(file, group="HDFEOS/GRIDS/ColumnAmountNO2")
-        bounds = literal_eval(grid_info.attrs["GridSpan"])
-        resolution = literal_eval(grid_info.attrs["GridSpacing"])
+    def _build_coords(self, file: AbstractBufferedFile) -> tuple[np.ndarray, np.ndarray]:
+        grid_info = xarray.open_dataset(
+            cast("ReadBuffer", file),
+            group="HDFEOS/GRIDS/ColumnAmountNO2",
+        )
+        bounds: tuple[float, float, float, float] = literal_eval(grid_info.attrs["GridSpan"])
+        resolution: tuple[float, float] = literal_eval(grid_info.attrs["GridSpacing"])
 
         lon, lat = self._define_coords(
-            lat_bounds=[bounds[2], bounds[3]],
-            lon_bounds=[bounds[0], bounds[1]],
-            resolution=list(resolution),
+            lat_bounds=(bounds[2], bounds[3]),
+            lon_bounds=(bounds[0], bounds[1]),
+            resolution=resolution,
         )
 
         lat_len = grid_info.attrs["NumberOfLatitudesInGrid"].item()
@@ -83,9 +96,9 @@ class Omno2dReader(NedDataReader):
 
     def _define_coords(
         self,
-        lat_bounds: List[float],
-        lon_bounds: List[float],
-        resolution: List[float],
+        lat_bounds: tuple[float, float],
+        lon_bounds: tuple[float, float],
+        resolution: tuple[float, float],
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Create a meshgrid of points between bounding coordinates.

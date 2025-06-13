@@ -1,10 +1,15 @@
 """Data reader for MERRA-2 data files."""
 
+from typing import TYPE_CHECKING, cast
+
 import xarray
-from fsspec import AbstractFileSystem
+from fsspec.spec import AbstractBufferedFile
 
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
+
+if TYPE_CHECKING:
+    from xarray.core.types import ReadBuffer
 
 
 class MerraDataReader(NedDataReader):
@@ -18,13 +23,16 @@ class MerraDataReader(NedDataReader):
 
     def extract_data(
         self,
-        file: AbstractFileSystem,
+        file: AbstractBufferedFile,
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
         """Fetch data for the given date range."""
-        ds = xarray.open_dataset(file, chunks={}, engine="h5netcdf")
+        ds = xarray.open_dataset(cast("ReadBuffer", file), chunks="auto", engine="h5netcdf")
 
         begin_date = ds.attrs.get("RangeBeginningDate")
+        if not begin_date:
+            msg = "Dataset does not contain a valid 'RangeBeginningDate' attribute."
+            raise ValueError(msg)
 
         var_name = dataset_descriptor.source_variable_name
         filter_bounds = dataset_descriptor.filter_bounds

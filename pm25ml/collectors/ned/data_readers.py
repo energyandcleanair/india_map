@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import xarray
-    from fsspec import AbstractFileSystem
+    from fsspec.spec import AbstractBufferedFile
 
     from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 
@@ -40,7 +40,7 @@ class NedDataReader:
 
     def extract_data(
         self,
-        file: AbstractFileSystem,
+        file: AbstractBufferedFile,
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
         """Fetch data for the given date range."""

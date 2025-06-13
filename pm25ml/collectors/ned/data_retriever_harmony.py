@@ -8,13 +8,15 @@ References:
 
 import time
 from collections.abc import Iterable
+from typing import TypedDict, Union, cast
 from urllib import parse
 
 import earthaccess
 import fsspec
 import requests
 from arrow import Arrow
-from fsspec import AbstractFileSystem
+from fsspec.spec import AbstractBufferedFile
+from requests.auth import AuthBase
 
 from pm25ml.collectors.ned.data_retrievers import (
     EARTH_ENGINE_SEARCH_DATE_FORMAT,
@@ -24,6 +26,29 @@ from pm25ml.collectors.ned.data_retrievers import (
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.errors import NedMissingDataError
 from pm25ml.logging import logger
+
+_JSONObject = dict[str, "_JSONType"]
+
+_JSONType = Union[
+    str,
+    int,
+    float,
+    bool,
+    None,
+    _JSONObject,
+    list["_JSONType"],
+]
+
+_JobResultLink = dict[str, str]
+_JobResultLinks = list[_JobResultLink]
+
+
+class _StatusResponse(TypedDict):
+    """Represents the status response from the Harmony Subsetter API."""
+
+    status: str
+    progress: int
+    links: _JobResultLinks
 
 
 class HarmonySubsetterDataRetriever(NedDataRetriever):
@@ -44,8 +69,9 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
 
     def stream_files(
         self,
+        *,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> Iterable[AbstractFileSystem]:
+    ) -> Iterable[AbstractBufferedFile]:
         """
         Stream data using the Harmony Subsetter API.
 
@@ -54,7 +80,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
                 including name, version, date range, and spatial bounds.
 
         Returns:
-            Iterable[AbstractFileSystem]: An iterable of file-like objects containing the subsetted
+            Iterable[FileLike]: An iterable of file-like objects containing the subsetted
             data.
 
         """
@@ -62,7 +88,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         datasets = earthaccess.search_datasets(
             short_name=dataset_descriptor.dataset_name,
         )
-        self._check_expected_dataset(datasets)
+        self._check_expected_dataset(datasets, dataset_descriptor)
         collection_id = datasets[0].concept_id()
 
         logger.info("Found dataset with collection ID %s", collection_id)
@@ -82,8 +108,9 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
 
         logger.info("Starting subsetting job for collection ID %s", collection_id)
         job_response = self._init_subsetting_job(collection_id, dataset_descriptor)
+        job_id = job_response.get("jobID")
 
-        logger.info("Subsetting job started with ID %s", job_response["jobID"])
+        logger.info("Subsetting job started with ID %s", job_id)
         links_details = self._await_download_url_results(job_response)
 
         logger.info(
@@ -96,7 +123,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
             "https",
             client_kwargs={
                 "headers": {
-                    "Authorization": f"Bearer {earthaccess.get_edl_token()['access_token']}",
+                    "Authorization": f"Bearer {self._get_earthdata_token()}",
                 },
                 "trust_env": False,
             },
@@ -104,14 +131,20 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
 
         for link_details in links_details:
             href = link_details.get("href")
-            yield https_file_system.open(href)
+            if not href:
+                msg = f"Link details missing 'href': {link_details}"
+                raise NedMissingDataError(msg)
+            yield cast("AbstractBufferedFile", https_file_system.open(href))
 
-    def _await_download_url_results(self, job_response: dict) -> list[dict]:
+    def _await_download_url_results(self, job_response: _JSONObject) -> _JobResultLinks:
         job_url = self.harmony_root + f"/jobs/{job_response['jobID']}"
 
         expected_job_complete_percentage = 100
 
-        job_status_response = self._make_json_request(job_url)
+        job_status_response = cast(
+            "_StatusResponse",
+            self._make_json_request(job_url),
+        )
         while (
             job_status_response["status"] == "running"
             and job_status_response["progress"] < expected_job_complete_percentage
@@ -122,7 +155,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
                 job_status_response["progress"],
             )
             time.sleep(10)
-            job_status_response = self._make_json_request(job_url)
+            job_status_response = cast("_StatusResponse", self._make_json_request(job_url))
 
         if (
             job_status_response["status"] == "successful"
@@ -142,18 +175,22 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         self,
         collection_id: str,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> dict:
+    ) -> _JSONObject:
         job_init_url = self._build_subsetting_url(collection_id, dataset_descriptor)
 
         return self._make_json_request(job_init_url)
 
-    def _check_expected_dataset(self, datasets: list[earthaccess.DataCollection]) -> None:
+    def _check_expected_dataset(
+        self,
+        datasets: list[earthaccess.DataCollection],
+        dataset_descriptor: NedDatasetDescriptor,
+    ) -> None:
         if not datasets:
-            msg = f"No datasets found for {self.dataset_descriptor.dataset_name}."
+            msg = f"No datasets found for {dataset_descriptor.dataset_name}."
             raise NedMissingDataError(msg)
         if len(datasets) > 1:
             msg = (
-                f"Multiple datasets found for {self.dataset_descriptor.dataset_name}. "
+                f"Multiple datasets found for {dataset_descriptor.dataset_name}. "
                 "Please specify a more precise dataset name."
             )
             raise NedMissingDataError(msg)
@@ -162,7 +199,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         self,
         collection_id: str,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> dict:
+    ) -> str:
         west, south, east, north = dataset_descriptor.filter_bounds
 
         api_path = (
@@ -182,7 +219,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         variable_name = dataset_descriptor.source_variable_name
 
         # Build query string
-        query_params = [
+        query_params: list[tuple[str, str | int]] = [
             ("format", "application/x-netcdf4"),
             ("variable", variable_name),
             ("subset", f"lon({west}:{east})"),
@@ -197,9 +234,9 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
     def _make_json_request(
         self,
         url: str,
-    ) -> dict:
+    ) -> _JSONObject:
         """Make a JSON request to the Harmony Subsetter API."""
-        auth = _BearerToken(earthaccess.get_edl_token()["access_token"])
+        auth = _BearerToken(self._get_earthdata_token())
         response = requests.get(url, auth=auth, timeout=30)
         response.raise_for_status()
         return response.json()
@@ -229,11 +266,17 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
             dataset_descriptor,
         )
 
+    @staticmethod
+    def _get_earthdata_token() -> str:
+        """Get the Earthdata token for authentication."""
+        token = cast("dict[str, str]", earthaccess.get_edl_token())
+        return token["access_token"]
 
-class _BearerToken(requests.auth.AuthBase):
+
+class _BearerToken(AuthBase):
     def __init__(self, token: str) -> None:
         self.token = token
 
-    def __call__(self, r: requests.Request) -> requests.Response:
+    def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
         r.headers["Authorization"] = f"Bearer {self.token}"
         return r

@@ -192,7 +192,7 @@ class NedExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
         )
 
-    def _regrid(self, data: NedDayData) -> xarray.DataArray:
+    def _regrid(self, data: NedDayData) -> GeoDataFrame:
         """Regrid the data to the grid."""
         sampled_values = data.data.interp(
             lon=xarray.DataArray(self.grid["lon"], dims="points"),

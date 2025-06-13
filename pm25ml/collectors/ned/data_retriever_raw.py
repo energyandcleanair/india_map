@@ -1,9 +1,10 @@
 """Retrieves raw Earth Access data."""
 
 from collections.abc import Iterable
+from typing import cast
 
 import earthaccess
-from fsspec import AbstractFileSystem
+from fsspec.spec import AbstractBufferedFile
 
 from pm25ml.collectors.ned.data_retrievers import EARTH_ENGINE_SEARCH_DATE_FORMAT, NedDataRetriever
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
@@ -18,8 +19,7 @@ class RawEarthAccessDataRetriever(NedDataRetriever):
         self,
         *,
         dataset_descriptor: NedDatasetDescriptor,
-        **_: object,
-    ) -> Iterable[AbstractFileSystem]:
+    ) -> Iterable[AbstractBufferedFile]:
         """Stream data from the raw Earth Access source."""
         logger.info("Searching for granules for dataset %s", dataset_descriptor)
         granules: list[earthaccess.DataGranule] = earthaccess.search_data(
@@ -54,4 +54,4 @@ class RawEarthAccessDataRetriever(NedDataRetriever):
 
         for granule in granules:
             [file] = earthaccess.open([granule])
-            yield file
+            yield cast("AbstractBufferedFile", file)
