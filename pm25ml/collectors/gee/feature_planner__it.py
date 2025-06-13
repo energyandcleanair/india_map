@@ -192,9 +192,9 @@ def upload_to_ee(
                     "endTime": (upload["date"] + timedelta(days=1)).isoformat(),
                 },
             )
-        elif upload["type"] == "table":
+        else:
             task = ee.data.startTableIngestion(
-                None,
+                None,  # type: ignore
                 {
                     "name": upload["asset_path"],
                     "sources": [
@@ -224,7 +224,7 @@ def upload_to_ee(
 @pytest.fixture(scope="module")
 def feature_planner(upload_dummy_tiffs):
     return GriddedFeatureCollectionPlanner(
-        grid=ee.FeatureCollection(upload_dummy_tiffs["grid"]),
+        grid=ee.FeatureCollection(upload_dummy_tiffs["grid"]),  # type: ignore
     )
 
 
@@ -470,6 +470,6 @@ def execute_plan_to_dataframe(feature_plan: FeaturePlan):
 
     plan = feature_plan.planned_collection
 
-    features = plan.getInfo()["features"]
+    features = plan.getInfo()["features"]  # type: ignore
     rows = [convert_record(f) for f in features]
     return pl.DataFrame(rows)
