@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/poetry-cache-restore
       - name: Install package
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --only main
 
   test:
     runs-on: ubuntu-latest
