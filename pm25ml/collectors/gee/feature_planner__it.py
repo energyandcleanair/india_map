@@ -38,6 +38,7 @@ def check_env():
             "Environment variable IT_GEE_ASSET_ROOT must be set for integration tests.",
         )
 
+
 @pytest.fixture(scope="module")
 def initialize_gee():
     if os.environ.get("GITHUB_ACTIONS"):
@@ -66,10 +67,12 @@ def initialize_gee():
 
     check_ee_initialised()
 
+
 def check_ee_initialised() -> None:
     ee.data.getAssetRoots()
 
-@pytest.fixture(scope="module", autouse=True )
+
+@pytest.fixture(scope="module", autouse=True)
 def upload_dummy_tiffs(initialize_gee) -> dict[str, str]:
     # We define these files manually up front as it's easier to manage than to
     # read from the directories and pull metadata out.
@@ -147,7 +150,6 @@ def upload_to_ee(
 ):
     import ee
     import ee.data
-
 
     # First we need to delete any existing assets in the root folder
     def delete_assets_recursively(asset_id):
@@ -299,6 +301,7 @@ def test_plan_daily_average(
         atol=0.2,
     )
 
+
 def test_plan_static_feature(
     feature_planner: GriddedFeatureCollectionPlanner,
     upload_dummy_tiffs,
@@ -343,6 +346,7 @@ def test_plan_static_feature(
         atol=0.2,
     )
 
+
 def test_plan_summarise_annual_classified_pixels(
     feature_planner: GriddedFeatureCollectionPlanner,
     upload_dummy_tiffs,
@@ -353,6 +357,7 @@ def test_plan_summarise_annual_classified_pixels(
 
     # "day 1" refers to 2023-01-01 and "day 2" refers to 2023-01-02
 
+    # fmt: off
     # "day 1"'s 4x4 grid has the following categories:
     day_1_full_grid = [
         32, 33, 34, 35,
@@ -360,7 +365,9 @@ def test_plan_summarise_annual_classified_pixels(
         40, 41, 42, 43,
         44, 45, 46, 47,
     ]
+    # fmt: on
 
+    # fmt: off
     # "day 2"'s 4x4 grid has the following categories:
     day_2_full_grid = [
         48, 49, 50, 51,
@@ -368,7 +375,9 @@ def test_plan_summarise_annual_classified_pixels(
         56, 57, 58, 59,
         60, 61, 62, 63,
     ]
+    # fmt: on
 
+    # fmt: off
     x_grid_mask = [
         1, 0, 0, 1,
         0, 1, 1, 0,
@@ -381,6 +390,7 @@ def test_plan_summarise_annual_classified_pixels(
         0, 0, 0, 0,
         0, 0, 0, 0,
     ]
+    # fmt: on
 
     def filter_by_mask(grid, mask):
         """Filter grid values by a mask."""
@@ -389,19 +399,21 @@ def test_plan_summarise_annual_classified_pixels(
     output_names_to_class_values = {
         "half_day_1_categories": filter_by_mask(day_1_full_grid, x_grid_mask),
         "half_day_2_categories": filter_by_mask(day_2_full_grid, x_grid_mask),
-        "half_both_day_categories": filter_by_mask(day_1_full_grid, x_grid_mask) + filter_by_mask(day_2_full_grid, x_grid_mask),
-        "top_left_grid_categories":
-            filter_by_mask(
-                day_1_full_grid,
-                top_left_grid_mask,
-            ) + filter_by_mask(
-                day_2_full_grid,
-                top_left_grid_mask,
-            ),
-        "invalid_categories":
-            list(range(
+        "half_both_day_categories": filter_by_mask(day_1_full_grid, x_grid_mask)
+        + filter_by_mask(day_2_full_grid, x_grid_mask),
+        "top_left_grid_categories": filter_by_mask(
+            day_1_full_grid,
+            top_left_grid_mask,
+        )
+        + filter_by_mask(
+            day_2_full_grid,
+            top_left_grid_mask,
+        ),
+        "invalid_categories": list(
+            range(
                 32,
-            )),
+            )
+        ),
     }
 
     annual_classified_plan = feature_planner.plan_summarise_annual_classified_pixels(
@@ -431,11 +443,10 @@ def test_plan_summarise_annual_classified_pixels(
         check_row_order=False,
         check_column_order=False,
         check_exact=False,
-        check_dtypes= False,
+        check_dtypes=False,
         rtol=0,
         atol=0.05,
     )
-
 
 
 def execute_plan_to_dataframe(feature_plan: FeaturePlan):
@@ -443,7 +454,11 @@ def execute_plan_to_dataframe(feature_plan: FeaturePlan):
 
     def convert_record(record):
         # Extract the date and grid_id from the record and then the any remaining properties
-        date = arrow.get(record["properties"]["date"]["value"]).date() if "date" in record["properties"] else None
+        date = (
+            arrow.get(record["properties"]["date"]["value"]).date()
+            if "date" in record["properties"]
+            else None
+        )
         properties = {k: v for k, v in record["properties"].items() if k not in ["date"]}
         # Flatten the properties into a single dictionary
         result = {
