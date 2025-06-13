@@ -1,6 +1,6 @@
 """Data reader for MERRA-2 data files."""
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import xarray
 from fsspec.spec import AbstractBufferedFile
@@ -14,6 +14,14 @@ if TYPE_CHECKING:
 
 class MerraDataReader(NedDataReader):
     """Data reader for MERRA-2 data files."""
+
+    expected_dimensions: ClassVar[list[str]] = [
+        "lon",
+        "lat",
+        "time",
+    ]
+    optional_dimensions: ClassVar[list[str]] = ["lev"]
+    all_dimensions: ClassVar[list[str]] = expected_dimensions + optional_dimensions
 
     def __init__(self) -> None:
         """Initialize the data reader."""
@@ -37,6 +45,8 @@ class MerraDataReader(NedDataReader):
 
         """
         dataset = xarray.open_dataset(cast("ReadBuffer", file), chunks="auto", engine="h5netcdf")
+
+        self._check_expected_dimensions(dataset)
 
         begin_date = dataset.attrs.get("RangeBeginningDate")
         if not begin_date:
@@ -65,3 +75,30 @@ class MerraDataReader(NedDataReader):
             msg = f"Data is not 2D for projection: dimensions are {data_array.dims}"
             raise ValueError(msg)
         return NedDayData(data_array=data_array, date=begin_date)
+
+    def _check_expected_dimensions(
+        self,
+        dataset: xarray.Dataset,
+    ) -> None:
+        # Check if all expected dimensions are present
+        actual_dimensions = list(dataset.dims.keys())
+        missing_expected_dimensions = [
+            dim for dim in self.expected_dimensions if dim not in actual_dimensions
+        ]
+        if missing_expected_dimensions:
+            msg = (
+                f"Dataset is missing expected dimensions: {missing_expected_dimensions}. "
+                f"Actual dimensions are: {actual_dimensions}. "
+                f"Required dimensions are: {self.expected_dimensions}."
+            )
+            raise ValueError(msg)
+
+        # Check if any unexpected dimensions are present
+        unexpected_dimensions = [dim for dim in actual_dimensions if dim not in self.all_dimensions]
+        if unexpected_dimensions:
+            msg = (
+                f"Dataset contains unexpected dimensions: {unexpected_dimensions}. "
+                f"Actual dimensions are: {actual_dimensions}. "
+                f"Allowable dimensions are: {self.all_dimensions}."
+            )
+            raise ValueError(msg)
