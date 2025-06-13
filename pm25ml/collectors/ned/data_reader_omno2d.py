@@ -32,7 +32,18 @@ class Omno2dReader(NedDataReader):
         file: AbstractBufferedFile,
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
-        """Read the OMI NO2 data from the file."""
+        """
+        Extract the data from an OMI NO2 file for a dataset.
+
+        Args:
+            file (AbstractBufferedFile): The file containing the OMI NO2 data.
+            dataset_descriptor (NedDatasetDescriptor): The dataset descriptor containing metadata
+            on how to extract the data.
+
+        Returns:
+            NedDayData: An object containing the results of the extraction.
+
+        """
         date = self._extract_date(file)
 
         lon, lat = self._build_coords(file)

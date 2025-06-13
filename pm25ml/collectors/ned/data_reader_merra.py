@@ -19,14 +19,23 @@ class MerraDataReader(NedDataReader):
         """Initialize the data reader."""
         super().__init__()
 
-    """Extracts the data from a MERRA-2 file for a dataset."""
-
     def extract_data(
         self,
         file: AbstractBufferedFile,
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
-        """Fetch data for the given date range."""
+        """
+        Extract the data from a MERRA-2 file for a dataset.
+
+        Args:
+            file (AbstractBufferedFile): The file containing the MERRA-2 data.
+            dataset_descriptor (NedDatasetDescriptor): The dataset descriptor containing metadata
+            on how to extract the data.
+
+        Returns:
+            NedDayData: An object containing the results of the extraction.
+
+        """
         dataset = xarray.open_dataset(cast("ReadBuffer", file), chunks="auto", engine="h5netcdf")
 
         begin_date = dataset.attrs.get("RangeBeginningDate")

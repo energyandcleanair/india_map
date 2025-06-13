@@ -43,6 +43,17 @@ class NedDataReader:
         file: AbstractBufferedFile,
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
-        """Fetch data for the given date range."""
+        """
+        Fetch data from a file for a dataset.
+
+        Args:
+            file (AbstractBufferedFile): The file containing the data.
+            dataset_descriptor (NedDatasetDescriptor): The dataset descriptor containing metadata
+            and processing instructions.
+
+        Returns:
+            NedDayData: An object containing the results of the extraction.
+
+        """
         msg = "This method should be implemented by subclasses."
         raise NotImplementedError(msg)

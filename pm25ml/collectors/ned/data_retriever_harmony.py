@@ -18,15 +18,15 @@ from arrow import Arrow
 from fsspec.spec import AbstractBufferedFile
 from requests.auth import AuthBase
 
+from pm25ml.collectors.ned.data_retriever_raw import EARTH_ENGINE_SEARCH_DATE_FORMAT
 from pm25ml.collectors.ned.data_retrievers import (
-    EARTH_ENGINE_SEARCH_DATE_FORMAT,
-    HARMONY_DATE_FILTER_FORMAT,
     NedDataRetriever,
 )
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.errors import NedMissingDataError
 from pm25ml.logging import logger
 
+# We define helper types to make the code more readable and maintainable.
 _JSONObject = dict[str, "_JSONType"]
 
 _JSONType = Union[
@@ -43,6 +43,12 @@ _JobResultLink = dict[str, str]
 _JobResultLinks = list[_JobResultLink]
 
 
+class _JobInitResponse(TypedDict):
+    """Represents the response from the Harmony Subsetter API when initializing a job."""
+
+    jobID: str
+
+
 class _StatusResponse(TypedDict):
     """Represents the status response from the Harmony Subsetter API."""
 
@@ -51,16 +57,21 @@ class _StatusResponse(TypedDict):
     links: _JobResultLinks
 
 
+HARMONY_DATE_FILTER_FORMAT = "YYYY-MM-DDTHH:mm:ssZ"
+
+
 class HarmonySubsetterDataRetriever(NedDataRetriever):
     """
     Retrieves data using the Harmony Subsetter API.
 
-    This allows for subsetting data from NASA Earthdata collections
-    based on spatial and temporal filters defined in the dataset descriptor.
+    This subsets data from NASA Earthdata collections, where possible, based on the
+    spatial and temporal filters defined in the dataset descriptor.
     """
 
     ogc_api_coverages_version = "1.0.0"
     harmony_root = "https://harmony.earthdata.nasa.gov"
+
+    job_complete_percentage = 100
 
     def __init__(
         self,
@@ -76,8 +87,8 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         Stream data using the Harmony Subsetter API.
 
         Args:
-            dataset_descriptor (NedDatasetDescriptor): The descriptor containing dataset details,
-                including name, version, date range, and spatial bounds.
+            dataset_descriptor (NedDatasetDescriptor): The descriptor containing dataset details and
+            processing instructions.
 
         Returns:
             Iterable[FileLike]: An iterable of file-like objects containing the subsetted
@@ -109,13 +120,16 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         logger.info("Starting subsetting job for collection ID %s", collection_id)
         job_response = self._init_subsetting_job(collection_id, dataset_descriptor)
         job_id = job_response.get("jobID")
+        if not job_id:
+            msg = f"Unable to start job: {job_response}"
+            raise NedMissingDataError(msg)
 
         logger.info("Subsetting job started with ID %s", job_id)
-        links_details = self._await_download_url_results(job_response)
+        links_details = self._await_download_url_results(job_id)
 
         logger.info(
             "Job %s completed successfully with %d links",
-            job_response["jobID"],
+            job_id,
             len(links_details),
         )
 
@@ -136,37 +150,25 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
                 raise NedMissingDataError(msg)
             yield cast("AbstractBufferedFile", https_file_system.open(href))
 
-    def _await_download_url_results(self, job_response: _JSONObject) -> _JobResultLinks:
-        job_url = self.harmony_root + f"/jobs/{job_response['jobID']}"
+    def _await_download_url_results(self, job_id: str) -> _JobResultLinks:
+        job_status_response = self._fetch_job_status(job_id)
 
-        expected_job_complete_percentage = 100
-
-        job_status_response = cast(
-            "_StatusResponse",
-            self._make_json_request(job_url),
-        )
-        while (
-            job_status_response["status"] == "running"
-            and job_status_response["progress"] < expected_job_complete_percentage
-        ):
+        while self._is_job_running(job_status_response):
             logger.info(
                 "Job %s is still running: %s%% complete",
-                job_response["jobID"],
+                job_id,
                 job_status_response["progress"],
             )
             time.sleep(10)
-            job_status_response = cast("_StatusResponse", self._make_json_request(job_url))
+            job_status_response = self._fetch_job_status(job_id)
 
-        if (
-            job_status_response["status"] == "successful"
-            and job_status_response["progress"] == expected_job_complete_percentage
-        ):
+        if self._has_job_succeeded(job_status_response):
             return [
                 link for link in job_status_response["links"] if link.get("rel", "data") == "data"
             ]
 
         msg = (
-            f"Job {job_response['jobID']} failed with status: {job_status_response['status']}. "
+            f"Job {job_id} failed with status: {job_status_response['status']}. "
             "Please check the Harmony Subsetter API for more details."
         )
         raise NedMissingDataError(msg)
@@ -175,10 +177,24 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         self,
         collection_id: str,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> _JSONObject:
+    ) -> _JobInitResponse:
         job_init_url = self._build_subsetting_url(collection_id, dataset_descriptor)
 
-        return self._make_json_request(job_init_url)
+        return cast(
+            "_JobInitResponse",
+            self._make_json_request(job_init_url),
+        )
+
+    def _fetch_job_status(
+        self,
+        job_id: str,
+    ) -> _StatusResponse:
+        job_url = self.harmony_root + f"/jobs/{job_id}"
+
+        return cast(
+            "_StatusResponse",
+            self._make_json_request(job_url),
+        )
 
     def _check_expected_dataset(
         self,
@@ -271,6 +287,24 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         """Get the Earthdata token for authentication."""
         token = cast("dict[str, str]", earthaccess.get_edl_token())
         return token["access_token"]
+
+    @staticmethod
+    def _is_job_running(
+        job_status: _StatusResponse,
+    ) -> bool:
+        return (
+            job_status["status"] == "running"
+            and job_status["progress"] < HarmonySubsetterDataRetriever.job_complete_percentage
+        )
+
+    @staticmethod
+    def _has_job_succeeded(
+        job_status: _StatusResponse,
+    ) -> bool:
+        return (
+            job_status["status"] == "successful"
+            and job_status["progress"] == HarmonySubsetterDataRetriever.job_complete_percentage
+        )
 
 
 class _BearerToken(AuthBase):

@@ -7,9 +7,9 @@ class NedDatasetDescriptor:
     """
     Descriptor for the NED dataset.
 
-    This class provides metadata needed to identify and filter the dataset.
+    This class provides metadata needed to identify, subset, reduce, and regrid the dataset.
 
-    It only supports a single variable for the source variable to extract.
+    It only supports a single variable to extract from the dataset.
     """
 
     def __init__(  # noqa: PLR0913

@@ -6,16 +6,13 @@ from fsspec.spec import AbstractBufferedFile
 
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 
-EARTH_ENGINE_SEARCH_DATE_FORMAT = "YYYY-MM-DD"
-HARMONY_DATE_FILTER_FORMAT = "YYYY-MM-DDTHH:mm:ssZ"
-
 
 class NedDataRetriever:
     """
     Retrieves data from a NASA source.
 
-    Streams files from the source based on the dataset descriptor. This may
-    involve searching for datasets, granules, and initiating subsetting jobs.
+    Streams files from the source based on the dataset descriptor. Optionally, this may allow for
+    server-side subsetting operations based on the dataset descriptor.
     """
 
     def stream_files(
@@ -23,6 +20,20 @@ class NedDataRetriever:
         *,
         dataset_descriptor: NedDatasetDescriptor,
     ) -> Iterable[AbstractBufferedFile]:
-        """Stream files from the source."""
+        """
+        Stream files from the source.
+
+        Optionally, this may allow for server-side subsetting operations based on the
+        dataset descriptor.
+
+        Args:
+            dataset_descriptor (NedDatasetDescriptor): The dataset descriptor containing metadata
+                and processing instructions.
+
+        Returns:
+            Iterable[AbstractBufferedFile]: An iterable of files containing the data for the
+            dataset.
+
+        """
         msg = "This method should be implemented by subclasses."
         raise NotImplementedError(msg)
