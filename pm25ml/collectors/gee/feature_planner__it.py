@@ -6,6 +6,10 @@ from time import sleep
 
 import arrow
 import ee
+import ee.data
+from google.cloud import storage
+
+import nanoid
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal
@@ -18,16 +22,20 @@ pytestmark = pytest.mark.integration
 # See pm25ml/collectors/gee/feature_planner__it_assets/README.md for details on
 # the structure of the assets used in these tests.
 
+TEST_UNIQUE_ID = nanoid.generate()
+
 BUCKET_NAME = os.environ.get("IT_GEE_ASSET_BUCKET_NAME")
 GEE_IT_ASSET_ROOT = os.environ.get("IT_GEE_ASSET_ROOT")
 
-GEE_IMAGE_COLLECTION_ROOT = f"{GEE_IT_ASSET_ROOT}/dummy_data"
-GEE_GRID_LOCATION = f"{GEE_IT_ASSET_ROOT}/grid"
+GEE_IT_TEST_INSTANCE_ASSETS_ROOT = f"{GEE_IT_ASSET_ROOT}/{TEST_UNIQUE_ID}"
+
+GEE_IMAGE_COLLECTION_ROOT = f"{GEE_IT_TEST_INSTANCE_ASSETS_ROOT}/dummy_data"
+GEE_GRID_LOCATION = f"{GEE_IT_TEST_INSTANCE_ASSETS_ROOT}/grid"
 
 ASSET_DIR = Path("pm25ml", "collectors", "gee", "feature_planner__it_assets")
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def check_env():
     if not BUCKET_NAME:
         raise ValueError(
@@ -40,7 +48,7 @@ def check_env():
 
 
 @pytest.fixture(scope="module")
-def initialize_gee():
+def initialize_gee(check_env):
     if os.environ.get("GITHUB_ACTIONS"):
         secret_contents = os.environ.get("GEE_SERVICE_ACCOUNT_KEY")
         service_account = os.environ.get("GOOGLE_SERVICE_ACCOUNT_NAME")
@@ -69,156 +77,164 @@ def initialize_gee():
 
 
 def check_ee_initialised() -> None:
-    ee.data.getAssetRoots()  # type: ignore
+    ee.data.getAssetRoots()
+
+
+@pytest.fixture(scope="module")
+def gcs_bucket():
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    return bucket
+
+
+@pytest.fixture(scope="module")
+def cleanup(initialize_gee, gcs_bucket):
+    def delete_gee_assets_recursively(asset_id):
+        """Recursively delete all assets under the given asset_id."""
+        assets = ee.data.listAssets({"parent": asset_id})
+        for asset in assets["assets"]:
+            if asset["type"] == "FOLDER" or asset["type"] == "IMAGE_COLLECTION":
+                delete_gee_assets_recursively(asset["id"])
+            else:
+                ee.data.deleteAsset(asset["id"])
+
+        ee.data.deleteAsset(asset_id)
+
+    def clear_test_gcs_assets():
+        # Empty the bucket before uploading new files
+        blobs = gcs_bucket.list_blobs(prefix=TEST_UNIQUE_ID)
+        for blob in blobs:
+            blob.delete()
+
+    clear_test_gcs_assets()
+    with contextlib.suppress(Exception):
+        delete_gee_assets_recursively(GEE_IT_TEST_INSTANCE_ASSETS_ROOT)
+    yield
+    clear_test_gcs_assets()
+    with contextlib.suppress(Exception):
+        delete_gee_assets_recursively(GEE_IT_TEST_INSTANCE_ASSETS_ROOT)
 
 
 @pytest.fixture(scope="module", autouse=True)
-def upload_dummy_tiffs(initialize_gee) -> dict[str, str]:
+def upload_dummy_tiffs(cleanup, gcs_bucket) -> dict[str, str]:
     # We define these files manually up front as it's easier to manage than to
     # read from the directories and pull metadata out.
     assets_to_upload = [
         {
             "local_path": Path(ASSET_DIR, "dummy_image", "2022-12-30.tif"),
             "date": datetime(2022, 12, 30, tzinfo=timezone.utc),
-            "gcs_path": f"gs://{BUCKET_NAME}/dummy_data/dummy_image_2022-12-30.tif",
-            "bucket_path": "dummy_data/dummy_image_2022-12-30.tif",
+            "gcs_path": f"gs://{BUCKET_NAME}/{TEST_UNIQUE_ID}/dummy_data/dummy_image_2022-12-30.tif",
+            "bucket_path": f"{TEST_UNIQUE_ID}/dummy_data/dummy_image_2022-12-30.tif",
             "asset_path": f"{GEE_IMAGE_COLLECTION_ROOT}/2022-12-30",
             "type": "image",
         },
         {
             "local_path": Path(ASSET_DIR, "dummy_image", "2022-12-31.tif"),
             "date": datetime(2022, 12, 31, tzinfo=timezone.utc),
-            "gcs_path": f"gs://{BUCKET_NAME}/dummy_data/dummy_image_2022-12-31.tif",
-            "bucket_path": "dummy_data/dummy_image_2022-12-31.tif",
+            "gcs_path": f"gs://{BUCKET_NAME}/{TEST_UNIQUE_ID}/dummy_data/dummy_image_2022-12-31.tif",
+            "bucket_path": f"{TEST_UNIQUE_ID}/dummy_data/dummy_image_2022-12-31.tif",
             "asset_path": f"{GEE_IMAGE_COLLECTION_ROOT}/2022-12-31",
             "type": "image",
         },
         {
             "local_path": Path(ASSET_DIR, "dummy_image", "2023-01-01.tif"),
             "date": datetime(2023, 1, 1, tzinfo=timezone.utc),
-            "gcs_path": f"gs://{BUCKET_NAME}/dummy_data/dummy_image_2023-01-01.tif",
-            "bucket_path": "dummy_data/dummy_image_2023-01-01.tif",
+            "gcs_path": f"gs://{BUCKET_NAME}/{TEST_UNIQUE_ID}/dummy_data/dummy_image_2023-01-01.tif",
+            "bucket_path": f"{TEST_UNIQUE_ID}/dummy_data/dummy_image_2023-01-01.tif",
             "asset_path": f"{GEE_IMAGE_COLLECTION_ROOT}/2023-01-01",
             "type": "image",
         },
         {
             "local_path": Path(ASSET_DIR, "dummy_image", "2023-01-02.tif"),
             "date": datetime(2023, 1, 2, tzinfo=timezone.utc),
-            "gcs_path": f"gs://{BUCKET_NAME}/dummy_data/dummy_image_2023-01-02.tif",
-            "bucket_path": "dummy_data/dummy_image_2023-01-02.tif",
+            "gcs_path": f"gs://{BUCKET_NAME}/{TEST_UNIQUE_ID}/dummy_data/dummy_image_2023-01-02.tif",
+            "bucket_path": f"{TEST_UNIQUE_ID}/dummy_data/dummy_image_2023-01-02.tif",
             "asset_path": f"{GEE_IMAGE_COLLECTION_ROOT}/2023-01-02",
             "type": "image",
         },
         {
             "local_path": Path(ASSET_DIR, "test-grid.zip"),
-            "gcs_path": f"gs://{BUCKET_NAME}/dummy_data/test-grid.zip",
-            "bucket_path": "dummy_data/test-grid.zip",
+            "gcs_path": f"gs://{BUCKET_NAME}/{TEST_UNIQUE_ID}/dummy_data/test-grid.zip",
+            "bucket_path": f"{TEST_UNIQUE_ID}/dummy_data/test-grid.zip",
             "asset_path": GEE_GRID_LOCATION,
             "type": "table",
         },
     ]
 
-    upload_to_gcs(assets_to_upload)
+    def upload_to_gcs(
+        bucket,
+        assets: list,
+    ):
+        for upload in assets:
+            blob = bucket.blob(upload["bucket_path"])
+            blob.upload_from_filename(upload["local_path"])
+
+    def upload_to_ee(
+        assets_to_upload: list,
+    ):
+        # Then we need to create the folders and collections we need.
+        with contextlib.suppress(Exception):
+            ee.data.createAsset({"type": "FOLDER"}, GEE_IT_ASSET_ROOT)
+        ee.data.createAsset({"type": "FOLDER"}, GEE_IT_TEST_INSTANCE_ASSETS_ROOT)
+        ee.data.createAsset({"type": "IMAGE_COLLECTION"}, GEE_IMAGE_COLLECTION_ROOT)
+
+        tasks = []
+
+        # Then we can start the ingestion tasks for each asset.
+        for upload in assets_to_upload:
+            if upload["type"] == "image":
+                task = ee.data.startIngestion(
+                    None,
+                    {
+                        "name": upload["asset_path"],
+                        "tilesets": [
+                            {
+                                "sources": [
+                                    {
+                                        "uris": [upload["gcs_path"]],
+                                    },
+                                ],
+                            },
+                        ],
+                        "startTime": upload["date"].isoformat(),
+                        "endTime": (upload["date"] + timedelta(days=1)).isoformat(),
+                    },
+                )
+            else:
+                task = ee.data.startTableIngestion(
+                    None,  # type: ignore
+                    {
+                        "name": upload["asset_path"],
+                        "sources": [
+                            {
+                                "uris": [upload["gcs_path"]],
+                            },
+                        ],
+                    },
+                )
+
+            tasks.append(task)  # type: ignore
+
+        # Finally, we can wait for the tasks to complete.
+        incomplete_task_ids = [task["id"] for task in tasks]
+        while incomplete_task_ids:
+            for task in incomplete_task_ids[:]:
+                status = ee.data.getTaskStatus(task)
+                if status and status[0]["state"] == "COMPLETED":
+                    incomplete_task_ids.remove(task)
+                elif status and status[0]["state"] == "FAILED":
+                    raise RuntimeError(f"Task {task} failed: {status[0]['error_message']}")
+            if incomplete_task_ids:
+                print(f"Waiting for {len(incomplete_task_ids)} tasks to complete...")
+                sleep(5)
+
+    upload_to_gcs(gcs_bucket, assets_to_upload)
     upload_to_ee(assets_to_upload)
 
     return {
         "image_collection": GEE_IMAGE_COLLECTION_ROOT,
         "grid": GEE_GRID_LOCATION,
     }
-
-
-def upload_to_gcs(
-    assets: list,
-):
-    from google.cloud import storage
-
-    client = storage.Client()
-    bucket = client.bucket(BUCKET_NAME)
-
-    # Empty the bucket before uploading new files
-    blobs = bucket.list_blobs(prefix="")
-    for blob in blobs:
-        blob.delete()
-
-    for upload in assets:
-        blob = bucket.blob(upload["bucket_path"])
-        blob.upload_from_filename(upload["local_path"])
-
-
-def upload_to_ee(
-    assets_to_upload: list,
-):
-    import ee
-    import ee.data
-
-    # First we need to delete any existing assets in the root folder
-    def delete_assets_recursively(asset_id):
-        """Recursively delete all assets under the given asset_id."""
-        assets = ee.data.listAssets({"parent": asset_id})
-        for asset in assets["assets"]:
-            if asset["type"] == "FOLDER" or asset["type"] == "IMAGE_COLLECTION":
-                delete_assets_recursively(asset["id"])
-            else:
-                ee.data.deleteAsset(asset["id"])
-
-        ee.data.deleteAsset(asset_id)
-
-    with contextlib.suppress(Exception):
-        delete_assets_recursively(GEE_IT_ASSET_ROOT)
-
-    # Then we need to create the folders and collections we need.
-    ee.data.createAsset({"type": "FOLDER"}, GEE_IT_ASSET_ROOT)
-    ee.data.createAsset({"type": "IMAGE_COLLECTION"}, GEE_IMAGE_COLLECTION_ROOT)
-
-    tasks = []
-
-    # Then we can start the ingestion tasks for each asset.
-    for upload in assets_to_upload:
-        if upload["type"] == "image":
-            task = ee.data.startIngestion(
-                None,
-                {
-                    "name": upload["asset_path"],
-                    "tilesets": [
-                        {
-                            "sources": [
-                                {
-                                    "uris": [upload["gcs_path"]],
-                                },
-                            ],
-                        },
-                    ],
-                    "startTime": upload["date"].isoformat(),
-                    "endTime": (upload["date"] + timedelta(days=1)).isoformat(),
-                },
-            )
-        else:
-            task = ee.data.startTableIngestion(
-                None,  # type: ignore
-                {
-                    "name": upload["asset_path"],
-                    "sources": [
-                        {
-                            "uris": [upload["gcs_path"]],
-                        },
-                    ],
-                },
-            )
-
-        tasks.append(task)
-
-    # Finally, we can wait for the tasks to complete.
-    incomplete_task_ids = [task["id"] for task in tasks]
-    while incomplete_task_ids:
-        for task in incomplete_task_ids[:]:
-            status = ee.data.getTaskStatus(task)
-            if status and status[0]["state"] == "COMPLETED":
-                incomplete_task_ids.remove(task)
-            elif status and status[0]["state"] == "FAILED":
-                raise RuntimeError(f"Task {task} failed: {status[0]['error_message']}")
-        if incomplete_task_ids:
-            print(f"Waiting for {len(incomplete_task_ids)} tasks to complete...")
-            sleep(5)
 
 
 @pytest.fixture(scope="module")
@@ -360,35 +376,83 @@ def test_plan_summarise_annual_classified_pixels(
     # fmt: off
     # "day 1"'s 4x4 grid has the following categories:
     day_1_full_grid = [
-        32, 33, 34, 35,
-        36, 37, 38, 39,
-        40, 41, 42, 43,
-        44, 45, 46, 47,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
     ]
     # fmt: on
 
     # fmt: off
     # "day 2"'s 4x4 grid has the following categories:
     day_2_full_grid = [
-        48, 49, 50, 51,
-        52, 53, 54, 55,
-        56, 57, 58, 59,
-        60, 61, 62, 63,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
     ]
     # fmt: on
 
     # fmt: off
     x_grid_mask = [
-        1, 0, 0, 1,
-        0, 1, 1, 0,
-        0, 1, 1, 0,
-        1, 0, 0, 1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
     ]
     top_left_grid_mask = [
-        1, 1, 0, 0,
-        1, 1, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ]
     # fmt: on
 
