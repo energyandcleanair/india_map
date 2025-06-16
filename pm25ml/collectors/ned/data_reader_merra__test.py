@@ -1,5 +1,7 @@
+import arrow
 import pytest
 from unittest.mock import MagicMock, patch
+from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_reader_merra import MerraDataReader
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.data_readers import NedDayData
@@ -11,9 +13,15 @@ from fsspec.spec import AbstractBufferedFile
 @pytest.fixture
 def mock_dataset_descriptor():
     """Mock dataset descriptor."""
-    descriptor = MagicMock(spec=NedDatasetDescriptor)
-    descriptor.source_variable_name = "mock_var"
-    descriptor.filter_bounds = [-10, -10, 10, 10]
+    descriptor = NedDatasetDescriptor(
+        dataset_name="fake_name",
+        dataset_version="fake_version",
+        start_date=arrow.get("2023-01-01"),
+        end_date=arrow.get("2023-01-03"),
+        filter_bounds=(Lon(-10.0), Lat(-10.0), Lon(10.0), Lat(10.0)),
+        source_variable_name="mock_var",
+        target_variable_name="new_mock_var",
+    )
     return descriptor
 
 
