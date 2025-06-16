@@ -373,6 +373,7 @@ def test_plan_summarise_annual_classified_pixels(
 
     # "day 1" refers to 2023-01-01 and "day 2" refers to 2023-01-02
 
+    # fmt: off
     # "day 1"'s 4x4 grid has the following categories:
     day_1_full_grid = [
         32,
@@ -392,7 +393,9 @@ def test_plan_summarise_annual_classified_pixels(
         46,
         47,
     ]
+    # fmt: on
 
+    # fmt: off
     # "day 2"'s 4x4 grid has the following categories:
     day_2_full_grid = [
         48,
@@ -412,7 +415,9 @@ def test_plan_summarise_annual_classified_pixels(
         62,
         63,
     ]
+    # fmt: on
 
+    # fmt: off
     x_grid_mask = [
         1,
         0,
@@ -449,6 +454,7 @@ def test_plan_summarise_annual_classified_pixels(
         0,
         0,
     ]
+    # fmt: on
 
     def filter_by_mask(grid, mask):
         """Filter grid values by a mask."""
