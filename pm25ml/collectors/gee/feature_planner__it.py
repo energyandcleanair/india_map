@@ -108,11 +108,11 @@ def cleanup(initialize_gee, gcs_bucket):
 
     clear_test_gcs_assets()
     with contextlib.suppress(Exception):
-        delete_gee_assets_recursively(ASSET_DIR)
+        delete_gee_assets_recursively(GEE_IT_TEST_INSTANCE_ASSETS_ROOT)
     yield
     clear_test_gcs_assets()
     with contextlib.suppress(Exception):
-        delete_gee_assets_recursively(ASSET_DIR)
+        delete_gee_assets_recursively(GEE_IT_TEST_INSTANCE_ASSETS_ROOT)
 
 
 @pytest.fixture(scope="module", autouse=True)
