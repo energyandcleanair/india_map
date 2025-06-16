@@ -54,11 +54,14 @@ class MerraDataReader(NedDataReader):
             raise ValueError(msg)
 
         var_name = dataset_descriptor.source_variable_name
-        filter_bounds = dataset_descriptor.filter_bounds
+        min_lon = dataset_descriptor.filter_min_lon
+        max_lon = dataset_descriptor.filter_max_lon
+        min_lat = dataset_descriptor.filter_min_lat
+        max_lat = dataset_descriptor.filter_max_lat
 
         data_array = dataset[var_name].sel(
-            lon=slice(filter_bounds[0], filter_bounds[2]),
-            lat=slice(filter_bounds[1], filter_bounds[3]),
+            lon=slice(min_lon, max_lon),
+            lat=slice(min_lat, max_lat),
         )
 
         if "lev" in data_array.dims:

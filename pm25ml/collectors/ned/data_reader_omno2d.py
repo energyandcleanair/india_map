@@ -7,7 +7,9 @@ import arrow
 import numpy as np
 import xarray
 from fsspec.spec import AbstractBufferedFile
+from numpy.typing import NDArray
 
+from pm25ml.collectors.ned.coord_types import Lat, Lon, NpLat, NpLon
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 
@@ -54,15 +56,18 @@ class Omno2dReader(NedDataReader):
         )
 
         var_name = dataset_descriptor.source_variable_name
-        filter_bounds = dataset_descriptor.filter_bounds
+        min_lon = dataset_descriptor.filter_min_lon
+        max_lon = dataset_descriptor.filter_max_lon
+        min_lat = dataset_descriptor.filter_min_lat
+        max_lat = dataset_descriptor.filter_max_lat
 
         data_array = ds[var_name]
         data_array = data_array.rename({"phony_dim_0": "lat", "phony_dim_1": "lon"})
         data_array = data_array.assign_coords(lat=("lat", lat), lon=("lon", lon))
 
         data_array = data_array.sel(
-            lon=slice(filter_bounds[0], filter_bounds[2]),
-            lat=slice(filter_bounds[1], filter_bounds[3]),
+            lon=slice(min_lon, max_lon),
+            lat=slice(min_lat, max_lat),
         )
 
         return NedDayData(data_array=data_array, date=date)
@@ -84,12 +89,13 @@ class Omno2dReader(NedDataReader):
             cast("ReadBuffer", file),
             group="HDFEOS/GRIDS/ColumnAmountNO2",
         )
-        bounds: tuple[float, float, float, float] = literal_eval(grid_info.attrs["GridSpan"])
-        resolution: tuple[float, float] = literal_eval(grid_info.attrs["GridSpacing"])
+        bounds: tuple[Lon, Lon, Lat, Lat] = literal_eval(grid_info.attrs["GridSpan"])
+        resolution: tuple[Lon, Lat] = literal_eval(grid_info.attrs["GridSpacing"])
+        min_lon, max_lon, min_lat, max_lat = bounds
 
         lon, lat = self._define_coords(
-            lat_bounds=(bounds[2], bounds[3]),
-            lon_bounds=(bounds[0], bounds[1]),
+            lon_bounds=(min_lon, max_lon),
+            lat_bounds=(min_lat, max_lat),
             resolution=resolution,
         )
 
@@ -107,31 +113,39 @@ class Omno2dReader(NedDataReader):
 
     def _define_coords(
         self,
-        lat_bounds: tuple[float, float],
-        lon_bounds: tuple[float, float],
-        resolution: tuple[float, float],
-    ) -> tuple[np.ndarray, np.ndarray]:
+        *,
+        lat_bounds: tuple[Lat, Lat],
+        lon_bounds: tuple[Lon, Lon],
+        resolution: tuple[Lon, Lat],
+    ) -> tuple[NDArray[NpLon], NDArray[NpLat]]:
         """
         Create a meshgrid of points between bounding coordinates.
 
         Uses latitude bounds, longitude bounds, and the data product
         resolution to create a grid of points.
 
-        This function was copied from https://drivendata.co/blog/predict-no2-benchmark.
-
         Args:
-            lat_bounds (List): latitude bounds as a list.
-            lon_bounds (List): longitude bounds as a list.
-            resolution (List): data resolution as a list.
+            lat_bounds (tuple[Lat, Lat]): latitude bounds as a tuple.
+            lon_bounds (tuple[Lon, Lon]): longitude bounds as a tuple.
+            resolution (tuple[Lon, Lat]): data resolution as a tuple.
 
         Returns:
-            lon (np.array): x (longitude) coordinates.
-            lat (np.array): y (latitude) coordinates.
+            lon (NDArray[NpLon]): x (longitude) coordinates.
+            lat (NDArray[NpLat]): y (latitude) coordinates.
 
         """
         # Interpolate points between bounds
-        # Add 0.125 buffer, source: OMI_L3_ColumnAmountO3.py (HDFEOS script)
-        lon = np.arange(lon_bounds[0], lon_bounds[1], resolution[1]) + 0.125
-        lat = np.arange(lat_bounds[0], lat_bounds[1], resolution[0]) + 0.125
+
+        lon_centre_adjustment = resolution[1] / 2
+        lat_centre_adjustment = resolution[0] / 2
+
+        lon = cast(
+            "NDArray[NpLon]",
+            np.arange(lon_bounds[0], lon_bounds[1], resolution[1]) + lon_centre_adjustment,
+        )
+        lat = cast(
+            "NDArray[NpLat]",
+            np.arange(lat_bounds[0], lat_bounds[1], resolution[0]) + lat_centre_adjustment,
+        )
 
         return lon, lat

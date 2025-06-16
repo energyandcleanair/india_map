@@ -2,6 +2,8 @@
 
 from arrow import Arrow
 
+from pm25ml.collectors.ned.coord_types import Lat, Lon
+
 
 class NedDatasetDescriptor:
     """
@@ -19,7 +21,7 @@ class NedDatasetDescriptor:
         dataset_version: str,
         start_date: Arrow,
         end_date: Arrow,
-        filter_bounds: tuple[float, float, float, float],
+        filter_bounds: tuple[Lon, Lat, Lon, Lat],
         source_variable_name: str,
         target_variable_name: str,
     ) -> None:
@@ -59,3 +61,23 @@ class NedDatasetDescriptor:
     def days_in_range(self) -> int:
         """Calculate the number of days in the date range."""
         return (self.end_date - self.start_date).days + 1
+
+    @property
+    def filter_min_lon(self) -> Lon:
+        """The minimum longitude from the filter bounds."""
+        return self.filter_bounds[0]
+
+    @property
+    def filter_min_lat(self) -> Lat:
+        """The minimum latitude from the filter bounds."""
+        return self.filter_bounds[1]
+
+    @property
+    def filter_max_lon(self) -> Lon:
+        """The maximum longitude from the filter bounds."""
+        return self.filter_bounds[2]
+
+    @property
+    def filter_max_lat(self) -> Lat:
+        """The maximum latitude from the filter bounds."""
+        return self.filter_bounds[3]

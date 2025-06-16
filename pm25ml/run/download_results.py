@@ -12,6 +12,7 @@ from pm25ml.collectors.export_pipeline import ExportPipeline
 from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.grid_loader import load_grid_from_zip
+from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_reader_merra import MerraDataReader
 from pm25ml.collectors.ned.data_reader_omno2d import Omno2dReader
 from pm25ml.collectors.ned.data_retriever_harmony import HarmonySubsetterDataRetriever
@@ -71,10 +72,10 @@ if __name__ == "__main__":
     )
 
     bounds_with_border = (
-        in_memory_grid.total_bounds[0] - 1,
-        in_memory_grid.total_bounds[1] - 1,
-        in_memory_grid.total_bounds[2] + 1,
-        in_memory_grid.total_bounds[3] + 1,
+        Lon(in_memory_grid.total_bounds[0] - 1),
+        Lat(in_memory_grid.total_bounds[1] - 1),
+        Lon(in_memory_grid.total_bounds[2] + 1),
+        Lat(in_memory_grid.total_bounds[3] + 1),
     )
 
     processors: list[ExportPipeline] = [
