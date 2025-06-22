@@ -87,6 +87,9 @@ class NedExportPipeline(ExportPipeline):
     """
     ExportPipeline for the NED data.
 
+    This only works where the grid that we want to regrid into has a higher resolution
+    than the data fetched.
+
     This pipeline is responsible for orchestrating the exporting of the NED data from the origin,
     transforming it into the grid format, and uploading it to the underlying storage.
     """
