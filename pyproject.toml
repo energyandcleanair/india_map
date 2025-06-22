@@ -35,6 +35,7 @@ mypy = "^1.16.0"
 types-nanoid = "^2.0.0.20240601"
 types-requests = "^2.32.4.20250611"
 types-geopandas = "^1.0.1.20250601"
+responses = "^0.25.7"
 
 [tool.poetry.group.experiment.dependencies]
 earthaccess = "^0.14.0"
