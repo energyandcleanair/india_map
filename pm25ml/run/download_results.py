@@ -143,14 +143,6 @@ if __name__ == "__main__":
             ),
             result_subpath="country=india/dataset=modis_land_cover/year=2023",
         ),
-        gee_pipeline_constructor.construct(
-            plan=feature_planner.plan_daily_average(
-                collection_name="NASA/GSFC/MERRA/aer/2",
-                selected_bands=["TOTEXTTAU"],
-                dates=dates_in_month,
-            ),
-            result_subpath=f"country=india/dataset=merra_aot/month={MONTH_SHORT}",
-        ),
         ned_pipeline_constructor.construct(
             dataset_descriptor=NedDatasetDescriptor(
                 dataset_name="M2T1NXAER",
