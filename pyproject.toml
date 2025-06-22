@@ -25,6 +25,7 @@ xarray = "^2025.6.0"
 virtualizarr = "^1.3.2"
 zarr = "^3.0.8"
 dask = "^2025.5.1"
+geopandas = "^1.1.0"
 
 
 [tool.poetry.group.dev.dependencies]
