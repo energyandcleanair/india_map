@@ -9,11 +9,18 @@ from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.data_readers import NedDayData
 from fsspec.spec import AbstractBufferedFile
 
-PHONY_LAT_ADJUSTMENT = 90
-PHONY_LON_ADJUSTMENT = 180
 
-LON_RESOLUTION = 1.0
+LON_SPAN = 360.0
+LAT_SPAN = 180.0
+
+PHONY_LON_ADJUSTMENT = LON_SPAN / 2.0
+PHONY_LAT_ADJUSTMENT = LAT_SPAN / 2.0
+
+LON_RESOLUTION = 2.0
 LAT_RESOLUTION = 1.0
+
+N_LON_POINTS = int(LON_SPAN / LON_RESOLUTION)
+N_LAT_POINTS = int(LAT_SPAN / LAT_RESOLUTION)
 
 
 @pytest.fixture
@@ -50,8 +57,8 @@ def fake_grid_info():
     dataset.attrs = {
         "GridSpan": "[-180, 180, -90, 90]",
         "GridSpacing": f"[{LON_RESOLUTION}, {LAT_RESOLUTION}]",
-        "NumberOfLatitudesInGrid": np.int32(180),
-        "NumberOfLongitudesInGrid": np.int32(360),
+        "NumberOfLongitudesInGrid": np.int32(N_LON_POINTS),
+        "NumberOfLatitudesInGrid": np.int32(N_LAT_POINTS),
     }
     return dataset
 
@@ -59,7 +66,8 @@ def fake_grid_info():
 @pytest.fixture
 def fake_data_fields():
     """Fake data fields dataset."""
-    data = np.random.rand(180, 360)
+    # Use a predictable pattern for test data
+    data = np.arange(N_LON_POINTS * N_LAT_POINTS, dtype=float).reshape(N_LAT_POINTS, N_LON_POINTS).T
     dataset = xr.DataArray(
         data,
         dims=["phony_dim_0", "phony_dim_1"],
@@ -67,7 +75,10 @@ def fake_data_fields():
         # We just need to make sure they're the right size.
         # phony_dim_0 maps to lat (-90 to 90)
         # phony_dim_1 maps to lon (-180 to 180)
-        coords={"phony_dim_0": np.arange(0, 180), "phony_dim_1": np.arange(0, 360)},
+        coords={
+            "phony_dim_0": np.arange(0, N_LAT_POINTS),
+            "phony_dim_1": np.arange(0, N_LON_POINTS),
+        },
     ).to_dataset(name="mock_var")
     return dataset
 
@@ -94,23 +105,9 @@ def test_extract_data(
 
     assert isinstance(result, NedDayData)
     assert result.data.dims == ("lat", "lon")
+    assert len(result.data.coords["lon"]) == 10  # Filtered bounds
     assert len(result.data.coords["lat"]) == 20  # Filtered bounds
-    assert len(result.data.coords["lon"]) == 20  # Filtered bounds
 
-    expected_mean = (
-        fake_data_fields["mock_var"]
-        .sel(
-            phony_dim_0=slice(
-                PHONY_LAT_ADJUSTMENT - 10 - LAT_RESOLUTION / 2,
-                PHONY_LAT_ADJUSTMENT + 10 - LAT_RESOLUTION / 2,
-            ),
-            phony_dim_1=slice(
-                PHONY_LON_ADJUSTMENT - 10 - LON_RESOLUTION / 2,
-                PHONY_LON_ADJUSTMENT + 10 - LON_RESOLUTION / 2,
-            ),
-        )
-        .mean()
-        .item()
-    )
+    expected_mean = 16199.5  # This is the mean of the test data array, filtered by the bounds
     actual_mean = result.data.mean().item()
     assert actual_mean == expected_mean

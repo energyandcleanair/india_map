@@ -136,16 +136,19 @@ class Omno2dReader(NedDataReader):
         """
         # Interpolate points between bounds
 
-        lon_centre_adjustment = resolution[1] / 2
-        lat_centre_adjustment = resolution[0] / 2
+        lon_resolution = resolution[0]
+        lat_resolution = resolution[1]
+
+        lon_centre_adjustment = lon_resolution / 2.0
+        lat_centre_adjustment = lat_resolution / 2.0
 
         lon = cast(
             "NDArray[NpLon]",
-            np.arange(lon_bounds[0], lon_bounds[1], resolution[1]) + lon_centre_adjustment,
+            np.arange(lon_bounds[0], lon_bounds[1], lon_resolution) + lon_centre_adjustment,
         )
         lat = cast(
             "NDArray[NpLat]",
-            np.arange(lat_bounds[0], lat_bounds[1], resolution[0]) + lat_centre_adjustment,
+            np.arange(lat_bounds[0], lat_bounds[1], lat_resolution) + lat_centre_adjustment,
         )
 
         return lon, lat
