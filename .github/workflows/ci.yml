@@ -80,6 +80,8 @@ jobs:
           service_account: ${{ env.GOOGLE_SERVICE_ACCOUNT_NAME }}
           workload_identity_provider: 'projects/716476042137/locations/global/workloadIdentityPools/github-wif-pool/providers/crea-org-actions-provider'
           export_environment_variables: true
+      - name: Check integration tests are marked
+        run: python .ci/scripts/check_integration_marks.py
       - name: Run integration tests
         run: poetry run pytest -m "integration"
   
