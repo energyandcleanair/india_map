@@ -1,5 +1,7 @@
 """Feature planning for gridded feature collections."""
 
+from typing import cast
+
 from arrow import Arrow
 from ee.computedobject import ComputedObject
 from ee.ee_date import Date
@@ -362,7 +364,11 @@ class FeaturePlan:
         :return: A set of expected ID columns.
         :rtype: set[AvailableIdKeys]
         """
-        return {key for key in self.column_mappings if key in AVAILABLE_ID_KEY_NAMES}
+        return {
+            cast("AvailableIdKeys", key)
+            for key in self.column_mappings
+            if key in AVAILABLE_ID_KEY_NAMES
+        }
 
     @property
     def expected_value_columns(self) -> set[str]:
