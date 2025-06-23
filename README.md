@@ -44,6 +44,9 @@ Add unit tests for new classes and functions. When committing, make sure the tes
 We use pytest for the tests. The test files live alongside with original file with the suffixes:
 `__test.py` for unit tests or `__it.py` for integration tests.
 
+> [!IMPORTANT]
+> When adding new integration tests, these must be marked with `pytest.mark.integration`.
+
 You can run the unit tests from the command line with:
 ```
 poetry run pytest -m "not integration"
