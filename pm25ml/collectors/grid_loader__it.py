@@ -1,10 +1,14 @@
 from polars import Float64, Int64, String
 from pathlib import Path
+
+import pytest
 from pm25ml.collectors.grid_loader import load_grid_from_zip, Grid
 
 from shapely.wkt import loads as load_wkt
 from shapely.geometry import Polygon
 from typing import cast
+
+pytestmark = pytest.mark.integration
 
 SAMPLE_GRID_ID = 61788
 GRID_ID_7317_EXPECTED_POLYGON = (
