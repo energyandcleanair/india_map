@@ -90,6 +90,19 @@ jobs:
       - name: Run mypy
         run: poetry run mypy ${{ env.PROJECT_SUBDIR }}
 
+  no-gdal-check:
+    runs-on: ubuntu-latest
+    needs: [deps]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/poetry-cache-restore
+      - name: Fail if GDAL is an installed dependency
+        run: |
+          poetry show --tree | grep -q gdal && {
+            echo "❌ gdal detected in installed packages!"
+            exit 1
+          } || echo "✅ gdal not found in dependencies."
+
   lint:
     runs-on: ubuntu-latest
     steps:
