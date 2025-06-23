@@ -58,8 +58,10 @@ fastparquet = "^2024.11.0"
 gcsfs = "^2025.3.2"
 sqlalchemy = "^2.0.40"
 psycopg2 = "^2.9.10"
-
-
+geopandas = "^1.1.0"
+gdal = "3.6.2"
+pydap = "^3.5.5"
+owslib = "^0.34.1"
 
 [tool.poetry.group.reference.dependencies]
 pandas = "^2.2.3"
@@ -68,11 +70,6 @@ scikit-learn = "^1.6.1"
 xgboost = "^3.0.0"
 metpy = "^1.6.3"
 lightgbm = "^4.6.0"
-
-
-[tool.poetry.group.experiments.dependencies]
-pydap = "^3.5.5"
-owslib = "^0.34.0"
 
 [build-system]
 requires = ["poetry-core"]
