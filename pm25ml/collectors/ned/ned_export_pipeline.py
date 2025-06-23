@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 import xarray
+from polars import DataFrame
 
 from pm25ml.collectors.export_pipeline import ExportPipeline
 from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
@@ -13,8 +14,7 @@ from pm25ml.collectors.ned.errors import NedMissingDataError
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
-    from geopandas import GeoDataFrame
-
+    from pm25ml.collectors.grid_loader import Grid
     from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
     from pm25ml.collectors.ned.data_retrievers import NedDataRetriever
     from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
@@ -33,7 +33,7 @@ class NedPipelineConstructor:
         self,
         *,
         archive_storage: IngestArchiveStorage,
-        grid: GeoDataFrame,
+        grid: Grid,
     ) -> None:
         """
         Initialize the pipeline constructor with the archive storage and grid.
@@ -97,7 +97,7 @@ class NedExportPipeline(ExportPipeline):
     @staticmethod
     def with_args(
         *,
-        grid: GeoDataFrame,
+        grid: Grid,
         archive_storage: IngestArchiveStorage,
     ) -> NedPipelineConstructor:
         """
@@ -113,7 +113,7 @@ class NedExportPipeline(ExportPipeline):
     def __init__(  # noqa: PLR0913
         self,
         *,
-        grid: GeoDataFrame,
+        grid: Grid,
         archive_storage: IngestArchiveStorage,
         dataset_descriptor: NedDatasetDescriptor,
         dataset_retriever: NedDataRetriever,
@@ -173,12 +173,12 @@ class NedExportPipeline(ExportPipeline):
             )
             transformed_data = self._regrid(data)
             data_out = transformed_data[["grid_id", "date", source_var_name]].rename(
-                columns={
+                mapping={
                     source_var_name: target_var_name,
                 },
             )
 
-            partial_dfs.append(pl.from_pandas(data_out))
+            partial_dfs.append(data_out)
 
         if not partial_dfs:
             msg = f"No data found for dataset {self.dataset_descriptor}."
@@ -195,20 +195,19 @@ class NedExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
         )
 
-    def _regrid(self, data: NedDayData) -> GeoDataFrame:
+    def _regrid(self, data: NedDayData) -> DataFrame:
         """Regrid the data to the grid."""
+        grid_data = self.grid.df
+
         sampled_values = data.data.interp(
-            lon=xarray.DataArray(self.grid["lon"], dims="points"),
-            lat=xarray.DataArray(self.grid["lat"], dims="points"),
+            lon=xarray.DataArray(grid_data["lon"], dims="points"),
+            lat=xarray.DataArray(grid_data["lat"], dims="points"),
             method="linear",  # Or "linear" for bilinear interpolation
         )
 
         var_name = self.dataset_descriptor.source_variable_name
 
-        transformed_grid = self.grid
-        transformed_grid[var_name] = sampled_values.values
-
-        # add date string
-        transformed_grid["date"] = data.date
-
-        return transformed_grid
+        return grid_data.with_columns(
+            pl.Series(var_name, sampled_values.values),
+            pl.lit(data.date).alias("date"),
+        )

@@ -2,6 +2,7 @@
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import ee
 from arrow import Arrow, get
@@ -64,18 +65,20 @@ if __name__ == "__main__":
         archive_storage=archive_storage,
     )
 
-    in_memory_grid = load_grid_from_zip(LOCAL_GRID_ZIP_PATH)
+    in_memory_grid = load_grid_from_zip(Path(LOCAL_GRID_ZIP_PATH))
 
     ned_pipeline_constructor = NedExportPipeline.with_args(
         archive_storage=archive_storage,
         grid=in_memory_grid,
     )
 
+    bounds = in_memory_grid.bounds
+
     bounds_with_border = (
-        Lon(in_memory_grid.total_bounds[0] - 1),
-        Lat(in_memory_grid.total_bounds[1] - 1),
-        Lon(in_memory_grid.total_bounds[2] + 1),
-        Lat(in_memory_grid.total_bounds[3] + 1),
+        Lon(bounds[0] - 1.0),
+        Lat(bounds[1] - 1.0),
+        Lon(bounds[2] + 1.0),
+        Lat(bounds[3] + 1.0),
     )
 
     processors: list[ExportPipeline] = [

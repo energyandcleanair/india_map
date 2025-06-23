@@ -1,12 +1,13 @@
 import pytest
 from arrow import Arrow
 from fsspec.implementations.memory import MemoryFileSystem
-from geopandas import GeoDataFrame
 from unittest.mock import MagicMock
 import polars as pl
 import xarray as xr
 from polars.testing import assert_frame_equal
+from polars import DataFrame
 
+from pm25ml.collectors.grid_loader import Grid
 from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
 from pm25ml.collectors.ned.data_retrievers import NedDataRetriever
@@ -40,7 +41,7 @@ def test__NedPipelineConstructor__valid_inputs__creates_pipeline(
     mock_archive_storage, mock_dataset_descriptor
 ):
     # Mock inputs
-    mock_grid = GeoDataFrame()
+    mock_grid = Grid(DataFrame())
     mock_dataset_reader = NedDataReader()
     mock_result_subpath = "mock/subpath"
 
@@ -68,7 +69,7 @@ def test__NedPipelineConstructor__valid_inputs__creates_pipeline(
 
 def test__NedPipelineConstructor__dataset_retriever_logic__uses_default_retriever():
     # Mock inputs
-    mock_grid = GeoDataFrame()
+    mock_grid = Grid(DataFrame())
     mock_archive_storage = IngestArchiveStorage(
         filesystem=MemoryFileSystem(), destination_bucket="mock_bucket"
     )
@@ -103,7 +104,7 @@ def test__NedPipelineConstructor__dataset_retriever_logic__uses_default_retrieve
 
 def test__NedPipelineConstructor__dataset_retriever_logic__uses_provided_retriever():
     # Mock inputs
-    mock_grid = GeoDataFrame()
+    mock_grid = Grid(DataFrame())
     mock_archive_storage = IngestArchiveStorage(
         filesystem=MemoryFileSystem(), destination_bucket="mock_bucket"
     )
@@ -140,12 +141,14 @@ def test__NedPipelineConstructor__dataset_retriever_logic__uses_provided_retriev
 
 def test__NedExportPipeline__happy_path__regrids_data_correctly():
     # Create a mock grid (4x4 grid)
-    mock_grid = GeoDataFrame(
-        {
-            "grid_id": ["01", "02", "03", "04"],
-            "lon": [0.5, 1.5, 2.5, 3.5],
-            "lat": [2.5, 3.5, 4.5, 5.5],
-        }
+    mock_grid = Grid(
+        DataFrame(
+            {
+                "grid_id": ["01", "02", "03", "04"],
+                "lon": [0.5, 1.5, 2.5, 3.5],
+                "lat": [2.5, 3.5, 4.5, 5.5],
+            }
+        )
     )
 
     # Create mock data (2x2 grid with larger gaps between lat and lon)
