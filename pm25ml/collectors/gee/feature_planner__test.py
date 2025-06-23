@@ -34,6 +34,30 @@ def test__FeaturePlan_wanted_columns__correct_values__returned() -> None:
     assert feature_plan.wanted_columns == ["value1", "value2"]
 
 
+def test__FeaturePlan_expected_id_columns__correct_values__returned() -> None:
+    mock_feature_collection = MagicMock()
+    column_mappings = {"date": "date", "grid_id": "grid_id", "key1": "value1"}
+    feature_plan = FeaturePlan(
+        feature_name="test-type",
+        planned_collection=mock_feature_collection,
+        column_mappings=column_mappings,
+    )
+
+    assert feature_plan.expected_id_columns == {"date", "grid_id"}
+
+
+def test__FeaturePlan_expected_value_columns__correct_values__returned() -> None:
+    mock_feature_collection = MagicMock()
+    column_mappings = {"date": "date", "grid_id": "grid_id", "key1": "value1"}
+    feature_plan = FeaturePlan(
+        feature_name="test-type",
+        planned_collection=mock_feature_collection,
+        column_mappings=column_mappings,
+    )
+
+    assert feature_plan.expected_value_columns == {"value1"}
+
+
 @pytest.fixture
 def mock_gee_for_daily_average() -> Iterator[dict[str, MagicMock]]:
     with (

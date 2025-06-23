@@ -12,6 +12,7 @@ from ee.imagecollection import ImageCollection
 from ee.reducer import Reducer
 
 from pm25ml.collectors.constants import INDIA_CRS
+from pm25ml.collectors.export_pipeline import AVAILABLE_ID_KEY_NAMES, AvailableIdKeys
 
 ISO8601_WITHOUT_TZ = "YYYY-MM-DDTHH:mm:ss"
 ISO8601_DATE_ONLY = "YYYY-MM-DD"
@@ -202,6 +203,8 @@ class GriddedFeatureCollectionPlanner:
         """
         original_raster_scale = self._get_collection_scale(collection_name, [classification_band])
 
+        expected_column_names = list(output_names_to_class_values.keys())
+
         def add_classes_as_boolean_bands(original_image: Image) -> Image:
             band_column = original_image.select(classification_band)
 
@@ -228,7 +231,7 @@ class GriddedFeatureCollectionPlanner:
                 f"{year + 1}-01-01T00:00:00",
             )
             .map(add_classes_as_boolean_bands)
-            .select(list(output_names_to_class_values.keys()))
+            .select(expected_column_names)
             .reduce(Reducer.mean()),
         )
 
@@ -245,7 +248,7 @@ class GriddedFeatureCollectionPlanner:
         flattened = collection_for_year
 
         id_columns = ["grid_id"]
-        wanted_columns = id_columns + list(output_names_to_class_values.keys())
+        wanted_columns = id_columns + expected_column_names
         exported_columns = id_columns + [
             f"{output_name}_mean" for output_name in output_names_to_class_values
         ]
@@ -321,15 +324,10 @@ class FeaturePlan:
         Initialize a feature plan.
 
         :param feature_name: The name of the feature plan.
-        :type feature_name: str
         :param feature_name: The name of the feature plan.
-        :type feature_name: str
         :param planned_collection: The proposed feature collection.
-        :type planned_collection: FeatureCollection
         :param column_mappings: A mapping of exported column names to desired column names.
-        :type column_mappings: dict[str, str]
         :param ignore_selectors: Whether to ignore selectors during processing. Defaults to False.
-        :type ignore_selectors: bool, optional
         """
         self.feature_name = feature_name
         self.planned_collection = planned_collection
@@ -355,3 +353,27 @@ class FeaturePlan:
         :rtype: list[str]
         """
         return list(self.column_mappings.values())
+
+    @property
+    def expected_id_columns(self) -> set[AvailableIdKeys]:
+        """
+        Return the expected ID columns in the result.
+
+        :return: A set of expected ID columns.
+        :rtype: set[AvailableIdKeys]
+        """
+        return {key for key in self.column_mappings if key in AVAILABLE_ID_KEY_NAMES}
+
+    @property
+    def expected_value_columns(self) -> set[str]:
+        """
+        Return the expected value columns in the result.
+
+        :return: A set of expected value columns.
+        :rtype: set[str]
+        """
+        return {
+            value
+            for key, value in self.column_mappings.items()
+            if key not in AVAILABLE_ID_KEY_NAMES
+        }

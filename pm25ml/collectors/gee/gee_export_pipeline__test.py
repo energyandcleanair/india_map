@@ -317,3 +317,23 @@ def test_GeeExportPipeline_process_tableSortingByDateAndGridId_outOfOrder(
 
     # Validate that grid_id was converted to integer
     assert processed_table["grid_id"].dtype == Int64
+
+
+def test_GeeExportPipeline_export_result(
+    example_feature_plan,
+    mock_intermediate_storage_valid_table,
+    mock_archive_storage,
+) -> None:
+    pipeline = GeeExportPipeline(
+        archive_storage=mock_archive_storage,
+        intermediate_storage=mock_intermediate_storage_valid_table,
+        plan=example_feature_plan,
+        result_subpath="mock/result/path",
+    )
+
+    export_result = pipeline.upload()
+
+    # Validate the ExportResult
+    assert export_result.result_subpath == "mock/result/path"
+    assert export_result.expected_id_columns == example_feature_plan.expected_id_columns
+    assert export_result.expected_value_columns == example_feature_plan.expected_value_columns
