@@ -27,6 +27,7 @@ zarr = "^3.0.8"
 dask = "^2025.5.1"
 geopandas = "^1.1.0"
 earthaccess = "^0.14.0"
+scipy = "^1.16.0"
 
 
 [tool.poetry.group.dev.dependencies]
