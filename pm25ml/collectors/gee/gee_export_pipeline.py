@@ -144,6 +144,10 @@ class GeeExportPipeline(ExportPipeline):
         # Rename columns according to the mappings
         table = table.rename(mappings)
 
+        # Convert grid_id to integer if it exists in the table
+        if "grid_id" in table.columns:
+            table = table.with_columns(table["grid_id"].cast(int))
+
         # Sort the table (if possible) by preferred order
         preferred_sort_order = [
             "date",

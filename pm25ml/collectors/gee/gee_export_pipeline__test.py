@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from polars import DataFrame
+from polars import DataFrame, Int64
 
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
@@ -125,7 +125,7 @@ def mock_intermediate_storage_out_of_order():
         "col1": [3, 1, 2, 4],
         "col2": [6, 4, 5, 4],
         "date": ["2025-06-03", "2025-06-01", "2025-06-02", "2025-06-01"],
-        "grid_id": ["grid_1", "grid_1", "grid_2", "grid_3"],
+        "grid_id": [1.0, 2.0, 3.0, 4.0],
     }
     table = DataFrame(data)
 
@@ -314,3 +314,6 @@ def test_GeeExportPipeline_process_tableSortingByDateAndGridId_outOfOrder(
     # Check that the table was sorted by date and then grid_id
     sorted_table = processed_table.sort(["date", "grid_id"])
     assert processed_table.equals(sorted_table)
+
+    # Validate that grid_id was converted to integer
+    assert processed_table["grid_id"].dtype == Int64
