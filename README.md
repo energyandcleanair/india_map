@@ -1,21 +1,68 @@
 # PM2.5 predictions in India
-- Two-stage machine learning model for daily PM2.5 predictions at a 10 km resolution in India, from 2005 to 2023
-- Published in Science Advances. https://www.science.org/doi/10.1126/sciadv.adq1071
-- Output PM2.5 estimates across India are publicly available and can be downloaded here: https://zenodo.org/records/13694585
 
-## Citation
-Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil Dahiya, Inés Azevedo, and Marshall Burke. "Improved daily PM2. 5 estimates in India reveal inequalities in recent enhancement of air quality." Science Advances 11, no. 4 (2025): eadq1071.
+The aim of this project is to regularly produce raster PM2.5 predictions at a 10 km resolution in
+India. It features a two-stage machine learning model for daily PM2.5 predictions.
 
-### Contributing
+Based on *[Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]*.
+This paper created results from 2005-2023 can be [downloaded from Zenodo].
 
-#### Testing
+**Citation**: Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil Dahiya,
+Inés Azevedo, and Marshall Burke. "Improved daily PM2. 5 estimates in India reveal inequalities in
+recent enhancement of air quality." Science Advances 11, no. 4 (2025): eadq1071.
+
+## Project layout
+
+The `pm25ml` is where most of the code for this project can be found.
+
+We have additional directories:
+ - `experiments`: Experiments to inform implementation and to understand reference code.
+ - `reference`: The files from the original forked project.
+
+## Contributing
+
+### Getting started
+
+We use poetry to manage the project. To install the dependencies needed run:
+```
+poetry install --only main,dev
+```
+
+### Dependencies
+
+We use different poetry groups to manage the dependencies: `main` (default), `dev`, `experiment`,
+and `reference`. `experiment` and `reference` are used for the `experiments` and `reference` directories.
+When adding dependencies, make sure you add them to the correct group.
+
+> [!IMPORTANT]
+> Do not add any dependencies that use GDAL to the project. We avoid GDAL to simplify the environment
+> for running the code.
+
+### Testing
 
 Add unit tests for new classes and functions. When committing, make sure the tests pass.
 
-We use pytest for the tests. The test files live alongside with original file with the suffix:
-`__test.py`.
+We use pytest for the tests. The test files live alongside with original file with the suffixes:
+`__test.py` for unit tests or `__it.py` for integration tests.
 
-#### Code standards
+You can run the unit tests from the command line with:
+```
+poetry run pytest -m "not integration"
+```
+
+And you can run the integration tests from the command line with:
+```
+poetry run pytest -m "integration"
+```
+
+The integration tests expect you to be already set up and authenticated in your environment to use:
+ - A Google Cloud project
+ - NASA Earthaccess
+ - Google Earth Engine 
+ - A bucket for test assets (with an environment variable `IT_GEE_ASSET_BUCKET_NAME` for the name set)
+ - An environment variable set for `IT_GEE_ASSET_ROOT`, which is where you want the test assets to go
+   in GEE.
+
+### Code standards
 
 We use the "ALL" rules configuration provided by ruff, with an extended line-length of 100
 characters.
@@ -25,10 +72,9 @@ configuration provided so that your code is checked before committing:
 1. Install `pre-commit`, if you haven't already
 2. [Install the git hook scripts](https://pre-commit.com/#3-install-the-git-hook-scripts)
 
+## Implementation
 
-### Process dependencies overview
-
-This shows the overall process flow and dependencies for the modelling.
+This shows the overall process flow for the application.
 
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
@@ -51,7 +97,6 @@ flowchart TB
   train_pm25_model --> predict_pm25
 
 ```
-
 
 ### Imputing data
 
@@ -187,3 +232,6 @@ flowchart TB
 
 
 ```
+
+[Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]: https://www.science.org/doi/10.1126/sciadv.adq1071
+[downloaded from Zenodo]: https://zenodo.org/records/13694585
