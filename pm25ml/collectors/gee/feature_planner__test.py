@@ -33,6 +33,7 @@ def test__FeaturePlan_wanted_columns__correct_values__returned() -> None:
 
     assert feature_plan.wanted_columns == ["value1", "value2"]
 
+
 @pytest.fixture
 def mock_gee_for_daily_average() -> Iterator[dict[str, MagicMock]]:
     with (
@@ -103,6 +104,7 @@ def test__GriddedFeatureCollectionPlanner_plan_daily_average__columns_specified_
     mock_gee_for_daily_average["mock_ic_instance"].select.assert_called_with(
         selected_bands,
     )
+
 
 @pytest.mark.parametrize(
     ("bands", "expected_column_mappings"),
