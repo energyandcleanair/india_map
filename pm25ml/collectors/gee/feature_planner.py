@@ -39,6 +39,7 @@ class GriddedFeatureCollectionPlanner:
         :type grid: FeatureCollection
         """
         self.grid = grid
+        self._n_grids: int | None = None
 
     def plan_daily_average(
         self,
@@ -128,6 +129,7 @@ class GriddedFeatureCollectionPlanner:
             ),
             planned_collection=processed_images,
             column_mappings=column_mappings,
+            expected_n_rows=self._get_n_grids() * len(dates),
         )
 
     def plan_static_feature(
@@ -172,6 +174,7 @@ class GriddedFeatureCollectionPlanner:
             feature_name=self._generate_clean_name("single-image-grid", image_name),
             planned_collection=processed_image,
             column_mappings=column_mappings,
+            expected_n_rows=self._get_n_grids(),
         )
 
     def plan_summarise_annual_classified_pixels(
@@ -265,7 +268,7 @@ class GriddedFeatureCollectionPlanner:
             ),
             planned_collection=flattened,
             column_mappings=column_mappings,
-            ignore_selectors=True,
+            expected_n_rows=self._get_n_grids(),
         )
 
     @staticmethod
@@ -305,6 +308,13 @@ class GriddedFeatureCollectionPlanner:
 
         return dates[0].format("YYYY-MM-DD")
 
+    def _get_n_grids(
+        self,
+    ) -> int:
+        if self._n_grids is None:
+            self._n_grids = cast("int", self.grid.size().getInfo())
+        return self._n_grids
+
 
 class FeaturePlan:
     """
@@ -321,6 +331,7 @@ class FeaturePlan:
         planned_collection: FeatureCollection,
         column_mappings: dict[str, str],
         ignore_selectors: bool = False,
+        expected_n_rows: int,
     ) -> None:
         """
         Initialize a feature plan.
@@ -335,6 +346,7 @@ class FeaturePlan:
         self.planned_collection = planned_collection
         self.column_mappings = column_mappings
         self.ignore_selectors = ignore_selectors
+        self.expected_n_rows = expected_n_rows
 
     @property
     def intermediate_columns(self) -> list[str]:

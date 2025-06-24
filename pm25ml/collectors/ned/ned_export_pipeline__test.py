@@ -291,8 +291,9 @@ def test__NedExportPipeline__export_result__matches_expected_format_and_values()
     )
 
     # Run the upload method
-    result = pipeline.upload()
+    result = pipeline.get_config_metadata()
 
     assert result.result_subpath == "mock/subpath"
-    assert result.expected_id_columns == {"date", "grid_id"}
-    assert result.expected_value_columns == {"mock_var_target"}
+    assert result.id_columns == {"date", "grid_id"}
+    assert result.value_columns == {"mock_var_target"}
+    assert result.expected_rows == 4

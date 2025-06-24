@@ -8,7 +8,7 @@ from ee.batch import Export, Task
 from nanoid import generate
 from polars import DataFrame
 
-from pm25ml.collectors.export_pipeline import ExportPipeline, ExportResult
+from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
 from pm25ml.logging import logger
 
 from .feature_planner import FeaturePlan
@@ -52,7 +52,7 @@ class GeeExportPipeline(ExportPipeline):
         self.plan = plan
         self.result_subpath = result_subpath
 
-    def upload(self) -> ExportResult:
+    def upload(self) -> None:
         """Upload the data from GEE to the underlying storage."""
         temporary_file_prefix = generate(size=10)
         task_name = f"{temporary_file_prefix}__{self.plan.feature_name}"[:100]
@@ -83,10 +83,13 @@ class GeeExportPipeline(ExportPipeline):
         logger.info(f"Task {task_name}: deleting task old CSV file from GCS")
         self.intermediate_storage.delete_intermediate_by_id(task_name)
 
-        return ExportResult(
+    def get_config_metadata(self) -> PipelineConfig:
+        """Get the expected result of the export operation."""
+        return PipelineConfig(
             result_subpath=self.result_subpath,
-            expected_id_columns=self.plan.expected_id_columns,
-            expected_value_columns=self.plan.expected_value_columns,
+            id_columns=self.plan.expected_id_columns,
+            value_columns=self.plan.expected_value_columns,
+            expected_n_rows=self.plan.expected_n_rows,
         )
 
     def _define_task(self, task_name: str) -> Task:

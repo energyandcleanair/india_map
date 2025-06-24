@@ -8,7 +8,7 @@ import polars as pl
 import xarray
 from polars import DataFrame
 
-from pm25ml.collectors.export_pipeline import ExportPipeline, ExportResult
+from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
 from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
 from pm25ml.collectors.ned.errors import NedMissingDataError
 from pm25ml.logging import logger
@@ -141,7 +141,7 @@ class NedExportPipeline(ExportPipeline):
         self.grid = grid
         self.archive_storage = archive_storage
 
-    def upload(self) -> ExportResult:
+    def upload(self) -> None:
         """
         Upload the data to the archive storage.
 
@@ -195,10 +195,13 @@ class NedExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
         )
 
-        return ExportResult(
+    def get_config_metadata(self) -> PipelineConfig:
+        """Get the expected result of the export operation."""
+        return PipelineConfig(
             result_subpath=self.result_subpath,
-            expected_id_columns={"date", "grid_id"},
-            expected_value_columns={self.dataset_descriptor.target_variable_name},
+            id_columns={"date", "grid_id"},
+            value_columns={self.dataset_descriptor.target_variable_name},
+            expected_n_rows=self.grid.n_rows * self.dataset_descriptor.days_in_range,
         )
 
     def _regrid(self, data: NedDayData) -> DataFrame:

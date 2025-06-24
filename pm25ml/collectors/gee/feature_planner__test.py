@@ -9,6 +9,8 @@ from pm25ml.collectors.gee.feature_planner import (
     GriddedFeatureCollectionPlanner,
 )
 
+DUMMY_N_ROWS_VALUE = 100
+
 
 def test__FeaturePlan_intermediate_columns__correct_keys__returned() -> None:
     mock_feature_collection = MagicMock()
@@ -17,6 +19,7 @@ def test__FeaturePlan_intermediate_columns__correct_keys__returned() -> None:
         feature_name="test-type",
         planned_collection=mock_feature_collection,
         column_mappings=column_mappings,
+        expected_n_rows=DUMMY_N_ROWS_VALUE,
     )
 
     assert feature_plan.intermediate_columns == ["key1", "key2"]
@@ -29,6 +32,7 @@ def test__FeaturePlan_wanted_columns__correct_values__returned() -> None:
         feature_name="test-type",
         planned_collection=mock_feature_collection,
         column_mappings=column_mappings,
+        expected_n_rows=DUMMY_N_ROWS_VALUE,
     )
 
     assert feature_plan.wanted_columns == ["value1", "value2"]
@@ -41,6 +45,7 @@ def test__FeaturePlan_expected_id_columns__correct_values__returned() -> None:
         feature_name="test-type",
         planned_collection=mock_feature_collection,
         column_mappings=column_mappings,
+        expected_n_rows=DUMMY_N_ROWS_VALUE,
     )
 
     assert feature_plan.expected_id_columns == {"date", "grid_id"}
@@ -53,6 +58,7 @@ def test__FeaturePlan_expected_value_columns__correct_values__returned() -> None
         feature_name="test-type",
         planned_collection=mock_feature_collection,
         column_mappings=column_mappings,
+        expected_n_rows=DUMMY_N_ROWS_VALUE,
     )
 
     assert feature_plan.expected_value_columns == {"value1"}

@@ -9,7 +9,8 @@ from arrow import Arrow, get
 from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
 
-from pm25ml.collectors.export_pipeline import ExportPipeline
+from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
+from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
 from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.grid_loader import load_grid_from_zip
@@ -21,7 +22,8 @@ from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.ned_export_pipeline import NedExportPipeline
 from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
-from pm25ml.logging import logger
+from pm25ml.collectors.validate_configuration import VALID_COUNTRIES, validate_configuration
+from pm25ml.logging import logger  # noqa: F401
 
 GCP_PROJECT = os.environ["GCP_PROJECT"]
 INDIA_SHAPEFILE_GEE_ASSET = os.environ["INDIA_SHAPEFILE_ASSET"]
@@ -32,14 +34,24 @@ LOCAL_GRID_ZIP_PATH = "./grid_india_10km_shapefiles.zip"
 
 MONTH_SHORT = "2023-01"
 
-if __name__ == "__main__":
+
+def _main() -> None:
     ee.Authenticate()
     ee.Initialize(project=GCP_PROJECT)
 
     month_start = get(f"{MONTH_SHORT}-01")
-    gee_grid_reference = FeatureCollection(INDIA_SHAPEFILE_GEE_ASSET)
+    gee_india_grid_reference = FeatureCollection(INDIA_SHAPEFILE_GEE_ASSET)
+    gee_india_grid_reference_size = gee_india_grid_reference.size().getInfo()
+    if gee_india_grid_reference_size != VALID_COUNTRIES["india"]:
+        msg = (
+            f"Expected {VALID_COUNTRIES['india']} features in the GEE India grid, "
+            f"but found {gee_india_grid_reference_size}."
+        )
+        raise ValueError(
+            msg,
+        )
 
-    feature_planner = GriddedFeatureCollectionPlanner(grid=gee_grid_reference)
+    feature_planner = GriddedFeatureCollectionPlanner(grid=gee_india_grid_reference)
 
     gcs_filesystem = GCSFileSystem()
 
@@ -53,11 +65,14 @@ if __name__ == "__main__":
         destination_bucket=INGEST_ARCHIVE_BUCKET_NAME,
     )
 
-    month_end_exclusive = month_start.shift(months=1)
-    month_end_inclusive = month_end_exclusive.shift(days=-1)
+    metadata_validator = ArchivedFileValidator(
+        archive_storage=archive_storage,
+    )
+
+    month_end = month_start.shift(months=1).shift(days=-1)
 
     dates_in_month: list[Arrow] = list(
-        Arrow.range("day", start=month_start, end=month_end_exclusive),
+        Arrow.range("day", start=month_start, end=month_end),
     )
 
     gee_pipeline_constructor = GeeExportPipeline.with_storage(
@@ -151,7 +166,7 @@ if __name__ == "__main__":
                 dataset_name="M2T1NXAER",
                 dataset_version="5.12.4",
                 start_date=month_start,
-                end_date=month_end_inclusive,
+                end_date=month_end,
                 filter_bounds=bounds_with_border,
                 source_variable_name="TOTEXTTAU",
                 target_variable_name="merra_aot",
@@ -165,7 +180,7 @@ if __name__ == "__main__":
                 dataset_name="M2I3NVCHM",
                 dataset_version="5.12.4",
                 start_date=month_start,
-                end_date=month_end_inclusive,
+                end_date=month_end,
                 filter_bounds=bounds_with_border,
                 source_variable_name="CO",
                 target_variable_name="merra_co",
@@ -179,7 +194,7 @@ if __name__ == "__main__":
                 dataset_name="OMNO2d",
                 dataset_version="003",
                 start_date=month_start,
-                end_date=month_end_inclusive,
+                end_date=month_end,
                 filter_bounds=bounds_with_border,
                 source_variable_name="ColumnAmountNO2",
                 target_variable_name="omi_no2",
@@ -190,12 +205,21 @@ if __name__ == "__main__":
         ),
     ]
 
-    with ThreadPoolExecutor() as executor:
-        results = executor.map(lambda processor: processor.upload(), processors)
+    validate_configuration(processors)
 
-        try:
-            for _ in results:
-                pass
-        except Exception:
-            logger.error("An error occurred during processing", exc_info=True, stack_info=True)
-            raise
+    with ThreadPoolExecutor() as executor:
+
+        def _upload_processor(processor: ExportPipeline) -> PipelineConfig:
+            processor.upload()
+            return processor.get_config_metadata()
+
+        results = executor.map(_upload_processor, processors)
+
+        completed_results = list(results)
+
+        for result in completed_results:
+            metadata_validator.validate_result_schema(result)
+
+
+if __name__ == "__main__":
+    _main()

@@ -1,7 +1,11 @@
 """Feature planning for gridded feature collections."""
 
+from typing import IO, cast
+
+import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 from polars import DataFrame
+from pyarrow.parquet import FileMetaData
 
 from pm25ml.logging import logger
 
@@ -33,7 +37,23 @@ class IngestArchiveStorage:
         """
         parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
 
-        with self.filesystem.open(parquet_file_path, "wb") as f:
+        with self.filesystem.open(parquet_file_path, "wb") as file:
             # Convert the DataFrame to Parquet format and write it to the file
             logger.info(f"Writing DataFrame to Parquet file at {parquet_file_path}")
-            table.write_parquet(f)
+            table.write_parquet(cast("IO[bytes]", file))
+
+    def read_dataframe_metadata(
+        self,
+        result_subpath: str,
+    ) -> FileMetaData:
+        """
+        Read the metadata DataFrame from the destination bucket.
+
+        :param result_subpath: The subpath in the destination bucket where the
+        metadata DataFrame is stored.
+        :return: The polars DataFrame containing metadata.
+        """
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+
+        parquet_file = pq.ParquetFile(parquet_file_path, filesystem=self.filesystem)
+        return parquet_file.metadata

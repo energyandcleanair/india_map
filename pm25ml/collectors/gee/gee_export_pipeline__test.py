@@ -32,6 +32,7 @@ def example_feature_plan():
         feature_name="mock_type",
         column_mappings={"col1": "mapped_col1", "col2": "mapped_col2"},
         planned_collection=planned_collection,
+        expected_n_rows=100,
     )
 
 
@@ -116,6 +117,7 @@ def example_plan_with_date_and_Grid():
             "col2": "mapped_col2",
         },
         planned_collection=planned_collection,
+        expected_n_rows=4,
     )
 
 
@@ -331,9 +333,10 @@ def test_GeeExportPipeline_export_result(
         result_subpath="mock/result/path",
     )
 
-    export_result = pipeline.upload()
+    export_result = pipeline.get_config_metadata()
 
     # Validate the ExportResult
     assert export_result.result_subpath == "mock/result/path"
-    assert export_result.expected_id_columns == example_feature_plan.expected_id_columns
-    assert export_result.expected_value_columns == example_feature_plan.expected_value_columns
+    assert export_result.id_columns == example_feature_plan.expected_id_columns
+    assert export_result.value_columns == example_feature_plan.expected_value_columns
+    assert export_result.expected_rows == example_feature_plan.expected_n_rows

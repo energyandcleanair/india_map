@@ -43,6 +43,11 @@ class Grid:
         maxy = max(b[3] for b in bounds)
         return (Lon(minx), Lat(miny), Lon(maxx), Lat(maxy))
 
+    @property
+    def n_rows(self) -> int:
+        """Get the number of rows in the grid."""
+        return self.df.shape[0]
+
 
 # The shapefile zip contains the grid for the NED dataset.
 # It has a directory structure like this:
