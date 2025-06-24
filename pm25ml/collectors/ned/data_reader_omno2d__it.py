@@ -4,13 +4,10 @@ Integration test for Omno2dReader.
 
 import pytest
 from pathlib import Path
-from fsspec.implementations.local import LocalFileOpener
 from pm25ml.collectors.ned.data_reader_omno2d import Omno2dReader
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.coord_types import Lon, Lat
 import arrow
-from typing import cast
-from io import BufferedIOBase
 
 pytestmark = pytest.mark.integration
 
