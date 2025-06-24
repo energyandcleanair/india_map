@@ -9,6 +9,14 @@ repos:
       types_or: [ python, pyi ]
       args: [ "--exclude=reference,experiments" ]
 
+- repo: local
+  hooks:
+    - id: check-marks
+      name: Check IT marks
+      entry: python .ci/scripts/check_integration_marks.py
+      language: system
+      types: [python]
+
 exclude: |
   ^\.ci.*
   ^reference.*
