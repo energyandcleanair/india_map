@@ -53,6 +53,7 @@ class Omno2dReader(NedDataReader):
         ds = xarray.open_dataset(
             cast("ReadBuffer", file),
             group="HDFEOS/GRIDS/ColumnAmountNO2/Data Fields",
+            phony_dims="access",
         )
 
         var_name = dataset_descriptor.source_variable_name
@@ -76,6 +77,7 @@ class Omno2dReader(NedDataReader):
         file_attributes = xarray.open_dataset(
             cast("ReadBuffer", file),
             group="HDFEOS/ADDITIONAL/FILE_ATTRIBUTES",
+            phony_dims="access",
         )
 
         year_str = file_attributes.attrs["GranuleYear"].item()
@@ -88,6 +90,7 @@ class Omno2dReader(NedDataReader):
         grid_info = xarray.open_dataset(
             cast("ReadBuffer", file),
             group="HDFEOS/GRIDS/ColumnAmountNO2",
+            phony_dims="access",
         )
         bounds: tuple[Lon, Lon, Lat, Lat] = literal_eval(grid_info.attrs["GridSpan"])
         resolution: tuple[Lon, Lat] = literal_eval(grid_info.attrs["GridSpacing"])
