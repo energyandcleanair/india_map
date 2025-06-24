@@ -6,10 +6,6 @@ India. It features a two-stage machine learning model for daily PM2.5 prediction
 Based on *[Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]*.
 This paper created results from 2005-2023 can be [downloaded from Zenodo].
 
-**Citation**: Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil Dahiya,
-Inés Azevedo, and Marshall Burke. "Improved daily PM2. 5 estimates in India reveal inequalities in
-recent enhancement of air quality." Science Advances 11, no. 4 (2025): eadq1071.
-
 ## Project layout
 
 The `pm25ml` is where most of the code for this project can be found.
@@ -235,6 +231,32 @@ flowchart TB
 
 
 ```
+
+## Citations
+
+### Models
+
+Kawano, Ayako, Makoto Kelp, Minghao Qiu, Kirat Singh, Eeshan Chaturvedi, Sunil Dahiya,
+Inés Azevedo, and Marshall Burke. "Improved daily PM2. 5 estimates in India reveal inequalities in
+recent enhancement of air quality." Science Advances 11, no. 4 (2025): eadq1071.
+
+### Bundled test datasets
+
+#### `M2T1NXAER.5.12.4_MERRA2_400.tavg1_2d_aer_Nx.20230101_TOTEXTTAU_subsetted.nc4`
+
+NASA Global Modeling and Assimilation Office (GMAO). (2015).
+*MERRA-2 tavg1_2d_aer_Nx: Aerosol Diagnostics, Hourly 0.5° × 0.625°, V5.12.4 (M2T1NXAER)* [Data set].
+Goddard Earth Sciences Data and Information Services Center (GES DISC), NASA GSFC.
+https://doi.org/10.5067/KLICLTZ8EM9D  
+(Accessed 24 Jun 2025; licence — CC-0 1.0. NASA does not endorse this software.)
+
+#### `OMI-Aura_L3-OMNO2d_2023m0111_v003-2023m0223t191034.he5`
+
+NASA Goddard Space Flight Center. (2023).
+*OMI/Aura NO₂ Cloud-Screened Total and Tropospheric Column L3 Global Gridded 0.25° × 0.25° V003* (OMNO2d) [Data set].
+NASA Goddard Earth Sciences Data and Information Services Center (GES DISC).
+https://doi.org/10.5067/Aura/OMI/DATA3002  
+(Accessed 24 Jun 2025; licence — CC-0 1.0. NASA does not endorse this software.)
 
 [Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]: https://www.science.org/doi/10.1126/sciadv.adq1071
 [downloaded from Zenodo]: https://zenodo.org/records/13694585
