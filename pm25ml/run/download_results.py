@@ -145,7 +145,7 @@ def _main() -> None:
                 image_name="USGS/SRTMGL1_003",
                 selected_bands=["elevation"],
             ),
-            result_subpath="country=india/dataset=srtm_elevation",
+            result_subpath="country=india/dataset=srtm_elevation/type=static",
         ),
         gee_pipeline_constructor.construct(
             plan=feature_planner.plan_summarise_annual_classified_pixels(
