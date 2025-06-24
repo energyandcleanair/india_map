@@ -36,8 +36,9 @@ class ArchivedFileValidator:
         self._check_count_rows(expected_result, rows)
 
         actual_schema = file_metadata.schema.to_arrow_schema()
+        as_str = str(actual_schema).replace("\n", " | ")
         logger.info(
-            f"Result {expected_result.result_subpath} has {rows} rows and schema: {actual_schema}",
+            f"Result {expected_result.result_subpath} has {rows} rows and schema: [{as_str}]",
         )
         self._check_schema(expected_result, actual_schema)
 
