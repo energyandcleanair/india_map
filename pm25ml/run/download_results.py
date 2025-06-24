@@ -10,7 +10,7 @@ from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
 
 from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
-from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
+from pm25ml.collectors.export_pipeline import ExportPipeline
 from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.grid_loader import load_grid_from_zip
@@ -23,7 +23,7 @@ from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.ned_export_pipeline import NedExportPipeline
 from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES, validate_configuration
-from pm25ml.logging import logger  # noqa: F401
+from pm25ml.logging import logger
 
 GCP_PROJECT = os.environ["GCP_PROJECT"]
 INDIA_SHAPEFILE_GEE_ASSET = os.environ["INDIA_SHAPEFILE_ASSET"]
@@ -96,6 +96,7 @@ def _main() -> None:
         Lat(bounds[3] + 1.0),
     )
 
+    logger.info("Defining export pipelines datasets")
     processors: list[ExportPipeline] = [
         gee_pipeline_constructor.construct(
             plan=feature_planner.plan_daily_average(
@@ -205,20 +206,33 @@ def _main() -> None:
         ),
     ]
 
+    logger.info("Validating export pipeline config")
     validate_configuration(processors)
 
+    logger.info("Filtering down to only those datasets that need to be uploaded")
+    # Now we only want to download the results if we never have before.
+    # We can check with the archive_storage if the results already exist.
+    filtered_processors = [
+        processor
+        for processor in processors
+        if not archive_storage.does_dataset_exist(
+            processor.get_config_metadata().result_subpath,
+        )
+    ]
+
+    logger.info(f"Go ahead and download {len(filtered_processors)} datasets")
     with ThreadPoolExecutor() as executor:
 
-        def _upload_processor(processor: ExportPipeline) -> PipelineConfig:
+        def _upload_processor(processor: ExportPipeline) -> None:
             processor.upload()
-            return processor.get_config_metadata()
 
-        results = executor.map(_upload_processor, processors)
+        executor.map(_upload_processor, filtered_processors)
 
-        completed_results = list(results)
-
-        for result in completed_results:
-            metadata_validator.validate_result_schema(result)
+    logger.info("Validating all recent and historical results")
+    # Check all results were uploaded successfully, not just the ones we
+    # downloaded this time.
+    for processor in processors:
+        metadata_validator.validate_result_schema(processor.get_config_metadata())
 
 
 if __name__ == "__main__":

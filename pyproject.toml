@@ -45,6 +45,7 @@ types-geopandas = "^1.0.1.20250601"
 responses = "^0.25.7"
 types-shapely = "^2.1.0.20250512"
 pyarrow = "^20.0.0"
+morefs = {extras = ["memfs"], version = "^0.2.2"}
 
 [tool.poetry.group.experiment.dependencies]
 earthaccess = "^0.14.0"

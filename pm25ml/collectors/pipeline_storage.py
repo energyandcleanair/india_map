@@ -57,3 +57,16 @@ class IngestArchiveStorage:
 
         parquet_file = pq.ParquetFile(parquet_file_path, filesystem=self.filesystem)
         return parquet_file.metadata
+
+    def does_dataset_exist(
+        self,
+        result_subpath: str,
+    ) -> bool:
+        """
+        Check if the dataset exists in the destination bucket.
+
+        :param result_subpath: The subpath in the destination bucket to check.
+        :return: True if the dataset exists, False otherwise.
+        """
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+        return self.filesystem.exists(parquet_file_path)
