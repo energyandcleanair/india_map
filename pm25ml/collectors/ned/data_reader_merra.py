@@ -84,7 +84,7 @@ class MerraDataReader(NedDataReader):
         dataset: xarray.Dataset,
     ) -> None:
         # Check if all expected dimensions are present
-        actual_dimensions = list(dataset.dims.keys())
+        actual_dimensions = list(dataset.sizes.keys())
         missing_expected_dimensions = [
             dim for dim in self.expected_dimensions if dim not in actual_dimensions
         ]
