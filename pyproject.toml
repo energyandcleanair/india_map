@@ -109,5 +109,5 @@ ignore = [
 exclude = ".*(__test|__it)\\.py$"
 
 [[tool.mypy.overrides]]
-module = ["fsspec.*", "gcsfs.*", "earthaccess.*", "shapefile.*"]
+module = ["fsspec.*", "gcsfs.*", "earthaccess.*", "shapefile.*", "pyarrow.*"]
 ignore_missing_imports = true
