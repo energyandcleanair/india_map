@@ -16,6 +16,8 @@ repos:
       entry: python .ci/scripts/check_integration_marks.py
       language: system
       types: [python]
+      always_run: true
+      pass_filenames: false
 
 exclude: |
   ^\.ci.*

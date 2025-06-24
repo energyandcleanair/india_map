@@ -90,7 +90,7 @@ def test_extract_data(
     mock_file = MagicMock(spec=AbstractBufferedFile)
     reader = Omno2dReader()
 
-    def mock_open_dataset(file, group):
+    def mock_open_dataset(file, group, *args, **kwargs):
         if group == "HDFEOS/ADDITIONAL/FILE_ATTRIBUTES":
             return fake_file_attributes
         elif group == "HDFEOS/GRIDS/ColumnAmountNO2":

@@ -12,6 +12,8 @@ import arrow
 from typing import cast
 from io import BufferedIOBase
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def example_file_path() -> Path:
