@@ -5,7 +5,7 @@ from polars.testing import assert_frame_equal
 import pytest
 from morefs.memory import MemFS
 
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 
 DESTINATION_BUCKET = "destination_bucket"
 

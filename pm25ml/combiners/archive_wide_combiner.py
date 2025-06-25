@@ -5,7 +5,7 @@ from re import match
 
 from polars import DataFrame
 
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
 

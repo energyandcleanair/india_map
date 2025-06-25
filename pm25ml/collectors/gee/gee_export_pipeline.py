@@ -14,7 +14,7 @@ from pm25ml.logging import logger
 from .feature_planner import FeaturePlan
 
 if TYPE_CHECKING:
-    from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+    from pm25ml.collectors.archive_storage import IngestArchiveStorage
 
     from .intermediate_storage import GeeIntermediateStorage
 

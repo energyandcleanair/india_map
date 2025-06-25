@@ -14,11 +14,11 @@ from pm25ml.collectors.ned.errors import NedMissingDataError
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
+    from pm25ml.collectors.archive_storage import IngestArchiveStorage
     from pm25ml.collectors.grid_loader import Grid
     from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
     from pm25ml.collectors.ned.data_retrievers import NedDataRetriever
     from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
-    from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 
 
 class NedPipelineConstructor:

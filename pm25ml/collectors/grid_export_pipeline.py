@@ -1,8 +1,8 @@
 """Export pipeline for grid data to the ingest archive."""
 
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
 from pm25ml.collectors.grid_loader import Grid
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 
 
 class GridExportPipeline(ExportPipeline):

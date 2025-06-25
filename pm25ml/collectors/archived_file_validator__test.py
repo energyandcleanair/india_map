@@ -5,7 +5,7 @@ from pyarrow import schema, field, int64, float64, large_string
 from unittest.mock import Mock
 
 from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.export_pipeline import PipelineConfig
 
 

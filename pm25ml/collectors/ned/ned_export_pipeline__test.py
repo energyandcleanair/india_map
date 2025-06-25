@@ -12,7 +12,7 @@ from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.ned_export_pipeline import NedExportPipeline, NedPipelineConstructor
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
 
 

@@ -4,7 +4,7 @@ import pytest
 from polars import DataFrame, Int64
 
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 
 from .feature_planner import FeaturePlan
 from .gee_export_pipeline import GeeExportPipeline

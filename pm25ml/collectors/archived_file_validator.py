@@ -2,8 +2,8 @@
 
 from pyarrow import Schema, float64, int64, large_string
 
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.export_pipeline import PipelineConfig
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 from pm25ml.logging import logger
 
 

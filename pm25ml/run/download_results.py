@@ -9,6 +9,7 @@ from arrow import Arrow, get
 from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
 
+from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
 from pm25ml.collectors.export_pipeline import ExportPipeline
 from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
@@ -22,7 +23,6 @@ from pm25ml.collectors.ned.data_retriever_harmony import HarmonySubsetterDataRet
 from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.ned_export_pipeline import NedExportPipeline
-from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES, validate_configuration
 from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
