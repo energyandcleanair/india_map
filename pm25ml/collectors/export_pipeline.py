@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import Literal
 
+from pm25ml.hive_path import HivePath
+
 AvailableIdKeys = Literal["date", "grid_id"]
 AVAILABLE_ID_KEY_NAMES: list[AvailableIdKeys] = ["date", "grid_id"]
 
@@ -44,6 +46,15 @@ class PipelineConfig:
         :return: A set of all columns in the result.
         """
         return self.id_columns.union(self.value_columns)
+
+    @property
+    def hive_path(self) -> HivePath:
+        """
+        Get the HivePath representation of the result subpath.
+
+        :return: A HivePath object representing the result subpath.
+        """
+        return HivePath(self.result_subpath)
 
 
 class ExportPipeline(ABC):

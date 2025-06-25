@@ -254,9 +254,17 @@ def _main() -> None:
     logger.info("Combining results from the archive storage")
     archived_wide_combiner.combine(month=MONTH_SHORT)
 
-    all_expected_columns = {
-        column for processor in processors for column in processor.get_config_metadata().all_columns
+    all_id_columns = {
+        column for processor in processors for column in processor.get_config_metadata().id_columns
     }
+
+    all_value_columns = {
+        f"{processor.get_config_metadata().hive_path.require_key('dataset')}__{column}"
+        for processor in processors
+        for column in processor.get_config_metadata().value_columns
+    }
+
+    all_expected_columns = all_id_columns | all_value_columns
 
     expected_rows = VALID_COUNTRIES["india"] * len(dates_in_month)
     logger.info(
