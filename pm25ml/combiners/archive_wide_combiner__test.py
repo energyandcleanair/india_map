@@ -32,7 +32,7 @@ def archive_storage__no_files():
 
 @pytest.fixture
 def archive_storage__with_all_matching_types_and_extra():
-    """Fixture for archive storage with multiple files."""
+    """Fixture for archive storage with multiple files and dataset key."""
     fs = MemFS()
 
     storage = IngestArchiveStorage(
@@ -58,7 +58,7 @@ def archive_storage__with_all_matching_types_and_extra():
                 "col_1": [10.0, 20.0, 30.0, 15.0, 25.0, 35.0, 5.0, 10.0, 15.0],
             }
         ),
-        "some=other/key=values/month=2023-01",
+        "dataset=dataset_1/month=2023-01",
     )
 
     storage.write_to_destination(
@@ -68,7 +68,7 @@ def archive_storage__with_all_matching_types_and_extra():
                 "col_2": [40.0, 50.0, 60.0],
             }
         ),
-        "some=other/key=values/year=2023",
+        "dataset=dataset_2/year=2023",
     )
 
     storage.write_to_destination(
@@ -78,7 +78,7 @@ def archive_storage__with_all_matching_types_and_extra():
                 "col_3": [70.0, 80.0, 90.0],
             }
         ),
-        "some=other/key=values/type=static",
+        "dataset=dataset_3/type=static",
     )
 
     storage.write_to_destination(
@@ -89,7 +89,7 @@ def archive_storage__with_all_matching_types_and_extra():
                 "col_4": [100.0, 110.0, 120.0],
             }
         ),
-        "some=other/key=values/type=different",
+        "dataset=excluded_dataset/type=different",
     )
 
     return storage
@@ -97,7 +97,7 @@ def archive_storage__with_all_matching_types_and_extra():
 
 @pytest.fixture
 def archive_storage__with_odd_number_of_datasets():
-    """Fixture for archive storage with multiple files."""
+    """Fixture for archive storage with multiple files and dataset key."""
     fs = MemFS()
 
     storage = IngestArchiveStorage(
@@ -123,7 +123,7 @@ def archive_storage__with_odd_number_of_datasets():
                 "col_1": [10.0, 20.0, 30.0, 15.0, 25.0, 35.0, 5.0, 10.0, 15.0],
             }
         ),
-        "some=other/key=values/month=2023-01",
+        "dataset=dataset_1/month=2023-01",
     )
 
     storage.write_to_destination(
@@ -133,7 +133,7 @@ def archive_storage__with_odd_number_of_datasets():
                 "col_2": [40.0, 50.0, 60.0],
             }
         ),
-        "some=other/key=values/year=2023",
+        "dataset=dataset_2/year=2023",
     )
 
     storage.write_to_destination(
@@ -143,7 +143,7 @@ def archive_storage__with_odd_number_of_datasets():
                 "col_3": [70.0, 80.0, 90.0],
             }
         ),
-        "some=other/key=values/type=static",
+        "dataset=dataset_3/type=static",
     )
 
     storage.write_to_destination(
@@ -154,7 +154,7 @@ def archive_storage__with_odd_number_of_datasets():
                 "col_4": [100.0, 110.0, 120.0],
             }
         ),
-        "some=other/key=values/type=different",
+        "dataset=dataset_4/type=different",
     )
 
     return storage
@@ -178,7 +178,7 @@ def archive_storage__no_matching_merge():
                 "col_1": [10.0, 20.0, 30.0],
             }
         ),
-        "some=other/key=values/month=2023-01",
+        "dataset=partial_1/month=2023-01",
     )
 
     storage.write_to_destination(
@@ -188,7 +188,7 @@ def archive_storage__no_matching_merge():
                 "col_2": [40.0, 50.0, 60.0],
             }
         ),
-        "some=other/key=values/year=2023",
+        "dataset=partial_2/year=2023",
     )
 
     return storage
@@ -212,7 +212,7 @@ def archive_storage__with_date_and_time_for_one():
                 "col_1": [10.0, 11.0, 12.0],
             }
         ),
-        "some=other/key=values/month=2023-01",
+        "dataset=with_time/month=2023-01",
     )
 
     storage.write_to_destination(
@@ -223,7 +223,55 @@ def archive_storage__with_date_and_time_for_one():
                 "col_2": [40.0, 41.0, 42.0],
             }
         ),
-        "some=other/key=values/year=2023",
+        "dataset=without_time/year=2023",
+    )
+
+    return storage
+
+
+@pytest.fixture
+def archive_storage__with_dataset_key():
+    """Fixture for archive storage with dataset key in metadata."""
+    fs = MemFS()
+
+    storage = IngestArchiveStorage(
+        fs,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    storage.write_to_destination(
+        DataFrame(
+            {
+                "grid_id": [1, 1, 1],
+                "date": ["2023-01-01", "2023-01-02", "2023-01-03"],
+                "col_1": [10.0, 20.0, 30.0],
+            }
+        ),
+        "dataset=test_dataset/month=2023-01",
+    )
+
+    return storage
+
+
+@pytest.fixture
+def archive_storage__without_dataset_key():
+    """Fixture for archive storage with a dataset missing the dataset key in the path."""
+    fs = MemFS()
+
+    storage = IngestArchiveStorage(
+        fs,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    storage.write_to_destination(
+        DataFrame(
+            {
+                "grid_id": [1, 2, 3],
+                "date": ["2023-01-01", "2023-01-02", "2023-01-03"],
+                "col_1": [10.0, 20.0, 30.0],
+            }
+        ),
+        "month=2023-01",
     )
 
     return storage
@@ -263,9 +311,9 @@ def test__combine__with_all_matching_types_and_extra_correct_result__successfull
     assert combined_data.height == 9
     assert "grid_id" in combined_data.columns
     assert "date" in combined_data.columns
-    assert "col_1" in combined_data.columns
-    assert "col_2" in combined_data.columns
-    assert "col_3" in combined_data.columns
+    assert "dataset_1__col_1" in combined_data.columns
+    assert "dataset_2__col_2" in combined_data.columns
+    assert "dataset_3__col_3" in combined_data.columns
 
 
 def test__combine__with_odd_number__successfully_merges(
@@ -288,9 +336,9 @@ def test__combine__with_odd_number__successfully_merges(
     assert combined_data.height == 9
     assert "grid_id" in combined_data.columns
     assert "date" in combined_data.columns
-    assert "col_1" in combined_data.columns
-    assert "col_2" in combined_data.columns
-    assert "col_3" in combined_data.columns
+    assert "dataset_1__col_1" in combined_data.columns
+    assert "dataset_2__col_2" in combined_data.columns
+    assert "dataset_3__col_3" in combined_data.columns
 
 
 def test__combine__no_matching_merge__empty_dataset(
@@ -310,8 +358,8 @@ def test__combine__no_matching_merge__empty_dataset(
     assert combined_data.height == 0
     assert "grid_id" in combined_data.columns
     assert "date" in combined_data.columns
-    assert "col_1" in combined_data.columns
-    assert "col_2" in combined_data.columns
+    assert "partial_1__col_1" in combined_data.columns
+    assert "partial_2__col_2" in combined_data.columns
 
 
 def test__combine__with_date_and_time_for_one__successfully_merges(
@@ -331,5 +379,41 @@ def test__combine__with_date_and_time_for_one__successfully_merges(
     assert combined_data.height == 3
     assert "grid_id" in combined_data.columns
     assert "date" in combined_data.columns
-    assert "col_1" in combined_data.columns
-    assert "col_2" in combined_data.columns
+    assert "with_time__col_1" in combined_data.columns
+    assert "without_time__col_2" in combined_data.columns
+
+
+def test__combine__renaming_columns__successfully_renames(
+    archive_storage__with_all_matching_types_and_extra: IngestArchiveStorage,
+    combined_storage: CombinedStorage,
+) -> None:
+    """Test that columns are renamed correctly."""
+    combiner = ArchiveWideCombiner(
+        archive_storage=archive_storage__with_all_matching_types_and_extra,
+        combined_storage=combined_storage,
+    )
+
+    combiner.combine(month="2023-01")
+
+    combined_data = combined_storage.read_dataframe("stage=combined_monthly/month=2023-01")
+
+    # Validate renamed columns
+    assert "dataset_1__col_1" in combined_data.columns
+    assert "dataset_2__col_2" in combined_data.columns
+    assert "dataset_3__col_3" in combined_data.columns
+
+
+def test__combine__without_dataset_key__raises_error(
+    archive_storage__without_dataset_key: IngestArchiveStorage,
+    combined_storage: CombinedStorage,
+) -> None:
+    """Test combining when a dataset is missing the dataset key in the path."""
+    combiner = ArchiveWideCombiner(
+        archive_storage=archive_storage__without_dataset_key,
+        combined_storage=combined_storage,
+    )
+
+    with pytest.raises(
+        ValueError, match="Expected 'dataset' key in month=2023-01, but it is missing."
+    ):
+        combiner.combine(month="2023-01")

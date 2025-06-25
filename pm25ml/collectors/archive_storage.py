@@ -1,5 +1,6 @@
 """Handles storage for the export pipelines."""
 
+from dataclasses import dataclass
 from typing import IO, cast
 
 import polars as pl
@@ -8,7 +9,16 @@ from fsspec import AbstractFileSystem
 from polars import DataFrame
 from pyarrow.parquet import FileMetaData
 
+from pm25ml.hive_path import HivePath
 from pm25ml.logging import logger
+
+
+@dataclass
+class IngestDataAsset:
+    """Represents an ingest data asset with its metadata and path."""
+
+    data_frame: DataFrame
+    hive_path: HivePath
 
 
 class IngestArchiveStorage:
@@ -59,20 +69,22 @@ class IngestArchiveStorage:
         parquet_file = pq.ParquetFile(parquet_file_path, filesystem=self.filesystem)
         return parquet_file.metadata
 
-    def read_dataframe(
+    def read_data_asset(
         self,
         result_subpath: str,
-    ) -> DataFrame:
+    ) -> IngestDataAsset:
         """
         Read the processed DataFrame from the destination bucket.
 
         :param result_subpath: The subpath in the destination bucket where the
         DataFrame is stored.
-        :return: The polars DataFrame read from the Parquet file.
+        :return: The IngestDataAsset containing the DataFrame and its HivePath.
         """
         parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+        hive_path = HivePath(f"{result_subpath}")
         with self.filesystem.open(parquet_file_path) as file:
-            return pl.read_parquet(cast("IO[bytes]", file))
+            data_frame = pl.read_parquet(cast("IO[bytes]", file))
+            return IngestDataAsset(data_frame=data_frame, hive_path=hive_path)
 
     def does_dataset_exist(
         self,

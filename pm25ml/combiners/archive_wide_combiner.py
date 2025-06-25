@@ -5,9 +5,11 @@ from re import match
 
 from polars import DataFrame
 
-from pm25ml.collectors.archive_storage import IngestArchiveStorage
+from pm25ml.collectors.archive_storage import IngestArchiveStorage, IngestDataAsset
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
+
+INDEX_COLUMNS = ["grid_id", "date"]
 
 
 class ArchiveWideCombiner:
@@ -49,12 +51,14 @@ class ArchiveWideCombiner:
         logger.info(
             f"Loading data to combine for month {month} from {len(all_to_merge)} paths",
         )
-        loaded_tables = [self.archive_storage.read_dataframe(path) for path in all_to_merge]
+        loaded_assets = [self.archive_storage.read_data_asset(path) for path in all_to_merge]
+
+        with_renamed_value_columns = self._add_dataset_to_value_columns(loaded_assets)
 
         logger.info(
-            f"Normalising index columns for {len(loaded_tables)} tables",
+            f"Normalising index columns for {len(loaded_assets)} tables",
         )
-        normalised_tables = self._normalise_index_columns(loaded_tables)
+        normalised_tables = self._normalise_index_columns(with_renamed_value_columns)
 
         logger.info(
             f"Combining {len(normalised_tables)} tables into a single table",
@@ -141,9 +145,8 @@ class ArchiveWideCombiner:
             :param right_table: The right DataFrame to join.
             :return: A DataFrame resulting from the inner join of the two input DataFrames.
             """
-            join_keys = ["grid_id", "date"]
-            left_join_keys = set(left_table.columns).intersection(join_keys)
-            right_join_keys = set(right_table.columns).intersection(join_keys)
+            left_join_keys = set(left_table.columns).intersection(INDEX_COLUMNS)
+            right_join_keys = set(right_table.columns).intersection(INDEX_COLUMNS)
             matching_keys = set(left_join_keys).intersection(right_join_keys)
 
             return left_table.join(
@@ -168,3 +171,32 @@ class ArchiveWideCombiner:
                 remaining = combined_pairs + leftover
 
         return remaining[0]
+
+    def _add_dataset_to_value_columns(self, tables: list[IngestDataAsset]) -> list[DataFrame]:
+        """
+        Rename columns in each DataFrame to include the dataset name extracted from the asset path.
+
+        :param tables: A list of DataFrames to process.
+        :return: A list of DataFrames with renamed columns.
+        """
+
+        def _rename_columns_with_dataset(table: DataFrame, dataset_name: str) -> DataFrame:
+            """
+            Rename columns in a DataFrame to include the dataset name.
+
+            :param table: The DataFrame to rename.
+            :param dataset_name: The dataset name to prepend to column names.
+            :return: The DataFrame with renamed columns.
+            """
+            renamed_columns = {
+                col: f"{dataset_name}__{col}" for col in table.columns if col not in INDEX_COLUMNS
+            }
+            return table.rename(renamed_columns)
+
+        renamed_tables = []
+        for asset in tables:
+            dataset_name = asset.hive_path.require_key("dataset")
+            # Extract dataset name using HivePath's metadata
+            renamed_tables.append(_rename_columns_with_dataset(asset.data_frame, dataset_name))
+
+        return renamed_tables

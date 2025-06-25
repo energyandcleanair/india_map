@@ -6,6 +6,8 @@ import pytest
 from morefs.memory import MemFS
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
+from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
+from pm25ml.combiners.combined_storage import CombinedStorage
 
 DESTINATION_BUCKET = "destination_bucket"
 
@@ -89,10 +91,47 @@ def test__read_dataframe__valid_input__returns_dataframe(
     storage.write_to_destination(example_table, "result_path")
 
     # Read the DataFrame
-    dataframe = storage.read_dataframe("result_path")
+    data_asset = storage.read_data_asset("result_path")
 
     # Validate the DataFrame
-    assert_frame_equal(dataframe, example_table)
+    assert_frame_equal(data_asset.data_frame, example_table)
+
+
+def test__read_data_asset__valid_input__returns_correct_hive_path(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = IngestArchiveStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Write the table to the destination
+    storage.write_to_destination(example_table, "result_path")
+
+    # Read the DataFrame
+    data_asset = storage.read_data_asset("result_path")
+
+    # Validate the HivePath
+    assert data_asset.hive_path.result_subpath == "result_path"
+
+
+def test__read_data_asset__valid_input__returns_correct_hive_path_with_dataset(
+    in_memory_filesystem, example_table
+) -> None:
+    """Test that HivePath includes dataset metadata."""
+    storage = IngestArchiveStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Write the table to the destination
+    storage.write_to_destination(example_table, "dataset=test_dataset")
+
+    # Read the DataFrame
+    data_asset = storage.read_data_asset("dataset=test_dataset")
+
+    # Validate the HivePath
+    assert data_asset.hive_path.require_key("dataset") == "test_dataset"
 
 
 def test__filter_paths_by_kv__valid_key_value__returns_filtered_paths(in_memory_filesystem) -> None:
