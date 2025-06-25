@@ -18,6 +18,16 @@ class ArchivedFileValidator:
         """
         self.archive_storage = archive_storage
 
+    def validate_all_results(self, pipelines: list[PipelineConfig]) -> None:
+        """
+        Validate the schema of all results against their expected schemas.
+
+        :param pipelines: A list of PipelineConfig objects containing the expected results.
+        :raises ValueError: If any result's schema does not match the expected schema.
+        """
+        for pipeline in pipelines:
+            self.validate_result_schema(pipeline)
+
     def validate_result_schema(self, expected_result: PipelineConfig) -> None:
         """
         Validate the schema of the result against the expected schema.

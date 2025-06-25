@@ -3,6 +3,7 @@
 import arrow
 
 from pm25ml.collectors.export_pipeline import ExportPipeline
+from pm25ml.hive_path import HivePath
 
 VALID_COUNTRIES = {
     "india": 33074,
@@ -25,7 +26,7 @@ def validate_configuration(processors: list[ExportPipeline]) -> None:
 def _validate_single_processor_config(processor: ExportPipeline) -> None:
     expected_result = processor.get_config_metadata()
 
-    path_metadata = _PathWithMetadata(
+    path_metadata = HivePath(
         result_subpath=expected_result.result_subpath,
     )
 
@@ -100,40 +101,3 @@ def _assert(condition: bool, message: str) -> None:  # noqa: FBT001
     """
     if not condition:
         raise ValueError(message)
-
-
-class _PathWithMetadata:
-    """
-    A class to represent a path with metadata.
-
-    This class is used to extract metadata from the result subpath.
-    """
-
-    def __init__(self, result_subpath: str) -> None:
-        self.result_subpath = result_subpath
-        self.metadata = self._extract_metadata_from_path(result_subpath)
-
-    @staticmethod
-    def _extract_metadata_from_path(
-        result_subpath: str,
-    ) -> dict[str, str]:
-        """
-        Extract the details from the result subpath.
-
-        :param result_subpath: The subpath where the result is stored.
-        :return: A dictionary containing the keys and values stored in the subpath.
-        """
-        return dict(part.split("=", 1) for part in result_subpath.split("/") if "=" in part)
-
-    def require_key(self, key: str) -> str:
-        """
-        Require a key to be present in the metadata.
-
-        :param key: The key to require.
-        :return: The value of the key.
-        :raises ValueError: If the key is not present in the metadata.
-        """
-        if key not in self.metadata:
-            msg = f"Expected '{key}' key in {self.result_subpath}, but it is missing."
-            raise ValueError(msg)
-        return self.metadata[key]

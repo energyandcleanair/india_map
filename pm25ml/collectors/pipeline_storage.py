@@ -1,7 +1,8 @@
-"""Feature planning for gridded feature collections."""
+"""Handles storage for the export pipelines."""
 
 from typing import IO, cast
 
+import polars as pl
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 from polars import DataFrame
@@ -39,7 +40,7 @@ class IngestArchiveStorage:
 
         with self.filesystem.open(parquet_file_path, "wb") as file:
             # Convert the DataFrame to Parquet format and write it to the file
-            logger.info(f"Writing DataFrame to Parquet file at {parquet_file_path}")
+            logger.debug(f"Writing DataFrame to Parquet file at {parquet_file_path}")
             table.write_parquet(cast("IO[bytes]", file))
 
     def read_dataframe_metadata(
@@ -58,6 +59,21 @@ class IngestArchiveStorage:
         parquet_file = pq.ParquetFile(parquet_file_path, filesystem=self.filesystem)
         return parquet_file.metadata
 
+    def read_dataframe(
+        self,
+        result_subpath: str,
+    ) -> DataFrame:
+        """
+        Read the processed DataFrame from the destination bucket.
+
+        :param result_subpath: The subpath in the destination bucket where the
+        DataFrame is stored.
+        :return: The polars DataFrame read from the Parquet file.
+        """
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+        with self.filesystem.open(parquet_file_path) as file:
+            return pl.read_parquet(cast("IO[bytes]", file))
+
     def does_dataset_exist(
         self,
         result_subpath: str,
@@ -70,3 +86,27 @@ class IngestArchiveStorage:
         """
         parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
         return self.filesystem.exists(parquet_file_path)
+
+    def filter_paths_by_kv(self, key: str, value: str) -> list[str]:
+        """
+        Filter paths in the destination bucket based on a key-value pair.
+
+        :param key: The key to filter by.
+        :param value: The value to filter by.
+
+        :return: A list of paths that match the key-value pair.
+        """
+        glob = f"{self.destination_bucket}/**/{key}={value}/**/data.parquet"
+        logger.debug(f"Filtering paths with glob pattern: {glob}")
+
+        results = cast("list[str]", self.filesystem.glob(glob))
+
+        # Filter results so that they don't have the prefix of the destination bucket
+        # and suffix of /data.parquet
+        return [
+            result.replace(f"{self.destination_bucket}/", "")
+            .lstrip("/")
+            .replace("/data.parquet", "")
+            .rstrip("/")
+            for result in results
+        ]

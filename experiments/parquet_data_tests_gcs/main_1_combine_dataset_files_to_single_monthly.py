@@ -1,5 +1,6 @@
+import functools
 import os
-import glob
+from pathlib import Path
 from tqdm import tqdm
 from functools import reduce
 from pyarrow import parquet as pq
@@ -21,40 +22,38 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
             fs.rm(output_dir, recursive=True)
     except FileNotFoundError:
         pass
-
-    dataset_names = [
-        os.path.basename(d["name"]) for d in fs.ls(input_dir, detail=True) if d["type"] == "directory"
+    dataset_names: list[str] = [
+        Path(d["name"]).name for d in fs.ls(input_dir, detail=True) if d["type"] == "directory"
     ]
 
     print(f"Found datasets: {dataset_names}")
     if not dataset_names:
         print("No datasets found.")
         raise FileNotFoundError("No datasets found.")
-    
     print(f"Found {len(dataset_names)} datasets.")
 
-    dataset_dirs = [
-        f"{input_dir}/{dataset}" for dataset in dataset_names
-    ]
-
+    dataset_dirs = [f"{input_dir}/{dataset}" for dataset in dataset_names]
     all_months = sorted(
-        set(
-            os.path.basename(m).split("=")[1]
+        {
+            Path(m).name.split("=")[1]
             for dataset_dir in dataset_dirs
             for m in fs.ls(dataset_dir)
-            if os.path.basename(m).startswith("month=")
-        )
+            if Path(m).name.startswith("month=")
+        },
     )
 
     if not all_months:
-        print("No months found.")
-        raise FileNotFoundError("No months found.")
-    
+        msg = "No months found."
+        print(msg)  # noqa: T201
+        raise FileNotFoundError(msg)
+
     print(f"Found months: {all_months}")
 
     for month in tqdm(all_months, desc="Processing months", unit="month"):
         tqdm.write(f"Processing month: {month}")
-        def process_dataset(dataset):
+
+        def process_dataset(dataset: str, month: str) -> pa.Table:
+            """Combine all Parquet files for a given dataset and month into a single table."""
             tqdm.write(f"Reading dataset: {dataset}")
             partition_path = f"{input_dir}/{dataset}/month={month}"
             if not fs.exists(partition_path):
@@ -65,7 +64,7 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
 
             tables = []
             for f in files:
-                table = pq.read_table(fs.open(f, 'rb'))
+                table = pq.read_table(fs.open(f, "rb"))
                 if "__index_level_0__" in table.column_names:
                     table = table.drop(["__index_level_0__"])
                 tables.append(table)
@@ -73,18 +72,29 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
             return pa.concat_tables(tables)
 
         with ThreadPoolExecutor() as executor:
-            results = list(tqdm(executor.map(process_dataset, dataset_names), total=len(dataset_names), desc="Processing datasets", unit="dataset"))
+            results = list(
+                tqdm(
+                    executor.map(functools.partial(process_dataset, month=month), dataset_names),
+                    total=len(dataset_names),
+                    desc="Processing datasets",
+                    unit="dataset",
+                ),
+            )
 
         month_tables = [result for result in results if result is not None]
 
         if month_tables:
             tqdm.write(f"Joining tables for month: {month}")
 
-            def join_two_tables(left_table, right_table):
-                return left_table.join(right_table, keys=["grid_id", "date"], join_type="full outer")
+            def join_two_tables(left_table: pa.Table, right_table: pa.Table) -> pa.Table:
+                return left_table.join(
+                    right_table,
+                    keys=["grid_id", "date"],
+                    join_type="full outer",
+                )
 
             # Function to manage the parallel joining process
-            def parallel_outer_join(tables):
+            def parallel_outer_join(tables: list[pa.Table]) -> pa.Table:
                 with ThreadPoolExecutor() as executor:
                     # Initial join operations
                     while len(tables) > 1:
@@ -103,10 +113,11 @@ def combine_and_join_by_month(input_dir: str, output_dir: str):
             tqdm.write(f"Writing combined table for month: {month}")
             month_output_path = f"{output_dir}/month={month}/part-0.parquet"
             fs.makedirs(os.path.dirname(month_output_path), exist_ok=True)
-            with fs.open(month_output_path, 'wb') as f:
+            with fs.open(month_output_path, "wb") as f:
                 writer = pq.ParquetWriter(f, combined.schema)
                 writer.write_table(combined)
                 writer.close()
+
 
 def main():
     input_dir = "india-map-data-test/data/datasets"

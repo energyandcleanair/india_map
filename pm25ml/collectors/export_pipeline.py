@@ -36,6 +36,15 @@ class PipelineConfig:
         self.value_columns = value_columns
         self.expected_rows = expected_n_rows
 
+    @property
+    def all_columns(self) -> set[str]:
+        """
+        Get all columns in the result.
+
+        :return: A set of all columns in the result.
+        """
+        return self.id_columns.union(self.value_columns)
+
 
 class ExportPipeline(ABC):
     """

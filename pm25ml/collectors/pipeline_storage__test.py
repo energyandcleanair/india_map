@@ -1,6 +1,7 @@
 import os
 
 import polars as pl
+from polars.testing import assert_frame_equal
 import pytest
 from morefs.memory import MemFS
 
@@ -23,8 +24,9 @@ def in_memory_filesystem():
     return MemFS()
 
 
-# Update test_write_to_destination to use a valid FileSystem
-def test_write_to_destination(in_memory_filesystem, example_table) -> None:
+def test__write_to_destination__valid_input__writes_parquet(
+    in_memory_filesystem, example_table
+) -> None:
     # Use LocalFileSystem pointing to the temp directory
     storage = IngestArchiveStorage(
         filesystem=in_memory_filesystem,
@@ -38,8 +40,9 @@ def test_write_to_destination(in_memory_filesystem, example_table) -> None:
     assert in_memory_filesystem.exists(result_path)
 
 
-# Test for read_dataframe_metadata
-def test_read_dataframe_metadata(in_memory_filesystem, example_table) -> None:
+def test__read_dataframe_metadata__valid_input__returns_metadata(
+    in_memory_filesystem, example_table
+) -> None:
     storage = IngestArchiveStorage(
         filesystem=in_memory_filesystem,
         destination_bucket=DESTINATION_BUCKET,
@@ -56,8 +59,9 @@ def test_read_dataframe_metadata(in_memory_filesystem, example_table) -> None:
     assert metadata.num_columns == example_table.shape[1]
 
 
-# Test for does_dataset_exist
-def test_does_dataset_exist(in_memory_filesystem, example_table) -> None:
+def test__does_dataset_exist__dataset_written__returns_true(
+    in_memory_filesystem, example_table
+) -> None:
     storage = IngestArchiveStorage(
         filesystem=in_memory_filesystem,
         destination_bucket=DESTINATION_BUCKET,
@@ -71,3 +75,43 @@ def test_does_dataset_exist(in_memory_filesystem, example_table) -> None:
 
     # Now, the dataset should exist
     assert storage.does_dataset_exist("result_path")
+
+
+def test__read_dataframe__valid_input__returns_dataframe(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = IngestArchiveStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Write the table to the destination
+    storage.write_to_destination(example_table, "result_path")
+
+    # Read the DataFrame
+    dataframe = storage.read_dataframe("result_path")
+
+    # Validate the DataFrame
+    assert_frame_equal(dataframe, example_table)
+
+
+def test__filter_paths_by_kv__valid_key_value__returns_filtered_paths(in_memory_filesystem) -> None:
+    storage = IngestArchiveStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Create mock paths in the filesystem
+    paths = [
+        f"{DESTINATION_BUCKET}/key=value1/data.parquet",
+        f"{DESTINATION_BUCKET}/key=value2/data.parquet",
+        f"{DESTINATION_BUCKET}/key=value1/other/data.parquet",
+    ]
+    for path in paths:
+        in_memory_filesystem.touch(path)
+
+    # Filter paths by key-value pair
+    filtered_paths = storage.filter_paths_by_kv("key", "value1")
+
+    # Validate the filtered paths
+    assert filtered_paths == ["key=value1", "key=value1/other"]

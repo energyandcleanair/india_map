@@ -22,12 +22,12 @@ class GeeIntermediateStorage:
     def get_intermediate_by_id(self, file_id: str) -> DataFrame:
         """Get intermediate data by ID."""
         csv_file_path = f"{self.bucket}/{file_id}.csv"
-        logger.info(f"Reading intermediate CSV file from {csv_file_path}")
+        logger.debug(f"Reading intermediate CSV file from {csv_file_path}")
         with self.filesystem.open(csv_file_path) as file:
             return read_csv(file)
 
     def delete_intermediate_by_id(self, file_id: str) -> None:
         """Delete intermediate data by ID."""
         csv_file_path = f"{self.bucket}/{file_id}.csv"
-        logger.info(f"Deleting intermediate CSV file {csv_file_path}")
+        logger.debug(f"Deleting intermediate CSV file {csv_file_path}")
         self.filesystem.delete(csv_file_path)

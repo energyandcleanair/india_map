@@ -23,16 +23,20 @@ from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.ned_export_pipeline import NedExportPipeline
 from pm25ml.collectors.pipeline_storage import IngestArchiveStorage
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES, validate_configuration
+from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
+from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
 
 GCP_PROJECT = os.environ["GCP_PROJECT"]
 INDIA_SHAPEFILE_GEE_ASSET = os.environ["INDIA_SHAPEFILE_ASSET"]
 CSV_BUCKET_NAME = os.environ["CSV_BUCKET_NAME"]
 INGEST_ARCHIVE_BUCKET_NAME = os.environ["INGEST_ARCHIVE_BUCKET_NAME"]
+COMBINED_BUCKET_NAME = os.environ["COMBINED_BUCKET_NAME"]
 
 LOCAL_GRID_ZIP_PATH = "./grid_india_10km_shapefiles.zip"
 
 MONTH_SHORT = "2023-01"
+YEAR_SHORT = "2023"
 
 
 def _main() -> None:
@@ -85,6 +89,16 @@ def _main() -> None:
     ned_pipeline_constructor = NedExportPipeline.with_args(
         archive_storage=archive_storage,
         grid=in_memory_grid,
+    )
+
+    combined_storage = CombinedStorage(
+        filesystem=gcs_filesystem,
+        destination_bucket=COMBINED_BUCKET_NAME,
+    )
+
+    archived_wide_combiner = ArchiveWideCombiner(
+        archive_storage=archive_storage,
+        combined_storage=combined_storage,
     )
 
     bounds = in_memory_grid.bounds
@@ -158,9 +172,9 @@ def _main() -> None:
                     "urban": [13],
                     "water": [17],
                 },
-                year=2023,
+                year=int(YEAR_SHORT),
             ),
-            result_subpath="country=india/dataset=modis_land_cover/year=2023",
+            result_subpath=f"country=india/dataset=modis_land_cover/year={YEAR_SHORT}",
         ),
         ned_pipeline_constructor.construct(
             dataset_descriptor=NedDatasetDescriptor(
@@ -221,18 +235,57 @@ def _main() -> None:
     ]
 
     logger.info(f"Go ahead and download {len(filtered_processors)} datasets")
+    _run_pipelines_in_parallel(filtered_processors)
+
+    # Check all results were uploaded successfully, not just the ones we
+    # downloaded this time.
+    logger.info("Validating all recent and historical results")
+    metadata_validator.validate_all_results(
+        [processor.get_config_metadata() for processor in processors],
+    )
+
+    # Get files from the archive storage
+    logger.info("Combining results from the archive storage")
+    archived_wide_combiner.combine(month=MONTH_SHORT)
+
+    all_expected_columns = {
+        column for processor in processors for column in processor.get_config_metadata().all_columns
+    }
+
+    expected_rows = VALID_COUNTRIES["india"] * len(dates_in_month)
+    logger.info(
+        f"Validating final combined result with {expected_rows} "
+        f"expected rows and {len(all_expected_columns)} expected columns",
+    )
+    final_combined = combined_storage.read_dataframe(
+        result_subpath=f"stage=combined_monthly/month={MONTH_SHORT}",
+    )
+
+    # Validate final combined result has expected rows and columns
+    if final_combined.shape[0] != expected_rows:
+        msg = (
+            f"Expected {expected_rows} rows in the final combined result, "
+            f"but found {final_combined.shape[0]} rows."
+        )
+        raise ValueError(msg)
+
+    if set(final_combined.columns) != all_expected_columns:
+        missing = all_expected_columns - set(final_combined.columns)
+        extra = set(final_combined.columns) - all_expected_columns
+        msg = (
+            f"Expected columns {all_expected_columns} in the final combined result, "
+            f"but {missing} were missing and {extra} were found."
+        )
+        raise ValueError(msg)
+
+
+def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> None:
     with ThreadPoolExecutor() as executor:
 
         def _upload_processor(processor: ExportPipeline) -> None:
             processor.upload()
 
         executor.map(_upload_processor, filtered_processors)
-
-    logger.info("Validating all recent and historical results")
-    # Check all results were uploaded successfully, not just the ones we
-    # downloaded this time.
-    for processor in processors:
-        metadata_validator.validate_result_schema(processor.get_config_metadata())
 
 
 if __name__ == "__main__":
