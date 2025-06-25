@@ -13,6 +13,7 @@ from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
 from pm25ml.collectors.export_pipeline import ExportPipeline
 from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
+from pm25ml.collectors.grid_export_pipeline import GridExportPipeline
 from pm25ml.collectors.grid_loader import load_grid_from_zip
 from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_reader_merra import MerraDataReader
@@ -217,6 +218,11 @@ def _main() -> None:
             dataset_reader=Omno2dReader(),
             dataset_retriever=RawEarthAccessDataRetriever(),
             result_subpath=f"country=india/dataset=omi_no2/month={MONTH_SHORT}",
+        ),
+        GridExportPipeline(
+            grid=in_memory_grid,
+            archive_storage=archive_storage,
+            result_subpath="country=india/dataset=grid/type=static",
         ),
     ]
 

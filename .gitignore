@@ -8,3 +8,5 @@ tmp
 .env
 
 experiments/notebooks/outputs
+experiments/notebooks/inputs
+
