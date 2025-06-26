@@ -124,7 +124,7 @@ def _main() -> None:
         gee_pipeline_constructor.construct(
             plan=feature_planner.plan_daily_average(
                 collection_name="COPERNICUS/S5P/OFFL/L3_NO2",
-                selected_bands=["NO2_column_number_density"],
+                selected_bands=["tropospheric_NO2_column_number_density"],
                 dates=dates_in_month,
             ),
             result_subpath=f"country=india/dataset=s5p_no2/month={MONTH_SHORT}",
@@ -235,8 +235,8 @@ def _main() -> None:
     filtered_processors = [
         processor
         for processor in processors
-        if not archive_storage.does_dataset_exist(
-            processor.get_config_metadata().result_subpath,
+        if metadata_validator.needs_upload(
+            expected_result=processor.get_config_metadata(),
         )
     ]
 

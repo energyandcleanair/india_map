@@ -7,6 +7,30 @@ from pm25ml.collectors.export_pipeline import PipelineConfig
 from pm25ml.logging import logger
 
 
+class ArchivedFileValidatorError(Exception):
+    """Base exception for errors in the ArchivedFileValidator."""
+
+
+class SchemaMismatchError(ArchivedFileValidatorError):
+    """Exception raised when the actual schema does not match the expected schema."""
+
+
+class MissingValueColumnError(SchemaMismatchError):
+    """Exception raised when a value column is missing in the result schema."""
+
+
+class MissingIdColumnError(SchemaMismatchError):
+    """Exception raised when an ID column is missing in the result schema."""
+
+
+class IncorrectColumnTypeError(SchemaMismatchError):
+    """Exception raised when a column type does not match the expected type."""
+
+
+class IncorrectNumberOfRowsError(ArchivedFileValidatorError):
+    """Exception raised when the number of rows in the result does not match the expected count."""
+
+
 class ArchivedFileValidator:
     """Validator for the metadata of export results."""
 
@@ -37,6 +61,35 @@ class ArchivedFileValidator:
         """
         self._validate_expected_against_actual(expected_result)
 
+    def needs_upload(self, expected_result: PipelineConfig) -> bool:
+        """
+        Check if the result needs to be uploaded.
+
+        It needs to be uploaded if:
+        1. It doesn't already exist in the archive storage.
+        2. It fails validation against the expected schema.
+
+        :param expected_result: The expected result configuration.
+        :return: True if the result needs to be uploaded, False otherwise.
+        """
+        logger.info(
+            f"Checking if result {expected_result.result_subpath} needs upload.",
+        )
+        if not self.archive_storage.does_dataset_exist(expected_result.result_subpath):
+            logger.info(
+                f"Result {expected_result.result_subpath} needs upload: "
+                f"does not exist in archive storage.",
+            )
+            return True
+        try:
+            self._validate_expected_against_actual(expected_result)
+        except ArchivedFileValidatorError:
+            logger.info(
+                f"Result {expected_result.result_subpath} needs upload: validation failed.",
+            )
+            return True
+        return False
+
     def _validate_expected_against_actual(self, expected_result: PipelineConfig) -> None:
         file_metadata = self.archive_storage.read_dataframe_metadata(
             result_subpath=expected_result.result_subpath,
@@ -58,9 +111,7 @@ class ArchivedFileValidator:
                 f"Expected {result.expected_rows} rows in {result.result_subpath}, "
                 f"but found {rows} rows."
             )
-            raise ValueError(
-                msg,
-            )
+            raise IncorrectNumberOfRowsError(msg)
 
     def _check_schema(self, result: PipelineConfig, actual_schema: Schema) -> None:
         if "grid_id" in result.id_columns:
@@ -68,28 +119,28 @@ class ArchivedFileValidator:
                 actual_grid_id_column = actual_schema.field("grid_id")
             except KeyError as exc:
                 msg = f"Expected 'grid_id' column in {result.result_subpath}, but it is missing."
-                raise ValueError(msg) from exc
+                raise MissingIdColumnError(msg) from exc
 
             if actual_grid_id_column.type != int64():
                 msg = (
                     f"Expected 'grid_id' column to be of type int64 in {result.result_subpath}, "
                     f"but found {actual_grid_id_column.type}."
                 )
-                raise ValueError(msg)
+                raise IncorrectColumnTypeError(msg)
 
         if "date" in result.id_columns:
             try:
                 actual_date_column = actual_schema.field("date")
             except KeyError as exc:
                 msg = f"Expected 'date' column in {result.result_subpath}, but it is missing."
-                raise ValueError(msg) from exc
+                raise MissingIdColumnError(msg) from exc
 
             if actual_date_column.type != large_string():
                 msg = (
                     f"Expected 'date' column to be of type string in {result.result_subpath}, "
                     f"but found {actual_date_column.type} (expected large_string)."
                 )
-                raise ValueError(msg)
+                raise IncorrectColumnTypeError(msg)
 
         for value_column in result.value_columns:
             try:
@@ -99,11 +150,11 @@ class ArchivedFileValidator:
                     f"Expected value column '{value_column}' in {result.result_subpath}, "
                     "but it is missing."
                 )
-                raise ValueError(msg) from exc
+                raise MissingValueColumnError(msg) from exc
 
             if actual_value_column.type != float64():
                 msg = (
                     f"Expected '{value_column}' column to be of type float64 in "
                     f"{result.result_subpath}, but found {actual_value_column.type}."
                 )
-                raise ValueError(msg)
+                raise IncorrectColumnTypeError(msg)
