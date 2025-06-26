@@ -37,7 +37,7 @@ class Omno2dReader(NedDataReader):
         Extract the data from an OMI NO2 file for a dataset.
 
         Args:
-            file (AbstractBufferedFile): The file containing the OMI NO2 data.
+            file (IO[bytes]): The file containing the OMI NO2 data.
             dataset_descriptor (NedDatasetDescriptor): The dataset descriptor containing metadata
             on how to extract the data.
 

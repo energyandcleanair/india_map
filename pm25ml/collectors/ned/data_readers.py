@@ -46,7 +46,7 @@ class NedDataReader:
         Fetch data from a file for a dataset.
 
         Args:
-            file (AbstractBufferedFile): The file containing the data.
+            file (IO[bytes]): The file containing the data.
             dataset_descriptor (NedDatasetDescriptor): The dataset descriptor containing metadata
             and processing instructions.
 

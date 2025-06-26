@@ -30,7 +30,7 @@ class NedDataRetriever:
                 and processing instructions.
 
         Returns:
-            Iterable[AbstractBufferedFile]: An iterable of files containing the data for the
+            Iterable[IO[bytes]]: An iterable of files containing the data for the
             dataset.
 
         """

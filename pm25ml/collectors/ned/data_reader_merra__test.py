@@ -1,3 +1,4 @@
+from typing import IO
 import arrow
 import pytest
 from unittest.mock import MagicMock, patch
@@ -7,7 +8,6 @@ from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.data_readers import NedDayData
 import xarray as xr
 import numpy as np
-from fsspec.spec import AbstractBufferedFile
 
 
 @pytest.fixture
@@ -119,7 +119,7 @@ def test__MerraDataReader_extract_data__correct_file_passed(
     mock_dataset_descriptor, dataset_with_all_dimensions_including_lev_down
 ):
     """Test extracting data with a correct file."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     reader = MerraDataReader()
     with patch(
         "xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_down
@@ -133,7 +133,7 @@ def test__MerraDataReader_extract_data__valid_with_date__date_correctly_extracte
     mock_dataset_descriptor, dataset_with_all_dimensions_including_lev_down
 ):
     """Test extracting data with valid inputs."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_down):
         reader = MerraDataReader()
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
@@ -147,7 +147,7 @@ def test__MerraDataReader_extract_data__valid_missing_date__raises_value_error(
 ):
     """Test extracting data when the date attribute is missing."""
     dataset_with_all_dimensions_including_lev_down.attrs.pop("RangeBeginningDate", None)
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_down):
         reader = MerraDataReader()
         with pytest.raises(
@@ -160,7 +160,7 @@ def test__MerraDataReader_extract_data__valid_lev_positive_down__data_correctly_
     mock_dataset_descriptor, dataset_with_all_dimensions_including_lev_down
 ):
     """Test extracting data with valid inputs."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_down):
         reader = MerraDataReader()
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
@@ -187,7 +187,7 @@ def test__MerraDataReader_extract_data__valid_lev_positive_up__data_correctly_fi
     mock_dataset_descriptor, dataset_with_all_dimensions_including_lev_up
 ):
     """Test extracting data with valid inputs."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_up):
         reader = MerraDataReader()
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
@@ -213,7 +213,7 @@ def test__MerraDataReader_extract_data__valid_without_lev_dimension__data_correc
     mock_dataset_descriptor, dataset_missing_lev_dimension
 ):
     """Test extracting data when the 'lev' dimension is missing."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_missing_lev_dimension):
         reader = MerraDataReader()
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
@@ -239,7 +239,7 @@ def test__MerraDataReader_extract_data__invalid_dimensions__raises_value_error(
     mock_dataset_descriptor, dataset_with_unexpected_dimensions
 ):
     """Test extracting data when the data array has invalid dimensions."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_unexpected_dimensions):
         reader = MerraDataReader()
         with pytest.raises(
@@ -257,7 +257,7 @@ def test__MerraDataReader_extract_data__missing_time__raises_value_error(
     mock_dataset_descriptor, dataset_missing_time_dimension
 ):
     """Test extracting data when the data array has a 'lev' dimension."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_missing_time_dimension):
         reader = MerraDataReader()
         with pytest.raises(

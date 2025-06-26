@@ -1,3 +1,4 @@
+from typing import IO
 import arrow
 import pytest
 from unittest.mock import MagicMock, patch
@@ -7,7 +8,6 @@ from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_reader_omno2d import Omno2dReader
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 from pm25ml.collectors.ned.data_readers import NedDayData
-from fsspec.spec import AbstractBufferedFile
 
 
 LON_SPAN = 360.0
@@ -87,7 +87,7 @@ def test_extract_data(
     fake_dataset_descriptor, fake_file_attributes, fake_grid_info, fake_data_fields
 ):
     """Test extracting data from OMI NO2 file."""
-    mock_file = MagicMock(spec=AbstractBufferedFile)
+    mock_file = MagicMock(spec=IO[bytes])
     reader = Omno2dReader()
 
     def mock_open_dataset(file, group, *args, **kwargs):
