@@ -1,12 +1,11 @@
 """Data reader for OMI NO2 data."""
 
 from ast import literal_eval
-from typing import TYPE_CHECKING, cast
+from typing import IO, TYPE_CHECKING, cast
 
 import arrow
 import numpy as np
 import xarray
-from fsspec.spec import AbstractBufferedFile
 from numpy.typing import NDArray
 
 from pm25ml.collectors.ned.coord_types import Lat, Lon, NpLat, NpLon
@@ -31,7 +30,7 @@ class Omno2dReader(NedDataReader):
 
     def extract_data(
         self,
-        file: AbstractBufferedFile,
+        file: IO[bytes],
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
         """
@@ -73,9 +72,9 @@ class Omno2dReader(NedDataReader):
 
         return NedDayData(data_array=data_array, date=date)
 
-    def _extract_date(self, file: AbstractBufferedFile) -> str:
+    def _extract_date(self, file: IO[bytes]) -> str:
         file_attributes = xarray.open_dataset(
-            cast("ReadBuffer", file),
+            file,
             group="HDFEOS/ADDITIONAL/FILE_ATTRIBUTES",
             phony_dims="access",
         )
@@ -86,9 +85,9 @@ class Omno2dReader(NedDataReader):
 
         return arrow.get(int(year_str), int(month_str), int(day_str)).format("YYYY-MM-DD")
 
-    def _build_coords(self, file: AbstractBufferedFile) -> tuple[np.ndarray, np.ndarray]:
+    def _build_coords(self, file: IO[bytes]) -> tuple[np.ndarray, np.ndarray]:
         grid_info = xarray.open_dataset(
-            cast("ReadBuffer", file),
+            file,
             group="HDFEOS/GRIDS/ColumnAmountNO2",
             phony_dims="access",
         )

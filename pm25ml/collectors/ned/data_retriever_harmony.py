@@ -8,14 +8,13 @@ References:
 
 import time
 from collections.abc import Iterable
-from typing import TypedDict, Union, cast
+from typing import IO, TypedDict, Union, cast
 from urllib import parse
 
 import earthaccess
 import fsspec
 import requests
 from arrow import Arrow
-from fsspec.spec import AbstractBufferedFile
 from requests.auth import AuthBase
 
 from pm25ml.collectors.ned.data_retriever_raw import EARTH_ENGINE_SEARCH_DATE_FORMAT
@@ -82,7 +81,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         self,
         *,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> Iterable[AbstractBufferedFile]:
+    ) -> Iterable[IO[bytes]]:
         """
         Stream data using the Harmony Subsetter API.
 
@@ -148,7 +147,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
             if not href:
                 msg = f"Link details missing 'href': {link_details}"
                 raise NedMissingDataError(msg)
-            yield cast("AbstractBufferedFile", https_file_system.open(href))
+            yield https_file_system.open(href)
 
     def _await_download_url_results(self, job_id: str) -> _JobResultLinks:
         job_status_response = self._fetch_job_status(job_id)

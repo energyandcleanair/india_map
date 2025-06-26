@@ -1,10 +1,9 @@
 """Retrieves raw Earth Access data."""
 
 from collections.abc import Iterable
-from typing import cast
+from typing import IO, cast
 
 import earthaccess
-from fsspec.spec import AbstractBufferedFile
 
 from pm25ml.collectors.ned.data_retrievers import NedDataRetriever
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
@@ -29,7 +28,7 @@ class RawEarthAccessDataRetriever(NedDataRetriever):
         self,
         *,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> Iterable[AbstractBufferedFile]:
+    ) -> Iterable[IO[bytes]]:
         """
         Stream data from the raw Earth Access source.
 
@@ -38,7 +37,7 @@ class RawEarthAccessDataRetriever(NedDataRetriever):
                 and processing instructions.
 
         Returns:
-            Iterable[AbstractBufferedFile]: An iterable of files containing the data for the
+            Iterable[IO[bytes]]: An iterable of files containing the data for the
             dataset.
 
         """
@@ -76,5 +75,5 @@ class RawEarthAccessDataRetriever(NedDataRetriever):
         for granule in granules:
             [file] = earthaccess.open([granule])
             # earthaccess misreports the return type of the file as an AbstractFileSystem
-            # but it is actually an AbstractBufferedFile.
-            yield cast("AbstractBufferedFile", file)
+            # but it is actually a file-like object.
+            yield cast("IO[bytes]", file)

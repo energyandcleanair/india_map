@@ -1,8 +1,7 @@
 """Data retriever for NASA Earthdata sources."""
 
 from collections.abc import Iterable
-
-from fsspec.spec import AbstractBufferedFile
+from typing import IO
 
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 
@@ -19,7 +18,7 @@ class NedDataRetriever:
         self,
         *,
         dataset_descriptor: NedDatasetDescriptor,
-    ) -> Iterable[AbstractBufferedFile]:
+    ) -> Iterable[IO[bytes]]:
         """
         Stream files from the source.
 

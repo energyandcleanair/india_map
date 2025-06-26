@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import xarray
-    from fsspec.spec import AbstractBufferedFile
 
     from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 
@@ -40,7 +39,7 @@ class NedDataReader:
 
     def extract_data(
         self,
-        file: AbstractBufferedFile,
+        file: IO[bytes],
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
         """

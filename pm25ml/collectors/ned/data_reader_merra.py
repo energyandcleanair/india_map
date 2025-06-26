@@ -1,15 +1,11 @@
 """Data reader for MERRA-2 data files."""
 
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import IO, ClassVar
 
 import xarray
-from fsspec.spec import AbstractBufferedFile
 
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
-
-if TYPE_CHECKING:
-    from xarray.core.types import ReadBuffer
 
 
 class MerraDataReader(NedDataReader):
@@ -29,14 +25,14 @@ class MerraDataReader(NedDataReader):
 
     def extract_data(
         self,
-        file: AbstractBufferedFile,
+        file: IO[bytes],
         dataset_descriptor: NedDatasetDescriptor,
     ) -> NedDayData:
         """
         Extract the data from a MERRA-2 file for a dataset.
 
         Args:
-            file (AbstractBufferedFile): The file containing the MERRA-2 data.
+            file (IO[bytes]): The file containing the MERRA-2 data.
             dataset_descriptor (NedDatasetDescriptor): The dataset descriptor containing metadata
             on how to extract the data.
 
@@ -44,7 +40,7 @@ class MerraDataReader(NedDataReader):
             NedDayData: An object containing the results of the extraction.
 
         """
-        dataset = xarray.open_dataset(cast("ReadBuffer", file), chunks="auto", engine="h5netcdf")
+        dataset = xarray.open_dataset(file, chunks="auto", engine="h5netcdf")
 
         self._check_expected_dimensions(dataset)
 
