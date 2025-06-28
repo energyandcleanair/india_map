@@ -24,6 +24,8 @@ class Omno2dReader(NedDataReader):
     for a given date range and geographical bounds.
     """
 
+    GRID_NAME = "ColumnAmountNO2"
+
     def __init__(self) -> None:
         """Initialize the OMI data reader."""
         super().__init__()
@@ -51,26 +53,25 @@ class Omno2dReader(NedDataReader):
 
         ds = xarray.open_dataset(
             cast("ReadBuffer", file),
-            group="HDFEOS/GRIDS/ColumnAmountNO2/Data Fields",
+            group=f"HDFEOS/GRIDS/{self.GRID_NAME}/Data Fields",
             phony_dims="access",
         )
 
-        var_name = dataset_descriptor.source_variable_name
+        var_names = list(dataset_descriptor.variable_mapping.keys())
+
         min_lon = dataset_descriptor.filter_min_lon
         max_lon = dataset_descriptor.filter_max_lon
         min_lat = dataset_descriptor.filter_min_lat
         max_lat = dataset_descriptor.filter_max_lat
 
-        data_array = ds[var_name]
-        data_array = data_array.rename({"phony_dim_0": "lat", "phony_dim_1": "lon"})
-        data_array = data_array.assign_coords(lat=("lat", lat), lon=("lon", lon))
+        ds = ds.rename({"phony_dim_0": "lat", "phony_dim_1": "lon"})
+        ds = ds.assign_coords(lat=("lat", lat), lon=("lon", lon))
+        ds = ds[var_names]
+        ds = ds.sel(lon=slice(min_lon, max_lon), lat=slice(min_lat, max_lat))
 
-        data_array = data_array.sel(
-            lon=slice(min_lon, max_lon),
-            lat=slice(min_lat, max_lat),
-        )
+        dataset = ds
 
-        return NedDayData(data_array=data_array, date=date)
+        return NedDayData(dataset=dataset, date=date)
 
     def _extract_date(self, file: IO[bytes]) -> str:
         file_attributes = xarray.open_dataset(
@@ -88,7 +89,7 @@ class Omno2dReader(NedDataReader):
     def _build_coords(self, file: IO[bytes]) -> tuple[np.ndarray, np.ndarray]:
         grid_info = xarray.open_dataset(
             file,
-            group="HDFEOS/GRIDS/ColumnAmountNO2",
+            group=f"HDFEOS/GRIDS/{self.GRID_NAME}",
             phony_dims="access",
         )
         bounds: tuple[Lon, Lon, Lat, Lat] = literal_eval(grid_info.attrs["GridSpan"])

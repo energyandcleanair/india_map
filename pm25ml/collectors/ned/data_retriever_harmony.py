@@ -231,7 +231,14 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
             HARMONY_DATE_FILTER_FORMAT,
         )
 
-        variable_name = dataset_descriptor.source_variable_name
+        if len(dataset_descriptor.variable_mapping) != 1:
+            msg = (
+                "Harmony Subsetter API only supports one variable for retrieval. "
+                f"Provided variables: {dataset_descriptor.variable_mapping.keys()}"
+            )
+            raise ValueError(msg)
+
+        variable_name = next(iter(dataset_descriptor.variable_mapping.keys()))
 
         # Build query string
         query_params: list[tuple[str, str | int]] = [

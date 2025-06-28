@@ -1,8 +1,13 @@
 """NED dataset descriptor module."""
 
-from arrow import Arrow
+from __future__ import annotations
 
-from pm25ml.collectors.ned.coord_types import Lat, Lon
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from arrow import Arrow
+
+    from pm25ml.collectors.ned.coord_types import Lat, Lon
 
 
 class NedDatasetDescriptor:
@@ -22,8 +27,8 @@ class NedDatasetDescriptor:
         start_date: Arrow,
         end_date: Arrow,
         filter_bounds: tuple[Lon, Lat, Lon, Lat],
-        source_variable_name: str,
-        target_variable_name: str,
+        variable_mapping: dict[str, str],
+        level: int | None = None,
     ) -> None:
         """
         Initialize the dataset descriptor.
@@ -42,8 +47,8 @@ class NedDatasetDescriptor:
         self.start_date = start_date
         self.end_date = end_date
         self.filter_bounds = filter_bounds
-        self.source_variable_name = source_variable_name
-        self.target_variable_name = target_variable_name
+        self.variable_mapping = variable_mapping
+        self.level = level
 
     def __repr__(self) -> str:
         """Return a string representation of the dataset descriptor."""
@@ -53,8 +58,8 @@ class NedDatasetDescriptor:
             f"start_date={self.start_date}, "
             f"end_date={self.end_date}, "
             f"filter_bounds={self.filter_bounds}, "
-            f"source_variable_name={self.source_variable_name}, "
-            f"target_variable_name={self.target_variable_name})"
+            f"variable_mapping={self.variable_mapping}, "
+            f"level={self.level})"
         )
 
     @property

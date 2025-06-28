@@ -49,31 +49,53 @@ class MerraDataReader(NedDataReader):
             msg = "Dataset does not contain a valid 'RangeBeginningDate' attribute."
             raise ValueError(msg)
 
-        var_name = dataset_descriptor.source_variable_name
+        # Only supports one variable for retrieval and extracting
+        if len(dataset_descriptor.variable_mapping) != 1:
+            msg = (
+                "MERRA-2 data reader only supports one variable for retrieval. "
+                f"Provided variables: {dataset_descriptor.variable_mapping.keys()}"
+            )
+            raise ValueError(msg)
+
+        var_name = next(iter(dataset_descriptor.variable_mapping.keys()))
         min_lon = dataset_descriptor.filter_min_lon
         max_lon = dataset_descriptor.filter_max_lon
         min_lat = dataset_descriptor.filter_min_lat
         max_lat = dataset_descriptor.filter_max_lat
 
-        data_array = dataset[var_name].sel(
+        dataset = dataset[[var_name]].sel(
             lon=slice(min_lon, max_lon),
             lat=slice(min_lat, max_lat),
         )
 
-        if "lev" in data_array.dims:
-            data_array = (
-                data_array.isel(lev=-1)
-                if data_array.lev.attrs["positive"] == "down"
-                else data_array.isel(lev=0)
-            )
+        # let's do some checking that if lev i
+        lev_selector = dataset_descriptor.level
 
-        data_array = data_array.mean(dim="time", keep_attrs=True)
+        if lev_selector is None and "lev" in dataset.dims:
+            msg = (
+                "Dataset contains 'lev' dimension, but no level specified in the descriptor. "
+                "Please specify a level or remove the 'lev' dimension from the dataset."
+            )
+            raise ValueError(msg)
+
+        if lev_selector is not None and "lev" not in dataset.dims:
+            msg = (
+                "Dataset does not contain 'lev' dimension, but a level is specified in "
+                "the descriptor. Please remove the level specification or ensure the dataset "
+                "contains 'lev' dimension."
+            )
+            raise ValueError(msg)
+
+        if "lev" in dataset.dims:
+            dataset = dataset.isel(lev=lev_selector)
+
+        dataset = dataset.mean(dim="time", keep_attrs=True)
 
         expected_dimensions = 2
-        if len(data_array.dims) != expected_dimensions:
-            msg = f"Data is not 2D for projection: dimensions are {data_array.dims}"
+        if len(dataset.dims) != expected_dimensions:
+            msg = f"Data is not 2D for projection: dimensions are {dataset.dims}"
             raise ValueError(msg)
-        return NedDayData(data_array=data_array, date=begin_date)
+        return NedDayData(dataset=dataset, date=begin_date)
 
     def _check_expected_dimensions(
         self,

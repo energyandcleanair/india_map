@@ -22,6 +22,15 @@ def validate_configuration(processors: list[ExportPipeline]) -> None:
     for processor in processors:
         _validate_single_processor_config(processor)
 
+    # All result paths are unique
+    result_subpaths = {processor.get_config_metadata().result_subpath for processor in processors}
+    if len(result_subpaths) != len(processors):
+        msg = (
+            "Duplicate result subpaths found in processors. "
+            "Each processor must have a unique result subpath."
+        )
+        raise ValueError(msg)
+
 
 def _validate_single_processor_config(processor: ExportPipeline) -> None:
     expected_result = processor.get_config_metadata()

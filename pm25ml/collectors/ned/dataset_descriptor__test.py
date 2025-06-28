@@ -12,8 +12,10 @@ def descriptor():
         start_date=Arrow(2023, 1, 1),
         end_date=Arrow(2023, 1, 10),
         filter_bounds=(Lon(70.0), Lat(8.0), Lon(90.0), Lat(37.0)),
-        source_variable_name="elevation",
-        target_variable_name="elev",
+        variable_mapping={
+            "elevation": "elev",
+        },
+        level=1,
     )
 
 
@@ -23,8 +25,8 @@ def test__init__valid_args__attributes_set_correctly(descriptor):
     assert descriptor.start_date == Arrow(2023, 1, 1)
     assert descriptor.end_date == Arrow(2023, 1, 10)
     assert descriptor.filter_bounds == (Lon(70.0), Lat(8.0), Lon(90.0), Lat(37.0))
-    assert descriptor.source_variable_name == "elevation"
-    assert descriptor.target_variable_name == "elev"
+    assert descriptor.variable_mapping["elevation"] == "elev"
+    assert descriptor.level == 1
 
 
 def test__days_in_range__returns_correct_number_of_days(descriptor):

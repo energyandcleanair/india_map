@@ -1,12 +1,13 @@
 """Data retriever for NASA Earthdata sources."""
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import IO
 
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor
 
 
-class NedDataRetriever:
+class NedDataRetriever(ABC):
     """
     Retrieves data from a NASA source.
 
@@ -14,6 +15,7 @@ class NedDataRetriever:
     server-side subsetting operations based on the dataset descriptor.
     """
 
+    @abstractmethod
     def stream_files(
         self,
         *,
@@ -34,5 +36,3 @@ class NedDataRetriever:
             dataset.
 
         """
-        msg = "This method should be implemented by subclasses."
-        raise NotImplementedError(msg)

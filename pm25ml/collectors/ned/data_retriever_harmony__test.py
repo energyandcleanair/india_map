@@ -26,8 +26,9 @@ def mock_dataset_descriptor():
         start_date=arrow.get("2025-06-01"),
         end_date=arrow.get("2025-06-15"),
         filter_bounds=(Lon(-10.0), Lat(-10.0), Lon(10.0), Lat(10.0)),
-        source_variable_name="mock_var",
-        target_variable_name="mock_target",
+        variable_mapping={
+            "mock_var": "mock_target",
+        },
     )
 
 
@@ -413,5 +414,29 @@ def test__HarmonySubsetterDataRetriever_stream_files__no_granules__raises_except
     mock_dataset_descriptor,
 ):
     with pytest.raises(NedMissingDataError, match="No granules found for dataset .*."):
+        retriever = HarmonySubsetterDataRetriever()
+        list(retriever.stream_files(dataset_descriptor=mock_dataset_descriptor))
+
+
+@responses.activate
+@pytest.mark.usefixtures(
+    "mock_earth_access__data_available",
+    "mock_ffspec__create_filesystem_which_opens_files",
+    "mock_response__job_submit_success",
+    "mock_response__job_fails",
+)
+def test__HarmonySubsetterDataRetriever_stream_files__multiple_variables__raises_exception(
+    mock_dataset_descriptor,
+):
+    # Modify the mock dataset descriptor to include multiple variables
+    mock_dataset_descriptor.variable_mapping = {
+        "var1": "target1",
+        "var2": "target2",
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="Harmony Subsetter API only supports one variable for retrieval. Provided variables:.*",
+    ):
         retriever = HarmonySubsetterDataRetriever()
         list(retriever.stream_files(dataset_descriptor=mock_dataset_descriptor))

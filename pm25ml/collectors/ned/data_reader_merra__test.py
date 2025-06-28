@@ -19,8 +19,10 @@ def mock_dataset_descriptor():
         start_date=arrow.get("2023-01-01"),
         end_date=arrow.get("2023-01-03"),
         filter_bounds=(Lon(-10.0), Lat(-10.0), Lon(10.0), Lat(10.0)),
-        source_variable_name="mock_var",
-        target_variable_name="new_mock_var",
+        variable_mapping={
+            "mock_var": "new_mock_var",
+        },
+        level=None,
     )
     return descriptor
 
@@ -124,6 +126,7 @@ def test__MerraDataReader_extract_data__correct_file_passed(
     with patch(
         "xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_down
     ) as mock_open_dataset:
+        mock_dataset_descriptor.level = -1
         reader.extract_data(mock_file, mock_dataset_descriptor)
 
         mock_open_dataset.assert_called_once_with(mock_file, chunks="auto", engine="h5netcdf")
@@ -135,6 +138,7 @@ def test__MerraDataReader_extract_data__valid_with_date__date_correctly_extracte
     """Test extracting data with valid inputs."""
     mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_down):
+        mock_dataset_descriptor.level = -1
         reader = MerraDataReader()
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
 
@@ -162,14 +166,15 @@ def test__MerraDataReader_extract_data__valid_lev_positive_down__data_correctly_
     """Test extracting data with valid inputs."""
     mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_down):
+        mock_dataset_descriptor.level = -1
         reader = MerraDataReader()
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
-    assert result.data.dims == ("lat", "lon")
-    # Check that the data is filtered correctly to the right bounds
-    assert len(result.data.coords["lat"]) == 3
-    assert len(result.data.coords["lon"]) == 3
+    assert dict(result.data.dims) == {
+        "lat": 3,
+        "lon": 3,
+    }  # Check that the dimensions are correct
 
     # Calculate the expected mean value directly for the dataset
     expected_mean = (
@@ -179,7 +184,7 @@ def test__MerraDataReader_extract_data__valid_lev_positive_down__data_correctly_
         .mean()
         .item()
     )
-    actual_mean = result.data.mean().item()
+    actual_mean = result.data["mock_var"].mean().item()
     assert actual_mean == expected_mean
 
 
@@ -189,14 +194,15 @@ def test__MerraDataReader_extract_data__valid_lev_positive_up__data_correctly_fi
     """Test extracting data with valid inputs."""
     mock_file = MagicMock(spec=IO[bytes])
     with patch("xarray.open_dataset", return_value=dataset_with_all_dimensions_including_lev_up):
+        mock_dataset_descriptor.level = 0
         reader = MerraDataReader()
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
-    assert result.data.dims == ("lat", "lon")
-    # Check that the data is filtered correctly to the right bounds
-    assert len(result.data.coords["lat"]) == 3
-    assert len(result.data.coords["lon"]) == 3
+    assert dict(result.data.dims) == {
+        "lat": 3,
+        "lon": 3,
+    }
 
     expected_mean = (
         dataset_with_all_dimensions_including_lev_up["mock_var"]
@@ -205,7 +211,7 @@ def test__MerraDataReader_extract_data__valid_lev_positive_up__data_correctly_fi
         .mean()
         .item()
     )
-    actual_mean = result.data.mean().item()
+    actual_mean = result.data["mock_var"].mean().item()
     assert actual_mean == expected_mean
 
 
@@ -219,11 +225,11 @@ def test__MerraDataReader_extract_data__valid_without_lev_dimension__data_correc
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
+    assert dict(result.data.dims) == {
+        "lat": 3,
+        "lon": 3,
+    }
     assert result.date == "2025-06-01"
-    assert result.data.dims == ("lat", "lon")
-    # Check that the data is filtered correctly to the right bounds
-    assert len(result.data.coords["lat"]) == 3
-    assert len(result.data.coords["lon"]) == 3
 
     expected_mean = (
         dataset_missing_lev_dimension["mock_var"]
@@ -231,7 +237,7 @@ def test__MerraDataReader_extract_data__valid_without_lev_dimension__data_correc
         .mean()
         .item()
     )
-    actual_mean = result.data.mean().item()
+    actual_mean = result.data["mock_var"].mean().item()
     assert actual_mean == expected_mean
 
 

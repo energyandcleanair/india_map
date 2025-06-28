@@ -5,16 +5,16 @@ from pm25ml.collectors.ned.data_readers import NedDayData
 
 
 def test__NedDayData__data_array_set__data_array_exists():
-    mocked_xarray_dataset = MagicMock(spec=xarray.DataArray)
-    day_data = NedDayData(data_array=mocked_xarray_dataset, date="2023-01-01")
+    mocked_xarray_dataset = MagicMock(spec=xarray.Dataset)
+    day_data = NedDayData(dataset=mocked_xarray_dataset, date="2023-01-01")
 
     assert day_data.data is mocked_xarray_dataset, "Data array should be set correctly."
 
 
 def test__NedDayData__date_set__date_exists():
     date = "2023-01-01"
-    mocked_xarray_dataset = MagicMock(spec=xarray.DataArray)
-    day_data = NedDayData(data_array=mocked_xarray_dataset, date=date)
+    mocked_xarray_dataset = MagicMock(spec=xarray.Dataset)
+    day_data = NedDayData(dataset=mocked_xarray_dataset, date=date)
 
     assert day_data.date == date, "Date should be set correctly."
 

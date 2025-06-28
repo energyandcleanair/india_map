@@ -1,6 +1,7 @@
 """Runner to get the data from a variety of sources."""
 
 import os
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -142,6 +143,10 @@ def _main() -> None:
                     "surface_pressure",
                     "leaf_area_index_high_vegetation",
                     "leaf_area_index_low_vegetation",
+                    "leaf_area_index_high_vegetation_max",
+                    "leaf_area_index_low_vegetation_max",
+                    "leaf_area_index_high_vegetation_min",
+                    "leaf_area_index_low_vegetation_min",
                 ],
                 dates=dates_in_month,
             ),
@@ -179,13 +184,16 @@ def _main() -> None:
         ),
         ned_pipeline_constructor.construct(
             dataset_descriptor=NedDatasetDescriptor(
+                # https://disc.gsfc.nasa.gov/datasets/M2T1NXAER_5.12.4/summary
                 dataset_name="M2T1NXAER",
                 dataset_version="5.12.4",
                 start_date=month_start,
                 end_date=month_end,
                 filter_bounds=bounds_with_border,
-                source_variable_name="TOTEXTTAU",
-                target_variable_name="merra_aot",
+                variable_mapping={
+                    "TOTEXTTAU": "aot",
+                },
+                level=None,
             ),
             dataset_reader=MerraDataReader(),
             dataset_retriever=HarmonySubsetterDataRetriever(),
@@ -193,13 +201,16 @@ def _main() -> None:
         ),
         ned_pipeline_constructor.construct(
             dataset_descriptor=NedDatasetDescriptor(
+                # https://cmr.earthdata.nasa.gov/search/concepts/C1276812901-GES_DISC.html
                 dataset_name="M2I3NVCHM",
                 dataset_version="5.12.4",
                 start_date=month_start,
                 end_date=month_end,
                 filter_bounds=bounds_with_border,
-                source_variable_name="CO",
-                target_variable_name="merra_co",
+                variable_mapping={
+                    "CO": "co",
+                },
+                level=-1,
             ),
             dataset_reader=MerraDataReader(),
             dataset_retriever=HarmonySubsetterDataRetriever(),
@@ -207,17 +218,54 @@ def _main() -> None:
         ),
         ned_pipeline_constructor.construct(
             dataset_descriptor=NedDatasetDescriptor(
+                # https://cmr.earthdata.nasa.gov/search/concepts/C1276812901-GES_DISC.html
+                dataset_name="M2I3NVCHM",
+                dataset_version="5.12.4",
+                start_date=month_start,
+                end_date=month_end,
+                filter_bounds=bounds_with_border,
+                variable_mapping={
+                    "CO": "co",
+                },
+                level=0,
+            ),
+            dataset_reader=MerraDataReader(),
+            dataset_retriever=HarmonySubsetterDataRetriever(),
+            result_subpath=f"country=india/dataset=merra_co_top/month={MONTH_SHORT}",
+        ),
+        ned_pipeline_constructor.construct(
+            dataset_descriptor=NedDatasetDescriptor(
+                # https://cmr.earthdata.nasa.gov/searCch/concepts/C1266136111-GES_DISC.html
                 dataset_name="OMNO2d",
                 dataset_version="003",
                 start_date=month_start,
                 end_date=month_end,
                 filter_bounds=bounds_with_border,
-                source_variable_name="ColumnAmountNO2",
-                target_variable_name="omi_no2",
+                variable_mapping={
+                    "ColumnAmountNO2": "no2",
+                },
+                level=None,
             ),
             dataset_reader=Omno2dReader(),
             dataset_retriever=RawEarthAccessDataRetriever(),
             result_subpath=f"country=india/dataset=omi_no2/month={MONTH_SHORT}",
+        ),
+        ned_pipeline_constructor.construct(
+            dataset_descriptor=NedDatasetDescriptor(
+                # https://cmr.earthdata.nasa.gov/searCch/concepts/C1266136111-GES_DISC.html
+                dataset_name="OMNO2d",
+                dataset_version="004",
+                start_date=month_start,
+                end_date=month_end,
+                filter_bounds=bounds_with_border,
+                variable_mapping={
+                    "ColumnAmountNO2": "no2",
+                },
+                level=None,
+            ),
+            dataset_reader=Omno2dReader(),
+            dataset_retriever=RawEarthAccessDataRetriever(),
+            result_subpath=f"country=india/dataset=omi_no2_v4/month={MONTH_SHORT}",
         ),
         GridExportPipeline(
             grid=in_memory_grid,
@@ -252,7 +300,8 @@ def _main() -> None:
 
     # Get files from the archive storage
     logger.info("Combining results from the archive storage")
-    archived_wide_combiner.combine(month=MONTH_SHORT)
+    # This needs to be all processors, not just the filtered ones.
+    archived_wide_combiner.combine(month=MONTH_SHORT, processors=processors)
 
     all_id_columns = {
         column for processor in processors for column in processor.get_config_metadata().id_columns
@@ -283,12 +332,11 @@ def _main() -> None:
         )
         raise ValueError(msg)
 
-    if set(final_combined.columns) != all_expected_columns:
-        missing = all_expected_columns - set(final_combined.columns)
-        extra = set(final_combined.columns) - all_expected_columns
+    missing = all_expected_columns - set(final_combined.columns)
+    if missing:
         msg = (
             f"Expected columns {all_expected_columns} in the final combined result, "
-            f"but {missing} were missing and {extra} were found."
+            f"but {missing} were missing."
         )
         raise ValueError(msg)
 
@@ -297,9 +345,19 @@ def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> Non
     with ThreadPoolExecutor() as executor:
 
         def _upload_processor(processor: ExportPipeline) -> None:
-            processor.upload()
+            try:
+                processor.upload()
+            except Exception:
+                logger.error(
+                    f"Failed to upload processor {processor.get_config_metadata().result_subpath}",
+                    exc_info=True,
+                    stack_info=True,
+                )
+                raise
 
-        executor.map(_upload_processor, filtered_processors)
+        results = executor.map(_upload_processor, filtered_processors)
+
+        deque(results, maxlen=0)
 
 
 if __name__ == "__main__":

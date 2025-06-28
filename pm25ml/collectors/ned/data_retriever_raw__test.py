@@ -15,8 +15,9 @@ def mock_dataset_descriptor():
         start_date=arrow.get("2025-01-01"),
         end_date=arrow.get("2025-01-31"),
         filter_bounds=(Lon(70.0), Lat(8.0), Lon(90.0), Lat(37.0)),
-        source_variable_name="mock_var",
-        target_variable_name="mock_target_var",
+        variable_mapping={
+            "mock_var": "mock_target_var",
+        },
     )
 
 

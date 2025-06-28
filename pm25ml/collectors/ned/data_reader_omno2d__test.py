@@ -32,8 +32,9 @@ def fake_dataset_descriptor():
         start_date=arrow.get("2023-01-01"),
         end_date=arrow.get("2023-01-03"),
         filter_bounds=(Lon(-10.0), Lat(-10.0), Lon(10.0), Lat(10.0)),
-        source_variable_name="mock_var",
-        target_variable_name="new_mock_var",
+        variable_mapping={
+            "mock_var": "new_mock_var",
+        },
     )
     return descriptor
 
@@ -104,10 +105,11 @@ def test_extract_data(
         result = reader.extract_data(mock_file, fake_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
-    assert result.data.dims == ("lat", "lon")
-    assert len(result.data.coords["lon"]) == 10  # Filtered bounds
-    assert len(result.data.coords["lat"]) == 20  # Filtered bounds
+    assert dict(result.data.dims) == {
+        "lat": 20,
+        "lon": 10,
+    }
 
     expected_mean = 16199.5  # This is the mean of the test data array, filtered by the bounds
-    actual_mean = result.data.mean().item()
+    actual_mean = result.data["mock_var"].mean().item()
     assert actual_mean == expected_mean

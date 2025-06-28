@@ -6,6 +6,7 @@ from re import match
 from polars import DataFrame
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage, IngestDataAsset
+from pm25ml.collectors.export_pipeline import ExportPipeline
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
 
@@ -29,17 +30,21 @@ class ArchiveWideCombiner:
         self.archive_storage = archive_storage
         self.combined_storage = combined_storage
 
-    def combine(self, month: str) -> None:
+    def combine(self, month: str, processors: list[ExportPipeline]) -> None:
         """
         Combine data from multiple sources in the archive for a given month.
 
+        We need the processors to determine which data to combine - not just choosing from the
+        data available as some of that might be deprecated or unsynced data.
+
         :param month: The month in 'YYYY-MM' format for which to combine data.
+        :param processors: A list of ExportPipeline instances to process the data for.
         :raises ValueError: If the month does not match the expected 'YYYY-MM' format
         """
         # Check month matches YYYY-MM format
         self._check_month_arg(month)
 
-        all_to_merge = self._list_paths_to_merge(month)
+        all_to_merge = self._list_paths_to_merge(month, processors)
 
         if not all_to_merge:
             msg = (
@@ -75,21 +80,18 @@ class ArchiveWideCombiner:
             result_subpath=result_subpath,
         )
 
-    def _list_paths_to_merge(self, month: str) -> list[str]:
-        month_related = self.archive_storage.filter_paths_by_kv(
-            key="month",
-            value=month,
-        )
-        year_related = self.archive_storage.filter_paths_by_kv(
-            key="year",
-            value=month[:4],  # Extract year from month string
-        )
-        static_related = self.archive_storage.filter_paths_by_kv(
-            key="type",
-            value="static",
-        )
+    def _list_paths_to_merge(self, month: str, processors: list[ExportPipeline]) -> list[str]:
+        hive_paths = [processor.get_config_metadata().hive_path for processor in processors]
+        year_filter = month[:4]
 
-        return month_related + year_related + static_related
+        month_related = [path for path in hive_paths if path.metadata.get("month") == month]
+
+        year_related = [path for path in hive_paths if path.metadata.get("year") == year_filter]
+        static_related = [path for path in hive_paths if path.metadata.get("type") == "static"]
+
+        filtered_paths = month_related + year_related + static_related
+
+        return [path.result_subpath for path in filtered_paths]
 
     def _check_month_arg(self, month: str) -> None:
         regex = r"^\d{4}-\d{2}$"

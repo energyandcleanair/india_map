@@ -1,11 +1,15 @@
 """Unit tests for ArchiveWideCombiner."""
 
+from unittest.mock import MagicMock
 import pytest
 from polars import DataFrame
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
+from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
 from morefs.memory import MemFS
+
+from pm25ml.hive_path import HivePath
 
 DESTINATION_BUCKET = "test_bucket"
 
@@ -146,17 +150,6 @@ def archive_storage__with_odd_number_of_datasets():
         "dataset=dataset_3/type=static",
     )
 
-    storage.write_to_destination(
-        DataFrame(
-            {
-                "grid_id": [10, 11, 12],
-                "date": ["2023-01-04", "2023-01-05", "2023-01-06"],
-                "col_4": [100.0, 110.0, 120.0],
-            }
-        ),
-        "dataset=dataset_4/type=different",
-    )
-
     return storage
 
 
@@ -277,6 +270,14 @@ def archive_storage__without_dataset_key():
     return storage
 
 
+def create_mock_export_pipeline_with_path(path: str) -> ExportPipeline:
+    pipeline_mock = MagicMock(spec=ExportPipeline)
+    pipeline_config_mock = MagicMock(spec=PipelineConfig)
+    pipeline_config_mock.hive_path = HivePath(path)
+    pipeline_mock.get_config_metadata.return_value = pipeline_config_mock
+    return pipeline_mock
+
+
 def test__combine__no_files__raises_error(
     archive_storage__no_files: IngestArchiveStorage,
     combined_storage: CombinedStorage,
@@ -287,8 +288,10 @@ def test__combine__no_files__raises_error(
         combined_storage=combined_storage,
     )
 
+    processors = []  # No processors provided, so no data to combine
+
     with pytest.raises(ValueError, match="No data found for month '2023-01'..*"):
-        combiner.combine(month="2023-01")
+        combiner.combine(month="2023-01", processors=processors)
 
 
 def test__combine__with_all_matching_types_and_extra_correct_result__successfully_merges(
@@ -301,8 +304,15 @@ def test__combine__with_all_matching_types_and_extra_correct_result__successfull
         combined_storage=combined_storage,
     )
 
+    processors = [
+        create_mock_export_pipeline_with_path("dataset=dataset_1/month=2023-01"),
+        create_mock_export_pipeline_with_path("dataset=dataset_2/year=2023"),
+        create_mock_export_pipeline_with_path("dataset=dataset_3/type=static"),
+        create_mock_export_pipeline_with_path("dataset=excluded_dataset/type=different"),
+    ]
+
     # Combine for January 2023
-    combiner.combine(month="2023-01")
+    combiner.combine(month="2023-01", processors=processors)
 
     # Read the combined data
     combined_data = combined_storage.read_dataframe("stage=combined_monthly/month=2023-01")
@@ -326,8 +336,14 @@ def test__combine__with_odd_number__successfully_merges(
         combined_storage=combined_storage,
     )
 
+    processors = [
+        create_mock_export_pipeline_with_path("dataset=dataset_1/month=2023-01"),
+        create_mock_export_pipeline_with_path("dataset=dataset_2/year=2023"),
+        create_mock_export_pipeline_with_path("dataset=dataset_3/type=static"),
+    ]
+
     # Combine for January 2023
-    combiner.combine(month="2023-01")
+    combiner.combine(month="2023-01", processors=processors)
 
     # Read the combined data
     combined_data = combined_storage.read_dataframe("stage=combined_monthly/month=2023-01")
@@ -351,7 +367,12 @@ def test__combine__no_matching_merge__empty_dataset(
         combined_storage=combined_storage,
     )
 
-    combiner.combine(month="2023-01")
+    processors = [
+        create_mock_export_pipeline_with_path("dataset=partial_1/month=2023-01"),
+        create_mock_export_pipeline_with_path("dataset=partial_2/year=2023"),
+    ]
+
+    combiner.combine(month="2023-01", processors=processors)
 
     combined_data = combined_storage.read_dataframe("stage=combined_monthly/month=2023-01")
 
@@ -372,7 +393,12 @@ def test__combine__with_date_and_time_for_one__successfully_merges(
         combined_storage=combined_storage,
     )
 
-    combiner.combine(month="2023-01")
+    processors = [
+        create_mock_export_pipeline_with_path("dataset=with_time/month=2023-01"),
+        create_mock_export_pipeline_with_path("dataset=without_time/year=2023"),
+    ]
+
+    combiner.combine(month="2023-01", processors=processors)
 
     combined_data = combined_storage.read_dataframe("stage=combined_monthly/month=2023-01")
 
@@ -393,7 +419,13 @@ def test__combine__renaming_columns__successfully_renames(
         combined_storage=combined_storage,
     )
 
-    combiner.combine(month="2023-01")
+    processors = [
+        create_mock_export_pipeline_with_path("dataset=dataset_1/month=2023-01"),
+        create_mock_export_pipeline_with_path("dataset=dataset_2/year=2023"),
+        create_mock_export_pipeline_with_path("dataset=dataset_3/type=static"),
+    ]
+
+    combiner.combine(month="2023-01", processors=processors)
 
     combined_data = combined_storage.read_dataframe("stage=combined_monthly/month=2023-01")
 
@@ -413,7 +445,11 @@ def test__combine__without_dataset_key__raises_error(
         combined_storage=combined_storage,
     )
 
+    processors = [
+        create_mock_export_pipeline_with_path("month=2023-01"),
+    ]
+
     with pytest.raises(
         ValueError, match="Expected 'dataset' key in month=2023-01, but it is missing."
     ):
-        combiner.combine(month="2023-01")
+        combiner.combine(month="2023-01", processors=processors)

@@ -163,19 +163,18 @@ class NedExportPipeline(ExportPipeline):
                 dataset_descriptor=self.dataset_descriptor,
             )
 
-            source_var_name = self.dataset_descriptor.source_variable_name
-            target_var_name = self.dataset_descriptor.target_variable_name
-
             logger.info(
                 "Regridding data for %s for dataset %s",
                 file,
                 self.dataset_descriptor,
             )
+
             transformed_data = self._regrid(data)
-            data_out = transformed_data[["grid_id", "date", source_var_name]].rename(
-                mapping={
-                    source_var_name: target_var_name,
-                },
+
+            data_out = transformed_data[
+                ["grid_id", "date", *self.dataset_descriptor.variable_mapping.keys()]
+            ].rename(
+                mapping=self.dataset_descriptor.variable_mapping,
             )
 
             partial_dfs.append(data_out)
@@ -200,7 +199,7 @@ class NedExportPipeline(ExportPipeline):
         return PipelineConfig(
             result_subpath=self.result_subpath,
             id_columns={"date", "grid_id"},
-            value_columns={self.dataset_descriptor.target_variable_name},
+            value_columns=set(self.dataset_descriptor.variable_mapping.values()),
             expected_n_rows=self.grid.n_rows * self.dataset_descriptor.days_in_range,
         )
 
@@ -214,9 +213,17 @@ class NedExportPipeline(ExportPipeline):
             method="linear",  # Or "linear" for bilinear interpolation
         )
 
-        var_name = self.dataset_descriptor.source_variable_name
+        source_var_names = list(self.dataset_descriptor.variable_mapping.keys())
+
+        new_columns = [
+            pl.Series(
+                name=source_var_name,
+                values=sampled_values[source_var_name].values,
+            )
+            for source_var_name in source_var_names
+        ]
 
         return grid_data.with_columns(
-            pl.Series(var_name, sampled_values.values),
             pl.lit(data.date).alias("date"),
+            *new_columns,
         )

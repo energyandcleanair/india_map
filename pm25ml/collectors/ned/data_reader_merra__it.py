@@ -33,8 +33,10 @@ def dataset_descriptor() -> NedDatasetDescriptor:
         start_date=arrow.get("2023-01-01"),
         end_date=arrow.get("2023-01-01"),
         filter_bounds=(Lon(70.0), Lat(10.0), Lon(90.0), Lat(30.0)),
-        source_variable_name="TOTEXTTAU",
-        target_variable_name="AerosolOpticalDepth",
+        variable_mapping={
+            "TOTEXTTAU": "AerosolOpticalDepth",
+        },
+        level=None,
     )
 
 
@@ -50,8 +52,10 @@ def test__merra_data_reader__read_example_file__extracts_data(
         ned_day_data = reader.extract_data(file, dataset_descriptor)
 
         assert ned_day_data.data is not None
-        assert ned_day_data.data.dims == ("lat", "lon")
-        assert ned_day_data.data.shape == (41, 33)
+        assert dict(ned_day_data.data.dims) == {
+            "lat": 41,
+            "lon": 33,
+        }
         assert ned_day_data.data.coords["lon"].min() == 70.0
         assert ned_day_data.data.coords["lon"].max() == 90.0
         assert ned_day_data.data.coords["lat"].min() == 10.0

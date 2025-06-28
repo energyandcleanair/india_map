@@ -18,16 +18,16 @@ class NedDayData:
     and the date in 'YYYY-MM-DD' format.
     """
 
-    def __init__(self, data_array: xarray.DataArray, date: str) -> None:
+    def __init__(self, dataset: xarray.Dataset, date: str) -> None:
         """
         Initialize the NedDayData instance.
 
         Args:
-            data_array (xarray.DataArray): The data array containing the data for the day.
-            date (str): The date in 'YYYY-MM-DD' format.
+            dataset: The dataset containing the data for the day.
+            date: The date in 'YYYY-MM-DD' format.
 
         """
-        self.data = data_array
+        self.data = dataset
         self.date = date
 
 
@@ -44,6 +44,8 @@ class NedDataReader:
     ) -> NedDayData:
         """
         Fetch data from a file for a dataset.
+
+        It must not rename the variables in the dataset to the target variable names.
 
         Args:
             file (IO[bytes]): The file containing the data.
