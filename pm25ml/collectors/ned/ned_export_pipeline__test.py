@@ -70,7 +70,7 @@ def test__NedPipelineConstructor__valid_inputs__creates_pipeline(
 
     # Assertions
     assert isinstance(pipeline, NedExportPipeline)
-    assert pipeline.grid is mock_grid
+    assert pipeline._grid is mock_grid
     assert pipeline.archive_storage is mock_archive_storage
     assert pipeline.dataset_descriptor is mock_dataset_descriptor
     assert pipeline.dataset_reader is mock_dataset_reader

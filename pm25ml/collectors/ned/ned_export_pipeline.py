@@ -138,8 +138,16 @@ class NedExportPipeline(ExportPipeline):
         self.dataset_reader = dataset_reader
         self.dataset_retriever = dataset_retriever
         self.result_subpath = result_subpath
-        self.grid = grid
+        self._grid = grid
         self.archive_storage = archive_storage
+        self._lon = xarray.DataArray(
+            self._grid.df["lon"],
+            dims="points",
+        )
+        self._lat = xarray.DataArray(
+            self._grid.df["lat"],
+            dims="points",
+        )
 
     def upload(self) -> None:
         """
@@ -200,17 +208,18 @@ class NedExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
             id_columns={"date", "grid_id"},
             value_columns=set(self.dataset_descriptor.variable_mapping.values()),
-            expected_n_rows=self.grid.n_rows * self.dataset_descriptor.days_in_range,
+            expected_n_rows=self._grid.n_rows * self.dataset_descriptor.days_in_range,
         )
 
     def _regrid(self, data: NedDayData) -> DataFrame:
         """Regrid the data to the grid."""
-        grid_data = self.grid.df
+        grid_data = self._grid.df
+        interpolation_method = self.dataset_descriptor.interpolation_method
 
         sampled_values = data.data.interp(
-            lon=xarray.DataArray(grid_data["lon"], dims="points"),
-            lat=xarray.DataArray(grid_data["lat"], dims="points"),
-            method="linear",  # Or "linear" for bilinear interpolation
+            lon=self._lon,
+            lat=self._lat,
+            method=interpolation_method,  # Use the specified interpolation method
         )
 
         source_var_names = list(self.dataset_descriptor.variable_mapping.keys())

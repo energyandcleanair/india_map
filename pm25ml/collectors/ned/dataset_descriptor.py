@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from arrow import Arrow
 
     from pm25ml.collectors.ned.coord_types import Lat, Lon
+
+InterpolationMethods = Literal["linear", "nearest"]
 
 
 class NedDatasetDescriptor:
@@ -28,6 +30,7 @@ class NedDatasetDescriptor:
         end_date: Arrow,
         filter_bounds: tuple[Lon, Lat, Lon, Lat],
         variable_mapping: dict[str, str],
+        interpolation_method: InterpolationMethods = "linear",
         level: int | None = None,
     ) -> None:
         """
@@ -49,6 +52,7 @@ class NedDatasetDescriptor:
         self.filter_bounds = filter_bounds
         self.variable_mapping = variable_mapping
         self.level = level
+        self.interpolation_method: InterpolationMethods = interpolation_method
 
     def __repr__(self) -> str:
         """Return a string representation of the dataset descriptor."""
@@ -59,7 +63,8 @@ class NedDatasetDescriptor:
             f"end_date={self.end_date}, "
             f"filter_bounds={self.filter_bounds}, "
             f"variable_mapping={self.variable_mapping}, "
-            f"level={self.level})"
+            f"level={self.level}, "
+            f"interpolation_method={self.interpolation_method})"
         )
 
     @property
