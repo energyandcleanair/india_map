@@ -3,7 +3,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from re import match
 
-from polars import DataFrame
+from polars import DataFrame, Float32
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage, IngestDataAsset
 from pm25ml.collectors.export_pipeline import ExportPipeline
@@ -70,15 +70,26 @@ class ArchiveWideCombiner:
         )
         combined_table = self._parallel_inner_join(normalised_tables)
 
+        # Convert all non-id columns to float32 for consistency and storage efficiency
+        normalised_values_table = self._normalise_value_columns(combined_table)
+
         logger.info(
-            f"Writing combined table with {combined_table.height} rows and "
-            f"{len(combined_table.columns)} columns to storage",
+            f"Writing combined table with {normalised_values_table.height} rows and "
+            f"{len(normalised_values_table.columns)} columns to storage",
         )
         result_subpath = f"stage=combined_monthly/month={month}"
         self.combined_storage.write_to_destination(
-            table=combined_table,
+            table=normalised_values_table,
             result_subpath=result_subpath,
         )
+
+    def _normalise_value_columns(self, combined_table: DataFrame) -> DataFrame:
+        for column in combined_table.columns:
+            if column not in INDEX_COLUMNS:
+                combined_table = combined_table.with_columns(
+                    combined_table[column].cast(Float32).alias(column),
+                )
+        return combined_table
 
     def _list_paths_to_merge(self, month: str, processors: list[ExportPipeline]) -> list[str]:
         hive_paths = [processor.get_config_metadata().hive_path for processor in processors]
