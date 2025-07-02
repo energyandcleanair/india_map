@@ -1,0 +1,22 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: engine
+  labels:
+    cloud.googleapis.com/location: europe-west1
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          containers:
+            - image: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 8Gi
+          maxRetries: 0
+          timeoutSeconds: "86400"
+          serviceAccountName: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
