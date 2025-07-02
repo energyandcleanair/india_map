@@ -438,25 +438,23 @@ def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> Non
             for status in _ResultStatus.__members__.values()
         }
 
-        if results_by_status[_ResultStatus.FAILURE]:
+        if results_by_status[_ResultStatus.FAILURE] or not results_by_status[_ResultStatus.SUCCESS]:
+            failed_pipelines = results_by_status[_ResultStatus.FAILURE]
+            missing_data_pipelines = results_by_status[_ResultStatus.MISSING_DATA]
+
+            for pipeline in failed_pipelines:
+                logger.error(
+                    f"Failed to upload pipeline {pipeline.get_config_metadata().result_subpath}",
+                )
+            for pipeline in missing_data_pipelines:
+                logger.warning(
+                    f"Missing data for pipeline {pipeline.get_config_metadata().result_subpath}",
+                )
             msg = (
-                f"Failed to upload {len(results_by_status[_ResultStatus.FAILURE])} "
-                f"pipelines: {results_by_status[_ResultStatus.FAILURE]}"
+                f"Failed to upload {len(failed_pipelines)} pipelines and "
+                f"missing data for {len(missing_data_pipelines)} pipelines."
             )
             raise ErrorWhileFetchingDataError(msg)
-
-        if results_by_status[_ResultStatus.MISSING_DATA]:
-            logger.warning(
-                f"Missing data for {len(results_by_status[_ResultStatus.MISSING_DATA])} "
-                f"pipelines: {results_by_status[_ResultStatus.MISSING_DATA]}",
-            )
-            msg = (
-                f"Missing data for {len(results_by_status[_ResultStatus.MISSING_DATA])} "
-                f"pipelines: {results_by_status[_ResultStatus.MISSING_DATA]}"
-            )
-            raise MissingDataError(
-                msg,
-            )
 
 
 if __name__ == "__main__":
