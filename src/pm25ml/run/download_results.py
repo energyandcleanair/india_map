@@ -1,10 +1,12 @@
 """Runner to get the data from a variety of sources."""
 
+from __future__ import annotations
+
 import os
-from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ee
 import google.auth
@@ -34,6 +36,9 @@ from pm25ml.collectors.validate_configuration import VALID_COUNTRIES, validate_c
 from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 GCP_PROJECT = os.environ["GCP_PROJECT"]
 INDIA_SHAPEFILE_GEE_ASSET = os.environ["INDIA_SHAPEFILE_ASSET"]
@@ -409,32 +414,34 @@ def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> Non
 
     with ThreadPoolExecutor() as executor:
 
-        def _upload_processor(processor: ExportPipeline) -> tuple[ExportPipeline, _ResultStatus]:
+        def _upload_processor(
+            processor: ExportPipeline,
+        ) -> tuple[ExportPipeline, _ResultStatus, Exception | None]:
             try:
                 processor.upload()
-            except MissingDataError:
+            except MissingDataError as e:
                 logger.warning(
                     f"Missing data for processor {processor.get_config_metadata().result_subpath}",
                     exc_info=True,
                     stack_info=True,
                 )
-                return (processor, _ResultStatus.MISSING_DATA)
-            except Exception:  # noqa: BLE001
+                return (processor, _ResultStatus.MISSING_DATA, e)
+            except Exception as e:  # noqa: BLE001
                 logger.error(
                     f"Failed to upload processor {processor.get_config_metadata().result_subpath}",
                     exc_info=True,
                     stack_info=True,
                 )
-                return (processor, _ResultStatus.FAILURE)
+                return (processor, _ResultStatus.FAILURE, e)
             else:
-                return (processor, _ResultStatus.SUCCESS)
+                return (processor, _ResultStatus.SUCCESS, None)
 
         results = executor.map(_upload_processor, filtered_processors)
 
         completed_results = list(results)
 
         results_by_status = {
-            status: [x[0] for x in filter(lambda x: x[1] == status, completed_results)]
+            status: [(x[0], x[2]) for x in filter(lambda x: x[1] == status, completed_results)]
             for status in _ResultStatus.__members__.values()
         }
 
@@ -442,13 +449,15 @@ def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> Non
             failed_pipelines = results_by_status[_ResultStatus.FAILURE]
             missing_data_pipelines = results_by_status[_ResultStatus.MISSING_DATA]
 
-            for pipeline in failed_pipelines:
+            for pipeline, err in failed_pipelines:
                 logger.error(
                     f"Failed to upload pipeline {pipeline.get_config_metadata().result_subpath}",
+                    exc_info=err,
                 )
-            for pipeline in missing_data_pipelines:
+            for pipeline, err in missing_data_pipelines:
                 logger.warning(
                     f"Missing data for pipeline {pipeline.get_config_metadata().result_subpath}",
+                    exc_info=err,
                 )
             msg = (
                 f"Failed to upload {len(failed_pipelines)} pipelines and "
