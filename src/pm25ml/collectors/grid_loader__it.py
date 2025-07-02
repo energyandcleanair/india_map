@@ -30,7 +30,7 @@ MAX_ERROR_SIZE = 1e-10
 def test__load_grid_from_zip__valid_shapefile_zip__grid_loaded():
     """Test loading a grid from a valid shapefile zip file."""
     # Arrange
-    path_to_shapefile_zip = Path("grid_india_10km_shapefiles.zip")
+    path_to_shapefile_zip = Path("./assets/grid_india_10km_shapefiles.zip")
 
     # Act
     grid = load_grid_from_zip(path_to_shapefile_zip)
