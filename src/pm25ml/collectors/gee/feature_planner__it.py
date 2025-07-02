@@ -32,7 +32,7 @@ GEE_IT_TEST_INSTANCE_ASSETS_ROOT = f"{GEE_IT_ASSET_ROOT}/{TEST_UNIQUE_ID}"
 GEE_IMAGE_COLLECTION_ROOT = f"{GEE_IT_TEST_INSTANCE_ASSETS_ROOT}/dummy_data"
 GEE_GRID_LOCATION = f"{GEE_IT_TEST_INSTANCE_ASSETS_ROOT}/grid"
 
-ASSET_DIR = Path("pm25ml", "collectors", "gee", "feature_planner__it_assets")
+ASSET_DIR = Path(__file__).parent / "feature_planner__it_assets"
 
 
 @pytest.fixture(scope="module")
