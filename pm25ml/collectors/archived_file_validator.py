@@ -1,6 +1,6 @@
 """Validator for the metadata of export results."""
 
-from pyarrow import Schema, float64, int64, large_string
+from pyarrow import Schema, float32, float64, int64, large_string
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.export_pipeline import PipelineConfig
@@ -152,9 +152,10 @@ class ArchivedFileValidator:
                 )
                 raise MissingValueColumnError(msg) from exc
 
-            if actual_value_column.type != float64():
+            allowed_value_types = {float64(), float32()}
+            if actual_value_column.type not in allowed_value_types:
                 msg = (
-                    f"Expected '{value_column}' column to be of type float64 in "
+                    f"Expected '{value_column}' column to be of type of {allowed_value_types} in "
                     f"{result.result_subpath}, but found {actual_value_column.type}."
                 )
                 raise IncorrectColumnTypeError(msg)
