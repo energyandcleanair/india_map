@@ -29,6 +29,8 @@ logger.handlers.clear()
 
 stream_handler = StreamHandler(sys.stdout)
 
+formatter: Formatter
+
 if _in_cloud_run_job():
     # Production: structured JSON logs
     formatter = _CloudRunJsonFormatter(
