@@ -18,11 +18,26 @@ spec:
                   cpu: 4000m
                   memory: 8Gi
               env:
-                GCP_PROJECT: vital-form-455413-p8
-                INDIA_SHAPEFILE_ASSET: projects/vital-form-455413-p8/assets/grid_india_10km_shapefile
-                CSV_BUCKET_NAME: crea-ee-csv-buffer
-                INGEST_ARCHIVE_BUCKET_NAME: crea-pm25ml-ingest-archive
-                COMBINED_BUCKET_NAME: crea-pm25ml-combined
+                - name: GCP_PROJECT
+                  value: vital-form-455413-p8
+                - name: INDIA_SHAPEFILE_ASSET
+                  value: projects/vital-form-455413-p8/assets/grid_india_10km_shapefile
+                - name: CSV_BUCKET_NAME
+                  value: crea-ee-csv-buffer
+                - name: INGEST_ARCHIVE_BUCKET_NAME
+                  value: crea-pm25ml-ingest-archive
+                - name: COMBINED_BUCKET_NAME
+                  value: crea-pm25ml-combined
+                - name: EARTHDATA_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: EARTHDATA_USERNAME
+                      key: latest
+                - name: EARTHDATA_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: EARTHDATA_PASSWORD
+                      key: latest
           maxRetries: 0
           timeoutSeconds: "86400"
           serviceAccountName: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
