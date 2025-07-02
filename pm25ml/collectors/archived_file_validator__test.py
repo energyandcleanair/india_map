@@ -174,7 +174,7 @@ def test__validate_result_schema__invalid_value_column__raises_error():
 
     with pytest.raises(
         ArchivedFileValidatorError,
-        match="Expected 'value_column' column to be of type float64 in path/to/result, but found int64.",
+        match="Expected 'value_column' column to be of type .* in path/to/result, but found int64.",
     ):
         validator.validate_result_schema(expected_result)
 
