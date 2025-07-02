@@ -77,9 +77,10 @@ def test__NedPipelineConstructor__valid_inputs__creates_pipeline(
     assert pipeline.result_subpath == mock_result_subpath
 
 
-def test__NedPipelineConstructor__dataset_retriever_logic__uses_default_retriever():
+def test__NedPipelineConstructor__dataset_retriever_logic__uses_default_retriever(
+    mock_grid,
+):
     # Mock inputs
-    mock_grid = Grid(DataFrame())
     mock_archive_storage = IngestArchiveStorage(
         filesystem=MemoryFileSystem(), destination_bucket="mock_bucket"
     )
@@ -111,9 +112,9 @@ def test__NedPipelineConstructor__dataset_retriever_logic__uses_default_retrieve
     assert isinstance(pipeline.dataset_retriever, RawEarthAccessDataRetriever)
 
 
-def test__NedPipelineConstructor__dataset_retriever_logic__uses_provided_retriever():
-    # Mock inputs
-    mock_grid = Grid(DataFrame())
+def test__NedPipelineConstructor__dataset_retriever_logic__uses_provided_retriever(
+    mock_grid,
+):
     mock_archive_storage = IngestArchiveStorage(
         filesystem=MemoryFileSystem(), destination_bucket="mock_bucket"
     )
