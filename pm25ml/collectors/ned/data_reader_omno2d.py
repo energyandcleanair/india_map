@@ -137,7 +137,9 @@ class Omno2dReader(NedDataReader):
             lat (NDArray[NpLat]): y (latitude) coordinates.
 
         """
-        # Interpolate points between bounds
+        # See existing real-world examples of how to use this:
+        # - https://drivendata.co/blog/predict-no2-benchmark
+        # - https://github.com/quintusdias/hdfeos_python_zoo/blob/master/zoo/gesdisc/omi/OMI_L3_ColumnAmountO3.py
 
         lon_resolution = resolution[0]
         lat_resolution = resolution[1]
