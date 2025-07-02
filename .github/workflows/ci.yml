@@ -154,7 +154,7 @@ jobs:
           push: true
 
   release:
-    # Release can run on workflow dispatch or on push to master. It will only
+    # Release can run on workflow dispatch or on push to main. It will only
     # run if the build and test jobs are successful, unless the force input is
     # set to true. always() allows us to do conditional tests despite the needs.
     if: |
@@ -164,7 +164,7 @@ jobs:
           success() ||
           (github.event.inputs.force && needs.build-image.result == 'success')
         )) ||
-        (github.event_name == 'push' && github.ref == 'refs/heads/master' && success())
+        (github.event_name == 'push' && github.ref == 'refs/heads/main' && success())
       )
 
     runs-on: ubuntu-latest
