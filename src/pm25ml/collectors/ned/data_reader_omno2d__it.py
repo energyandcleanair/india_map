@@ -17,8 +17,10 @@ def example_file_path() -> Path:
     """
     Fixture to provide the path to the example OMI NO2 file.
     """
-    return Path(
-        "src/pm25ml/collectors/ned/data_reader_omno2d__it_assets/OMI-Aura_L3-OMNO2d_2023m0111_v003-2023m0223t191034.he5"
+    return (
+        Path(__file__).parent
+        / "data_reader_omno2d__it_assets"
+        / "OMI-Aura_L3-OMNO2d_2023m0111_v003-2023m0223t191034.he5"
     )
 
 

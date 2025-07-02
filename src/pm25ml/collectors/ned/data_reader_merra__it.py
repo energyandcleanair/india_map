@@ -17,8 +17,10 @@ def example_file_path() -> Path:
     """
     Fixture to provide the path to the example MERRA-2 file.
     """
-    return Path(
-        "pm25ml/collectors/ned/data_reader_merra__it_assets/M2T1NXAER.5.12.4_MERRA2_400.tavg1_2d_aer_Nx.20230101_TOTEXTTAU_subsetted.nc4"
+    return (
+        Path(__file__).parent
+        / "data_reader_merra__it_assets"
+        / "M2T1NXAER.5.12.4_MERRA2_400.tavg1_2d_aer_Nx.20230101_TOTEXTTAU_subsetted.nc4"
     )
 
 
