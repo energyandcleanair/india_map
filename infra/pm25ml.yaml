@@ -1,7 +1,7 @@
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
-  name: engine
+  name: pm25ml
   labels:
     cloud.googleapis.com/location: europe-west1
 spec:
