@@ -9,6 +9,40 @@ AvailableIdKeys = Literal["date", "grid_id"]
 AVAILABLE_ID_KEY_NAMES: list[AvailableIdKeys] = ["date", "grid_id"]
 
 
+class MissingDataError(Exception):
+    """
+    Exception raised when the export pipeline is missing data.
+
+    This exception is raised when the export pipeline cannot find the expected data
+    for the export operation.
+    """
+
+    def __init__(self, message: str) -> None:
+        """
+        Initialize the MissingDataError with a message.
+
+        :param message: The error message to be displayed.
+        """
+        super().__init__(message)
+
+
+class ErrorWhileFetchingDataError(Exception):
+    """
+    Exception raised when there is an error while fetching data for the export pipeline.
+
+    This exception is raised when the export pipeline encounters an error while trying to
+    fetch the data required for the export operation.
+    """
+
+    def __init__(self, message: str) -> None:
+        """
+        Initialize the ErrorWhileFetchingDataError with a message.
+
+        :param message: The error message to be displayed.
+        """
+        super().__init__(message)
+
+
 class PipelineConfig:
     """
     Represents the pipeline config metadata of an export operation.
