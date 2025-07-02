@@ -1,6 +1,7 @@
 __pycache__
 data/
 example_data/
+dist/
 
 .vscode
 

@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "india-map"
+name = "pm25ml"
 version = "0.1.0"
 description = "Create daily PM2.5 rasters for India."
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
-package-mode = false
+package-mode = true
 include = [
-    "pm25ml"
+    "src"
 ]
 exclude = [
     "**/*__test.py",
@@ -92,11 +92,11 @@ pythonpath = "."
 [tool.ruff]
 include = [
     "pyproject.toml",
-    "./pm25ml/**/*.py",
+    "./src/pm25ml/**/*.py",
 ]
 exclude = [
-    "./pm25ml/**/*__test.py",
-    "./pm25ml/**/*__it.py",
+    "./src/pm25ml/**/*__test.py",
+    "./src/pm25ml/**/*__it.py",
 ]
 line-length = 100
 

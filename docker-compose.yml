@@ -1,0 +1,12 @@
+services:
+  pm25ml:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/app/.config/google-creds.json:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/.config/google-creds.json
+

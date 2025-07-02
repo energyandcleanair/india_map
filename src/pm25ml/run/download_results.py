@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import ee
+import google.auth
 from arrow import Arrow, get
 from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
@@ -35,15 +36,20 @@ CSV_BUCKET_NAME = os.environ["CSV_BUCKET_NAME"]
 INGEST_ARCHIVE_BUCKET_NAME = os.environ["INGEST_ARCHIVE_BUCKET_NAME"]
 COMBINED_BUCKET_NAME = os.environ["COMBINED_BUCKET_NAME"]
 
-LOCAL_GRID_ZIP_PATH = "./grid_india_10km_shapefiles.zip"
+LOCAL_GRID_ZIP_PATH = "./assets/grid_india_10km_shapefiles.zip"
 
 MONTH_SHORT = "2023-01"
 YEAR_SHORT = "2023"
 
 
 def _main() -> None:
-    ee.Authenticate()
-    ee.Initialize(project=GCP_PROJECT)
+    creds, _ = google.auth.default(
+        scopes=[
+            "https://www.googleapis.com/auth/earthengine",
+            "https://www.googleapis.com/auth/cloud-platform",
+        ],
+    )
+    ee.Initialize(project=GCP_PROJECT, credentials=creds)
 
     month_start = get(f"{MONTH_SHORT}-01")
     gee_india_grid_reference = FeatureCollection(INDIA_SHAPEFILE_GEE_ASSET)
