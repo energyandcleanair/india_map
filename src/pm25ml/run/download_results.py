@@ -38,11 +38,12 @@ COMBINED_BUCKET_NAME = os.environ["COMBINED_BUCKET_NAME"]
 
 LOCAL_GRID_ZIP_PATH = "./assets/grid_india_10km_shapefiles.zip"
 
-MONTH_SHORT = "2023-01"
-YEAR_SHORT = "2023"
+FIRST_YEAR = 2018
+
+END_MONTH = get("2025-03-31")
 
 
-def _main() -> None:
+def _main() -> None:  # noqa: PLR0915
     creds, _ = google.auth.default(
         scopes=[
             "https://www.googleapis.com/auth/earthengine",
@@ -51,7 +52,6 @@ def _main() -> None:
     )
     ee.Initialize(project=GCP_PROJECT, credentials=creds)
 
-    month_start = get(f"{MONTH_SHORT}-01")
     gee_india_grid_reference = FeatureCollection(INDIA_SHAPEFILE_GEE_ASSET)
     gee_india_grid_reference_size = gee_india_grid_reference.size().getInfo()
     if gee_india_grid_reference_size != VALID_COUNTRIES["india"]:
@@ -79,12 +79,6 @@ def _main() -> None:
 
     metadata_validator = ArchivedFileValidator(
         archive_storage=archive_storage,
-    )
-
-    month_end = month_start.shift(months=1).shift(days=-1)
-
-    dates_in_month: list[Arrow] = list(
-        Arrow.range("day", start=month_start, end=month_end),
     )
 
     gee_pipeline_constructor = GeeExportPipeline.with_storage(
@@ -118,146 +112,186 @@ def _main() -> None:
         Lat(bounds[3] + 1.0),
     )
 
+    years = list(range(FIRST_YEAR, END_MONTH.year - 1))
+    months = [
+        get(f"{year}-{month:02d}-01")
+        for year in years
+        for month in range(1, 13)
+        if not (year == END_MONTH.year - 1 and month > END_MONTH.month)
+    ]
+
+    def _static_pipelines() -> list[ExportPipeline]:
+        """Fetch static datasets that do not change over time."""
+        return [
+            gee_pipeline_constructor.construct(
+                plan=feature_planner.plan_static_feature(
+                    image_name="USGS/SRTMGL1_003",
+                    selected_bands=["elevation"],
+                ),
+                result_subpath="country=india/dataset=srtm_elevation/type=static",
+            ),
+            GridExportPipeline(
+                grid=in_memory_grid,
+                archive_storage=archive_storage,
+                result_subpath="country=india/dataset=grid/type=static",
+            ),
+        ]
+
+    def _yearly_pipelines(year: int) -> list[ExportPipeline]:
+        """Fetch datasets that are aggregated yearly."""
+        return [
+            gee_pipeline_constructor.construct(
+                plan=feature_planner.plan_summarise_annual_classified_pixels(
+                    collection_name="MODIS/061/MCD12Q1",
+                    classification_band="LC_Type1",
+                    output_names_to_class_values={
+                        "forest": [1, 2, 3, 4, 5],
+                        "shrub": [6, 7],
+                        "savanna": [9],
+                        "urban": [13],
+                        "water": [17],
+                    },
+                    year=year,
+                ),
+                result_subpath=f"country=india/dataset=modis_land_cover/year={year}",
+            ),
+        ]
+
+    def _monthly_pipelines(month_start: Arrow) -> list[ExportPipeline]:
+        """Fetch datasets that are aggregated monthly."""
+        month_end = month_start.shift(months=1).shift(days=-1)
+
+        dates_in_month: list[Arrow] = list(
+            Arrow.range("day", start=month_start, end=month_end),
+        )
+
+        month_short = month_start.format("YYYY-MM")
+
+        return [
+            gee_pipeline_constructor.construct(
+                plan=feature_planner.plan_daily_average(
+                    collection_name="COPERNICUS/S5P/OFFL/L3_CO",
+                    selected_bands=["CO_column_number_density"],
+                    dates=dates_in_month,
+                ),
+                result_subpath=f"country=india/dataset=s5p_co/month={month_short}",
+            ),
+            gee_pipeline_constructor.construct(
+                plan=feature_planner.plan_daily_average(
+                    collection_name="COPERNICUS/S5P/OFFL/L3_NO2",
+                    selected_bands=["tropospheric_NO2_column_number_density"],
+                    dates=dates_in_month,
+                ),
+                result_subpath=f"country=india/dataset=s5p_no2/month={month_short}",
+            ),
+            gee_pipeline_constructor.construct(
+                plan=feature_planner.plan_daily_average(
+                    collection_name="ECMWF/ERA5_LAND/DAILY_AGGR",
+                    selected_bands=[
+                        "temperature_2m",
+                        "dewpoint_temperature_2m",
+                        "u_component_of_wind_10m",
+                        "v_component_of_wind_10m",
+                        "total_precipitation_sum",
+                        "surface_net_thermal_radiation_sum",
+                        "surface_pressure",
+                        "leaf_area_index_high_vegetation",
+                        "leaf_area_index_low_vegetation",
+                    ],
+                    dates=dates_in_month,
+                ),
+                result_subpath=f"country=india/dataset=era5_land/month={month_short}",
+            ),
+            gee_pipeline_constructor.construct(
+                plan=feature_planner.plan_daily_average(
+                    collection_name="MODIS/061/MCD19A2_GRANULES",
+                    selected_bands=["Optical_Depth_047", "Optical_Depth_055"],
+                    dates=dates_in_month,
+                ),
+                result_subpath=f"country=india/dataset=modis_aod/month={month_short}",
+            ),
+            ned_pipeline_constructor.construct(
+                dataset_descriptor=NedDatasetDescriptor(
+                    # https://disc.gsfc.nasa.gov/datasets/M2T1NXAER_5.12.4/summary
+                    dataset_name="M2T1NXAER",
+                    dataset_version="5.12.4",
+                    start_date=month_start,
+                    end_date=month_end,
+                    filter_bounds=bounds_with_border,
+                    variable_mapping={
+                        "TOTEXTTAU": "aot",
+                    },
+                    level=None,
+                ),
+                dataset_reader=MerraDataReader(),
+                dataset_retriever=HarmonySubsetterDataRetriever(),
+                result_subpath=f"country=india/dataset=merra_aot/month={month_short}",
+            ),
+            ned_pipeline_constructor.construct(
+                dataset_descriptor=NedDatasetDescriptor(
+                    # https://cmr.earthdata.nasa.gov/search/concepts/C1276812901-GES_DISC.html
+                    dataset_name="M2I3NVCHM",
+                    dataset_version="5.12.4",
+                    start_date=month_start,
+                    end_date=month_end,
+                    filter_bounds=bounds_with_border,
+                    variable_mapping={
+                        "CO": "co",
+                    },
+                    level=-1,
+                ),
+                dataset_reader=MerraDataReader(),
+                dataset_retriever=HarmonySubsetterDataRetriever(),
+                result_subpath=f"country=india/dataset=merra_co/month={month_short}",
+            ),
+            ned_pipeline_constructor.construct(
+                dataset_descriptor=NedDatasetDescriptor(
+                    # https://cmr.earthdata.nasa.gov/search/concepts/C1276812901-GES_DISC.html
+                    dataset_name="M2I3NVCHM",
+                    dataset_version="5.12.4",
+                    start_date=month_start,
+                    end_date=month_end,
+                    filter_bounds=bounds_with_border,
+                    variable_mapping={
+                        "CO": "co",
+                    },
+                    level=0,
+                ),
+                dataset_reader=MerraDataReader(),
+                dataset_retriever=HarmonySubsetterDataRetriever(),
+                result_subpath=f"country=india/dataset=merra_co_top/month={month_short}",
+            ),
+            ned_pipeline_constructor.construct(
+                dataset_descriptor=NedDatasetDescriptor(
+                    # https://cmr.earthdata.nasa.gov/searCch/concepts/C1266136111-GES_DISC.html
+                    dataset_name="OMNO2d",
+                    dataset_version="003",
+                    start_date=month_start,
+                    end_date=month_end,
+                    filter_bounds=bounds_with_border,
+                    variable_mapping={
+                        "ColumnAmountNO2": "no2",
+                    },
+                    level=None,
+                    interpolation_method="linear",
+                ),
+                dataset_reader=Omno2dReader(),
+                dataset_retriever=RawEarthAccessDataRetriever(),
+                result_subpath=f"country=india/dataset=omi_no2/month={month_short}",
+            ),
+        ]
+
+    yearly_pipelines = [pipeline for year in years for pipeline in _yearly_pipelines(year)]
+
+    monthly_pipelines = [pipeline for month in months for pipeline in _monthly_pipelines(month)]
+
+    static_pipelines = _static_pipelines()
+
     logger.info("Defining export pipelines datasets")
     processors: list[ExportPipeline] = [
-        gee_pipeline_constructor.construct(
-            plan=feature_planner.plan_daily_average(
-                collection_name="COPERNICUS/S5P/OFFL/L3_CO",
-                selected_bands=["CO_column_number_density"],
-                dates=dates_in_month,
-            ),
-            result_subpath=f"country=india/dataset=s5p_co/month={MONTH_SHORT}",
-        ),
-        gee_pipeline_constructor.construct(
-            plan=feature_planner.plan_daily_average(
-                collection_name="COPERNICUS/S5P/OFFL/L3_NO2",
-                selected_bands=["tropospheric_NO2_column_number_density"],
-                dates=dates_in_month,
-            ),
-            result_subpath=f"country=india/dataset=s5p_no2/month={MONTH_SHORT}",
-        ),
-        gee_pipeline_constructor.construct(
-            plan=feature_planner.plan_daily_average(
-                collection_name="ECMWF/ERA5_LAND/DAILY_AGGR",
-                selected_bands=[
-                    "temperature_2m",
-                    "dewpoint_temperature_2m",
-                    "u_component_of_wind_10m",
-                    "v_component_of_wind_10m",
-                    "total_precipitation_sum",
-                    "surface_net_thermal_radiation_sum",
-                    "surface_pressure",
-                    "leaf_area_index_high_vegetation",
-                    "leaf_area_index_low_vegetation",
-                ],
-                dates=dates_in_month,
-            ),
-            result_subpath=f"country=india/dataset=era5_land/month={MONTH_SHORT}",
-        ),
-        gee_pipeline_constructor.construct(
-            plan=feature_planner.plan_daily_average(
-                collection_name="MODIS/061/MCD19A2_GRANULES",
-                selected_bands=["Optical_Depth_047", "Optical_Depth_055"],
-                dates=dates_in_month,
-            ),
-            result_subpath=f"country=india/dataset=modis_aod/month={MONTH_SHORT}",
-        ),
-        gee_pipeline_constructor.construct(
-            plan=feature_planner.plan_static_feature(
-                image_name="USGS/SRTMGL1_003",
-                selected_bands=["elevation"],
-            ),
-            result_subpath="country=india/dataset=srtm_elevation/type=static",
-        ),
-        gee_pipeline_constructor.construct(
-            plan=feature_planner.plan_summarise_annual_classified_pixels(
-                collection_name="MODIS/061/MCD12Q1",
-                classification_band="LC_Type1",
-                output_names_to_class_values={
-                    "forest": [1, 2, 3, 4, 5],
-                    "shrub": [6, 7],
-                    "savanna": [9],
-                    "urban": [13],
-                    "water": [17],
-                },
-                year=int(YEAR_SHORT),
-            ),
-            result_subpath=f"country=india/dataset=modis_land_cover/year={YEAR_SHORT}",
-        ),
-        ned_pipeline_constructor.construct(
-            dataset_descriptor=NedDatasetDescriptor(
-                # https://disc.gsfc.nasa.gov/datasets/M2T1NXAER_5.12.4/summary
-                dataset_name="M2T1NXAER",
-                dataset_version="5.12.4",
-                start_date=month_start,
-                end_date=month_end,
-                filter_bounds=bounds_with_border,
-                variable_mapping={
-                    "TOTEXTTAU": "aot",
-                },
-                level=None,
-            ),
-            dataset_reader=MerraDataReader(),
-            dataset_retriever=HarmonySubsetterDataRetriever(),
-            result_subpath=f"country=india/dataset=merra_aot/month={MONTH_SHORT}",
-        ),
-        ned_pipeline_constructor.construct(
-            dataset_descriptor=NedDatasetDescriptor(
-                # https://cmr.earthdata.nasa.gov/search/concepts/C1276812901-GES_DISC.html
-                dataset_name="M2I3NVCHM",
-                dataset_version="5.12.4",
-                start_date=month_start,
-                end_date=month_end,
-                filter_bounds=bounds_with_border,
-                variable_mapping={
-                    "CO": "co",
-                },
-                level=-1,
-            ),
-            dataset_reader=MerraDataReader(),
-            dataset_retriever=HarmonySubsetterDataRetriever(),
-            result_subpath=f"country=india/dataset=merra_co/month={MONTH_SHORT}",
-        ),
-        ned_pipeline_constructor.construct(
-            dataset_descriptor=NedDatasetDescriptor(
-                # https://cmr.earthdata.nasa.gov/search/concepts/C1276812901-GES_DISC.html
-                dataset_name="M2I3NVCHM",
-                dataset_version="5.12.4",
-                start_date=month_start,
-                end_date=month_end,
-                filter_bounds=bounds_with_border,
-                variable_mapping={
-                    "CO": "co",
-                },
-                level=0,
-            ),
-            dataset_reader=MerraDataReader(),
-            dataset_retriever=HarmonySubsetterDataRetriever(),
-            result_subpath=f"country=india/dataset=merra_co_top/month={MONTH_SHORT}",
-        ),
-        ned_pipeline_constructor.construct(
-            dataset_descriptor=NedDatasetDescriptor(
-                # https://cmr.earthdata.nasa.gov/searCch/concepts/C1266136111-GES_DISC.html
-                dataset_name="OMNO2d",
-                dataset_version="003",
-                start_date=month_start,
-                end_date=month_end,
-                filter_bounds=bounds_with_border,
-                variable_mapping={
-                    "ColumnAmountNO2": "no2",
-                },
-                level=None,
-                interpolation_method="linear",
-            ),
-            dataset_reader=Omno2dReader(),
-            dataset_retriever=RawEarthAccessDataRetriever(),
-            result_subpath=f"country=india/dataset=omi_no2/month={MONTH_SHORT}",
-        ),
-        GridExportPipeline(
-            grid=in_memory_grid,
-            archive_storage=archive_storage,
-            result_subpath="country=india/dataset=grid/type=static",
-        ),
+        *yearly_pipelines,
+        *monthly_pipelines,
+        *static_pipelines,
     ]
 
     logger.info("Validating export pipeline config")
@@ -266,13 +300,8 @@ def _main() -> None:
     logger.info("Filtering down to only those datasets that need to be uploaded")
     # Now we only want to download the results if we never have before.
     # We can check with the archive_storage if the results already exist.
-    filtered_processors = [
-        processor
-        for processor in processors
-        if metadata_validator.needs_upload(
-            expected_result=processor.get_config_metadata(),
-        )
-    ]
+    # Evaluate which processors need upload in parallel for speed.
+    filtered_processors = _filter_processors_needing_upload(metadata_validator, processors)
 
     logger.info(f"Go ahead and download {len(filtered_processors)} datasets")
     _run_pipelines_in_parallel(filtered_processors)
@@ -286,45 +315,76 @@ def _main() -> None:
 
     # Get files from the archive storage
     logger.info("Combining results from the archive storage")
-    # This needs to be all processors, not just the filtered ones.
-    archived_wide_combiner.combine(month=MONTH_SHORT, processors=processors)
 
-    all_id_columns = {
-        column for processor in processors for column in processor.get_config_metadata().id_columns
-    }
+    for month in months:
+        month_short = month.format("YYYY-MM")
 
-    all_value_columns = {
-        f"{processor.get_config_metadata().hive_path.require_key('dataset')}__{column}"
-        for processor in processors
-        for column in processor.get_config_metadata().value_columns
-    }
-
-    all_expected_columns = all_id_columns | all_value_columns
-
-    expected_rows = VALID_COUNTRIES["india"] * len(dates_in_month)
-    logger.info(
-        f"Validating final combined result with {expected_rows} "
-        f"expected rows and {len(all_expected_columns)} expected columns",
-    )
-    final_combined = combined_storage.read_dataframe(
-        result_subpath=f"stage=combined_monthly/month={MONTH_SHORT}",
-    )
-
-    # Validate final combined result has expected rows and columns
-    if final_combined.shape[0] != expected_rows:
-        msg = (
-            f"Expected {expected_rows} rows in the final combined result, "
-            f"but found {final_combined.shape[0]} rows."
+        dates_in_month: list[Arrow] = list(
+            Arrow.range("day", start=month, end=month.shift(months=1).shift(days=-1)),
         )
-        raise ValueError(msg)
 
-    missing = all_expected_columns - set(final_combined.columns)
-    if missing:
-        msg = (
-            f"Expected columns {all_expected_columns} in the final combined result, "
-            f"but {missing} were missing."
+        # This needs to be all processors, not just the filtered ones.
+        archived_wide_combiner.combine(month=month_short, processors=processors)
+
+        all_id_columns = {
+            column
+            for processor in processors
+            for column in processor.get_config_metadata().id_columns
+        }
+
+        all_value_columns = {
+            f"{processor.get_config_metadata().hive_path.require_key('dataset')}__{column}"
+            for processor in processors
+            for column in processor.get_config_metadata().value_columns
+        }
+
+        all_expected_columns = all_id_columns | all_value_columns
+
+        expected_rows = VALID_COUNTRIES["india"] * len(dates_in_month)
+        logger.info(
+            f"Validating final combined result with {expected_rows} "
+            f"expected rows and {len(all_expected_columns)} expected columns",
         )
-        raise ValueError(msg)
+        final_combined = combined_storage.read_dataframe(
+            result_subpath=f"stage=combined_monthly/month={month_short}",
+        )
+
+        # Validate final combined result has expected rows and columns
+        if final_combined.shape[0] != expected_rows:
+            msg = (
+                f"Expected {expected_rows} rows in the final combined result, "
+                f"but found {final_combined.shape[0]} rows."
+            )
+            raise ValueError(msg)
+
+        missing = all_expected_columns - set(final_combined.columns)
+        if missing:
+            msg = (
+                f"Expected columns {all_expected_columns} in the final combined result, "
+                f"but {missing} were missing."
+            )
+            raise ValueError(msg)
+
+
+def _filter_processors_needing_upload(
+    metadata_validator: ArchivedFileValidator,
+    processors: list[ExportPipeline],
+) -> list[ExportPipeline]:
+    with ThreadPoolExecutor() as executor:
+        needs_upload_results = list(
+            executor.map(
+                lambda processor: metadata_validator.needs_upload(
+                    expected_result=processor.get_config_metadata(),
+                ),
+                processors,
+            ),
+        )
+
+    return [
+        processor
+        for processor, needs_upload in zip(processors, needs_upload_results)
+        if needs_upload
+    ]
 
 
 def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> None:
