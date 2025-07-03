@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from itertools import product
 from typing import TYPE_CHECKING
 
 import polars as pl
 import xarray
+from arrow import Arrow
 from polars import DataFrame
 
 from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
@@ -197,9 +199,42 @@ class NedExportPipeline(ExportPipeline):
         )
         # Concatenate all partial dataframes
         full_df = pl.concat(partial_dfs)
+
+        full_df = self._add_missing_rows(full_df)
+
         self.archive_storage.write_to_destination(
             table=full_df,
             result_subpath=self.result_subpath,
+        )
+
+    def _add_missing_rows(self, full_df: DataFrame) -> DataFrame:
+        dates = [
+            date.format("YYYY-MM-DD")
+            for date in Arrow.range(
+                "day",
+                start=self.dataset_descriptor.start_date,
+                end=self.dataset_descriptor.end_date,
+            )
+        ]
+
+        grids = self._grid.df["grid_id"].unique()
+
+        full_index = pl.DataFrame(
+            product(
+                dates,
+                grids,
+            ),
+            schema={
+                "date": pl.String,
+                "grid_id": pl.String,
+            },
+        )
+
+        return full_df.join(
+            full_index,
+            on=["date", "grid_id"],
+            how="full",
+            coalesce=True,
         )
 
     def get_config_metadata(self) -> PipelineConfig:

@@ -52,15 +52,47 @@ class RawEarthAccessDataRetriever(NedDataRetriever):
             version=dataset_descriptor.dataset_version,
         )
 
+        self._check_expected_granules(
+            dataset_descriptor=dataset_descriptor,
+            granules=granules,
+        )
+
+        for granule in granules:
+            [file] = earthaccess.open([granule])
+            # earthaccess misreports the return type of the file as an AbstractFileSystem
+            # but it is actually a file-like object.
+            yield cast("IO[bytes]", file)
+
+    def _check_expected_granules(
+        self,
+        *,
+        dataset_descriptor: NedDatasetDescriptor,
+        granules: list[earthaccess.DataGranule],
+    ) -> None:
         if len(granules) == 0:
             msg = f"No granules found for dataset {dataset_descriptor}."
             raise NedMissingDataError(msg)
 
         expected_days = dataset_descriptor.days_in_range
         if len(granules) != expected_days:
+            logger.warning(
+                "Expected %d granules for dataset %s, but found %d.",
+                expected_days,
+                dataset_descriptor,
+                len(granules),
+            )
+
+        if len(granules) > expected_days:
             msg = (
-                f"Expected {expected_days} granules for dataset {dataset_descriptor}, "
-                f"but found {len(granules)}."
+                f"Found {len(granules)} granules for dataset {dataset_descriptor}, "
+                f"but expected only {expected_days}. This may indicate an issue with the dataset."
+            )
+            raise NedMissingDataError(msg)
+
+        if len(granules) < expected_days - 1:
+            msg = (
+                f"We require {expected_days - 1} (for {expected_days} days) granules for dataset "
+                f"{dataset_descriptor}, but found {len(granules)}."
             )
             raise NedMissingDataError(
                 msg,
@@ -71,9 +103,3 @@ class RawEarthAccessDataRetriever(NedDataRetriever):
             len(granules),
             dataset_descriptor,
         )
-
-        for granule in granules:
-            [file] = earthaccess.open([granule])
-            # earthaccess misreports the return type of the file as an AbstractFileSystem
-            # but it is actually a file-like object.
-            yield cast("IO[bytes]", file)

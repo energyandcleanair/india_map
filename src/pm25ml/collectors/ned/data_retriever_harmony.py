@@ -274,9 +274,24 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
 
         expected_days = dataset_descriptor.days_in_range
         if len(granules) != expected_days:
+            logger.warning(
+                "Expected %d granules for dataset %s, but found %d.",
+                expected_days,
+                dataset_descriptor,
+                len(granules),
+            )
+
+        if len(granules) > expected_days:
             msg = (
-                f"Expected {expected_days} granules for dataset {dataset_descriptor}, "
-                f"but found {len(granules)}."
+                f"Found {len(granules)} granules for dataset {dataset_descriptor}, "
+                f"but expected only {expected_days}. This may indicate an issue with the dataset."
+            )
+            raise NedMissingDataError(msg)
+
+        if len(granules) < expected_days - 1:
+            msg = (
+                f"We require {expected_days - 1} or {expected_days} (for {expected_days} days) "
+                f"granules for dataset {dataset_descriptor}, but found {len(granules)}."
             )
             raise NedMissingDataError(
                 msg,

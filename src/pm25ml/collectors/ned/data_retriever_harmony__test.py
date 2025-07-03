@@ -399,7 +399,8 @@ def test__HarmonySubsetterDataRetriever_stream_files__wrong_n_granules__raises_e
     mock_dataset_descriptor,
 ):
     with pytest.raises(
-        NedMissingDataError, match="Expected 15 granules for dataset .* but found 5."
+        NedMissingDataError,
+        match=r"We require 14 or 15 \(for 15 days\) granules for dataset .* but found 5.",
     ):
         retriever = HarmonySubsetterDataRetriever()
         list(retriever.stream_files(dataset_descriptor=mock_dataset_descriptor))
