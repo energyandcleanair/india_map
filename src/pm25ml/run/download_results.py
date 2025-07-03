@@ -297,9 +297,7 @@ def _main() -> None:  # noqa: PLR0915
         ]
 
     yearly_pipelines = [pipeline for year in years for pipeline in _yearly_pipelines(year)]
-
     monthly_pipelines = [pipeline for month in months for pipeline in _monthly_pipelines(month)]
-
     static_pipelines = _static_pipelines()
 
     logger.info("Defining export pipelines datasets")
@@ -406,6 +404,10 @@ def _filter_processors_needing_upload(
 
 
 def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> None:
+    if not filtered_processors:
+        logger.info("No processors to run, skipping upload.")
+        return
+
     class _ResultStatus(Enum):
         SUCCESS = "success"
         MISSING_DATA = "missing_data"
@@ -444,7 +446,10 @@ def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> Non
             for status in _ResultStatus.__members__.values()
         }
 
-        if results_by_status[_ResultStatus.FAILURE] or not results_by_status[_ResultStatus.SUCCESS]:
+        if (
+            results_by_status[_ResultStatus.FAILURE]
+            or results_by_status[_ResultStatus.MISSING_DATA]
+        ):
             failed_pipelines = results_by_status[_ResultStatus.FAILURE]
             missing_data_pipelines = results_by_status[_ResultStatus.MISSING_DATA]
 
