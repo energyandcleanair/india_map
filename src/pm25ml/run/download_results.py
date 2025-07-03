@@ -323,9 +323,9 @@ def _main() -> None:  # noqa: PLR0915
 
     # Check all results were uploaded successfully, not just the ones we
     # downloaded this time.
-    logger.info("Validating all recent and historical results")
+    logger.info("Validating all recent results")
     metadata_validator.validate_all_results(
-        [processor.get_config_metadata() for processor in processors],
+        [processor.get_config_metadata() for processor in filtered_processors],
     )
 
     # Get files from the archive storage
