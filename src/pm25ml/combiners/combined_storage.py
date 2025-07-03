@@ -55,3 +55,17 @@ class CombinedStorage:
         parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
         with self.filesystem.open(parquet_file_path) as file:
             return pl.read_parquet(cast("IO[bytes]", file))
+
+    def does_dataset_exist(
+        self,
+        result_subpath: str,
+    ) -> bool:
+        """
+        Check if the dataset exists in the destination bucket.
+
+        :param result_subpath: The subpath in the destination bucket where the
+        DataFrame is stored.
+        :return: True if the dataset exists, False otherwise.
+        """
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+        return self.filesystem.exists(parquet_file_path)

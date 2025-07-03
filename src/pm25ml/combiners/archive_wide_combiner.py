@@ -83,6 +83,19 @@ class ArchiveWideCombiner:
             result_subpath=result_subpath,
         )
 
+    def needs_combining(self, month: str) -> bool:
+        """
+        Check if there is data to combine for a given month.
+
+        :param month: The month in 'YYYY-MM' format to check for data.
+        :return: True if there is data to combine, False otherwise.
+        """
+        self._check_month_arg(month)
+        exists_in_storage = self.combined_storage.does_dataset_exist(
+            result_subpath=f"stage=combined_monthly/month={month}",
+        )
+        return not exists_in_storage
+
     def _normalise_value_columns(self, combined_table: DataFrame) -> DataFrame:
         for column in combined_table.columns:
             if column not in INDEX_COLUMNS:

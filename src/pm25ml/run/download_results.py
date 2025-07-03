@@ -338,8 +338,11 @@ def _main() -> None:  # noqa: PLR0915
             Arrow.range("day", start=month, end=month.shift(months=1).shift(days=-1)),
         )
 
-        # This needs to be all processors, not just the filtered ones.
-        archived_wide_combiner.combine(month=month_short, processors=processors)
+        if archived_wide_combiner.needs_combining(
+            month=month_short,
+        ):
+            # This needs to be all processors, not just the filtered ones.
+            archived_wide_combiner.combine(month=month_short, processors=processors)
 
         all_id_columns = {
             column
