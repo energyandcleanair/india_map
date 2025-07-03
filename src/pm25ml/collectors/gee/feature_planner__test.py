@@ -70,7 +70,6 @@ def mock_gee_for_daily_average() -> Iterator[dict[str, MagicMock]]:
         patch("pm25ml.collectors.gee.feature_planner.ImageCollection") as MockImageCollection,
         patch("pm25ml.collectors.gee.feature_planner.Reducer") as MockReducer,
         patch("pm25ml.collectors.gee.feature_planner.Image") as MockImage,
-        patch("pm25ml.collectors.gee.feature_planner.FeatureCollection") as MockFeatureCollection,
         patch("pm25ml.collectors.gee.feature_planner.List") as MockList,
         patch("pm25ml.collectors.gee.feature_planner.Date") as MockDate,
     ):
@@ -105,7 +104,6 @@ def mock_gee_for_daily_average() -> Iterator[dict[str, MagicMock]]:
             "MockReducer": MockReducer,
             "MockImage": MockImage,
             "MockList": MockList,
-            "MockFeatureCollection": MockFeatureCollection,
             "mock_ic_instance": mock_ic_instance,
             "fake_image": fake_image,
             "from_images_mock": from_images_mock,
@@ -176,7 +174,6 @@ def mock_gee_for_static_feature():
     with (
         patch("pm25ml.collectors.gee.feature_planner.Image") as MockImage,
         patch("pm25ml.collectors.gee.feature_planner.Reducer") as MockReducer,
-        patch("pm25ml.collectors.gee.feature_planner.FeatureCollection") as MockFeatureCollection,
         patch("pm25ml.collectors.gee.feature_planner.ImageCollection") as MockImageCollection,
     ):
         mock_image_instance = MagicMock()
@@ -195,7 +192,6 @@ def mock_gee_for_static_feature():
         yield {
             "MockImage": MockImage,
             "MockReducer": MockReducer,
-            "MockFeatureCollection": MockFeatureCollection,
             "MockImageCollection": MockImageCollection,
             "mock_image_instance": mock_image_instance,
             "mock_image_collection_instance": mock_image_collection_instance,
@@ -255,7 +251,6 @@ def mock_gee_for_annual_classified_pixels():
         patch("pm25ml.collectors.gee.feature_planner.ImageCollection") as MockImageCollection,
         patch("pm25ml.collectors.gee.feature_planner.Reducer") as MockReducer,
         patch("pm25ml.collectors.gee.feature_planner.Image") as MockImage,
-        patch("pm25ml.collectors.gee.feature_planner.FeatureCollection") as MockFeatureCollection,
     ):
         mock_ic_instance = MagicMock()
         MockImageCollection.return_value = mock_ic_instance
@@ -275,7 +270,6 @@ def mock_gee_for_annual_classified_pixels():
             "MockImageCollection": MockImageCollection,
             "MockReducer": MockReducer,
             "MockImage": MockImage,
-            "MockFeatureCollection": MockFeatureCollection,
             "mock_ic_instance": mock_ic_instance,
             "fake_image": fake_image,
             "fake_mean": fake_mean,
