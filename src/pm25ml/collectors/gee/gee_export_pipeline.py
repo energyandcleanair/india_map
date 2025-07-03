@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from ee.batch import Export, Task
 from nanoid import generate
-from polars import DataFrame
+from polars import DataFrame, Float32
 
 from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
 from pm25ml.collectors.gee.feature_planner import FeaturePlan
@@ -126,26 +126,16 @@ class GeeExportPipeline(ExportPipeline):
 
     def _process(self, table: DataFrame) -> DataFrame:
         mappings = self.plan.column_mappings
-        expected_columns = self.plan.intermediate_columns
+        expected_intermediate_columns = self.plan.intermediate_columns
 
         # Ensure the table has the expected columns
-        missing_columns = [col for col in expected_columns if col not in table.columns]
+        missing_columns = [col for col in expected_intermediate_columns if col not in table.columns]
         if missing_columns:
             msg = f"Table is missing expected columns: {', '.join(missing_columns)}"
             raise ValueError(msg)
 
-        # Test that the columns aren't all null values
-        columns_null_values = [
-            col for col in expected_columns if table[col].null_count() == table.height
-        ]
-        if columns_null_values:
-            msg = f"Table has columns with all null values: {', '.join(columns_null_values)}"
-            raise ValueError(
-                msg,
-            )
-
         # Drop extra columns that are not in the expected columns
-        extra_columns = [col for col in table.columns if col not in expected_columns]
+        extra_columns = [col for col in table.columns if col not in expected_intermediate_columns]
         if extra_columns:
             logger.warning(f"Dropping extra columns from table: {', '.join(extra_columns)}")
             table = table.drop(extra_columns)
@@ -176,6 +166,26 @@ class GeeExportPipeline(ExportPipeline):
                 on=["date", "grid_id"],
                 how="full",
                 coalesce=True,
+            )
+
+        # Coerce value columns to float
+        for value_column in self.plan.expected_value_columns:
+            if table[value_column].dtype != Float32():
+                logger.warning(
+                    f"Coercing column '{value_column}' to float32 from {table[value_column].dtype}",
+                )
+                table = table.with_columns(table[value_column].cast(Float32(), strict=False))
+
+        # Test that the columns aren't all null values
+        columns_null_values = [
+            col
+            for col in self.plan.expected_value_columns.union(self.plan.expected_id_columns)
+            if table[col].null_count() == table.height
+        ]
+        if columns_null_values:
+            msg = f"Table has columns with all null values: {', '.join(columns_null_values)}"
+            raise ValueError(
+                msg,
             )
 
         # Sort the table (if possible) by preferred order
