@@ -121,9 +121,9 @@ def example_plan_with_date_and_grid():
         planned_collection=planned_collection,
         expected_n_rows=4,
         dates=[
-            arrow.get("2025-06-01"),
-            arrow.get("2025-06-02"),
-            arrow.get("2025-06-03"),
+            arrow.get("2025-06-01T00:00:00"),
+            arrow.get("2025-06-02T00:00:00"),
+            arrow.get("2025-06-03T00:00:00"),
         ],  # Example dates
     )
 
@@ -133,7 +133,12 @@ def mock_intermediate_storage_out_of_order():
     data = {
         "col1": [3, 1, 2, 4],
         "col2": [6, 4, 5, 4],
-        "date": ["2025-06-03", "2025-06-01", "2025-06-02", "2025-06-01"],
+        "date": [
+            "2025-06-03T00:00:00",
+            "2025-06-01T00:00:00",
+            "2025-06-02T00:00:00",
+            "2025-06-01T00:00:00",
+        ],
         "grid_id": [1.0, 2.0, 3.0, 4.0],
     }
     table = DataFrame(data)
@@ -355,10 +360,10 @@ def test_GeeExportPipeline_process_tableFillingWithNullValues(
     mock_archive_storage,
 ) -> None:
     example_plan_with_date_and_grid.dates = [
-        arrow.get("2025-06-01"),
-        arrow.get("2025-06-02"),
-        arrow.get("2025-06-03"),
-        arrow.get("2025-06-04"),  # Example additional date
+        arrow.get("2025-06-01T00:00:00"),
+        arrow.get("2025-06-02T00:00:00"),
+        arrow.get("2025-06-03T00:00:00"),
+        arrow.get("2025-06-04T00:00:00"),  # Example additional date
     ]
 
     pipeline = GeeExportPipeline(
@@ -375,7 +380,12 @@ def test_GeeExportPipeline_process_tableFillingWithNullValues(
     processed_table: DataFrame = mock_archive_storage.write_to_destination.call_args[0][0]
 
     # Check that the table contains all combinations of dates and grid_ids
-    expected_dates = ["2025-06-01", "2025-06-02", "2025-06-03", "2025-06-04"]
+    expected_dates = [
+        "2025-06-01T00:00:00",
+        "2025-06-02T00:00:00",
+        "2025-06-03T00:00:00",
+        "2025-06-04T00:00:00",
+    ]
     expected_grid_ids = [1, 2, 3, 4]
 
     expected_index = DataFrame(

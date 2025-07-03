@@ -219,6 +219,9 @@ class NedExportPipeline(ExportPipeline):
 
         grids = self._grid.df["grid_id"].unique()
 
+        # Get the type of the grid_id column
+        grid_id_dtype = self._grid.df["grid_id"].dtype
+
         full_index = pl.DataFrame(
             product(
                 dates,
@@ -226,7 +229,7 @@ class NedExportPipeline(ExportPipeline):
             ),
             schema={
                 "date": pl.String,
-                "grid_id": pl.String,
+                "grid_id": grid_id_dtype,
             },
         )
 

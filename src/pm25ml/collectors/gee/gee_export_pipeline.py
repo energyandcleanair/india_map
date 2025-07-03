@@ -163,7 +163,7 @@ class GeeExportPipeline(ExportPipeline):
             if not self.plan.dates:
                 msg = "Feature plan does not have dates defined but has a date column."
                 raise ValueError(msg)
-            dates = [date.format("YYYY-MM-DD") for date in self.plan.dates]
+            dates = [date.format("YYYY-MM-DDTHH:mm:ss") for date in self.plan.dates]
             grid_ids = table["grid_id"].unique().to_list()
 
             full_index = DataFrame(
