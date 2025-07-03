@@ -1,10 +1,16 @@
 """Validator for the metadata of export results."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pyarrow import Schema, float32, float64, int64, large_string
 
-from pm25ml.collectors.archive_storage import IngestArchiveStorage
-from pm25ml.collectors.export_pipeline import PipelineConfig
 from pm25ml.logging import logger
+
+if TYPE_CHECKING:
+    from pm25ml.collectors.archive_storage import IngestArchiveStorage
+    from pm25ml.collectors.export_pipeline import PipelineConfig
 
 
 class ArchivedFileValidatorError(Exception):
@@ -49,8 +55,32 @@ class ArchivedFileValidator:
         :param pipelines: A list of PipelineConfig objects containing the expected results.
         :raises ValueError: If any result's schema does not match the expected schema.
         """
-        for pipeline in pipelines:
-            self.validate_result_schema(pipeline)
+        import concurrent.futures
+
+        errors: list[tuple[PipelineConfig, Exception]] = []
+
+        def validate_pipeline(pipeline: PipelineConfig) -> tuple[PipelineConfig, Exception | None]:
+            try:
+                self.validate_result_schema(pipeline)
+            except Exception as e:  # noqa: BLE001
+                return (pipeline, e)
+            else:
+                return (pipeline, None)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(validate_pipeline, pipeline) for pipeline in pipelines]
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result[1] is not None:
+                    error_result = (result[0], result[1])
+                    errors.append(error_result)
+
+        if errors:
+            error_msgs = "\n".join(f"{pipeline.result_subpath}: {exc}" for pipeline, exc in errors)
+            msg = f"Validation failed for {len(errors)} pipeline(s):\n{error_msgs}"
+            raise ArchivedFileValidatorError(
+                msg,
+            )
 
     def validate_result_schema(self, expected_result: PipelineConfig) -> None:
         """
@@ -72,9 +102,6 @@ class ArchivedFileValidator:
         :param expected_result: The expected result configuration.
         :return: True if the result needs to be uploaded, False otherwise.
         """
-        logger.info(
-            f"Checking if result {expected_result.result_subpath} needs upload.",
-        )
         if not self.archive_storage.does_dataset_exist(expected_result.result_subpath):
             logger.info(
                 f"Result {expected_result.result_subpath} needs upload: "
@@ -86,8 +113,10 @@ class ArchivedFileValidator:
         except ArchivedFileValidatorError:
             logger.info(
                 f"Result {expected_result.result_subpath} needs upload: validation failed.",
+                exc_info=True,
             )
             return True
+        logger.debug(f"Result {expected_result.result_subpath} does not need upload")
         return False
 
     def _validate_expected_against_actual(self, expected_result: PipelineConfig) -> None:
