@@ -303,7 +303,7 @@ def test_GeeExportPipeline_upload_allNullColumns(
         result_subpath="mock/result/path",
     )
 
-    with pytest.raises(ValueError, match="Table has columns with all null values: col2"):
+    with pytest.raises(ValueError, match="Table has columns with all null values: mapped_col2"):
         pipeline.upload()
 
 
