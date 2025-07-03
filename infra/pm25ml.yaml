@@ -28,6 +28,8 @@ spec:
                   value: crea-pm25ml-ingest-archive
                 - name: COMBINED_BUCKET_NAME
                   value: crea-pm25ml-combined
+                - name: TQDM_DISABLE
+                  value: "1"
                 - name: EARTHDATA_USERNAME
                   valueFrom:
                     secretKeyRef:
