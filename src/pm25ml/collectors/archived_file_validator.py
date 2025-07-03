@@ -129,7 +129,7 @@ class ArchivedFileValidator:
 
         actual_schema = file_metadata.schema.to_arrow_schema()
         as_str = str(actual_schema).replace("\n", " | ")
-        logger.info(
+        logger.debug(
             f"Result {expected_result.result_subpath} has {rows} rows and schema: [{as_str}]",
         )
         self._check_schema(expected_result, actual_schema)

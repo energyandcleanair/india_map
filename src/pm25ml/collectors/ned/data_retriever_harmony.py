@@ -94,16 +94,21 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
             data.
 
         """
-        logger.info("Searching for datasets for %s", dataset_descriptor)
+        logger.info(
+            "Starting data retrieval for dataset %s",
+            dataset_descriptor,
+        )
+
+        logger.debug("Searching for datasets for %s", dataset_descriptor)
         datasets = earthaccess.search_datasets(
             short_name=dataset_descriptor.dataset_name,
         )
         self._check_expected_dataset(datasets, dataset_descriptor)
         collection_id = datasets[0].concept_id()
 
-        logger.info("Found dataset with collection ID %s", collection_id)
+        logger.debug("Found dataset with collection ID %s", collection_id)
 
-        logger.info("Searching for granules for dataset %s", dataset_descriptor)
+        logger.debug("Searching for granules for dataset %s", dataset_descriptor)
         granules: list[earthaccess.DataGranule] = earthaccess.search_data(
             short_name=dataset_descriptor.dataset_name,
             temporal=(
@@ -116,17 +121,17 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
 
         self._check_expected_granules(granules, dataset_descriptor)
 
-        logger.info("Starting subsetting job for collection ID %s", collection_id)
+        logger.debug("Starting subsetting job for collection ID %s", collection_id)
         job_response = self._init_subsetting_job(collection_id, dataset_descriptor)
         job_id = job_response.get("jobID")
         if not job_id:
             msg = f"Unable to start job: {job_response}"
             raise NedMissingDataError(msg)
 
-        logger.info("Subsetting job started with ID %s", job_id)
+        logger.debug("Subsetting job started with ID %s", job_id)
         links_details = self._await_download_url_results(job_id)
 
-        logger.info(
+        logger.debug(
             "Job %s completed successfully with %d links",
             job_id,
             len(links_details),
@@ -153,7 +158,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
         job_status_response = self._fetch_job_status(job_id)
 
         while self._is_job_running(job_status_response):
-            logger.info(
+            logger.debug(
                 "Job %s is still running: %s%% complete",
                 job_id,
                 job_status_response["progress"],
@@ -297,7 +302,7 @@ class HarmonySubsetterDataRetriever(NedDataRetriever):
                 msg,
             )
 
-        logger.info(
+        logger.debug(
             "Found %d granules for dataset %s",
             len(granules),
             dataset_descriptor,

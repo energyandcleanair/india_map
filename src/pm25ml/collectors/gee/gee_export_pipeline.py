@@ -66,21 +66,21 @@ class GeeExportPipeline(ExportPipeline):
         self._complete_task(task_name=task_name, task=task)
 
         # Now that the task is complete, we can read the CSV file from GCS.
-        logger.info(f"Task {task_name}: reading task result CSV from GCS")
+        logger.debug(f"Task {task_name}: reading task result CSV from GCS")
         raw_table = self.intermediate_storage.get_intermediate_by_id(task_name)
 
         # After reading the CSV file, we process it.
-        logger.info(f"Task {task_name}: processing raw CSV table for task")
+        logger.debug(f"Task {task_name}: processing raw CSV table for task")
         processed_table = self._process(raw_table)
 
         # Then we write the processed table to the destination bucket format.
-        logger.info(f"Task {task_name}: writing task processed table to GCS {self.result_subpath}")
+        logger.debug(f"Task {task_name}: writing task processed table to GCS {self.result_subpath}")
         self.archive_storage.write_to_destination(processed_table, self.result_subpath)
 
         # Finally, we delete the temporary CSV file from the intermediate bucket. This should happen
         # in the future anyway with the bucket lifecycle, but we do it now to clean up the
         # intermediate storage.
-        logger.info(f"Task {task_name}: deleting task old CSV file from GCS")
+        logger.debug(f"Task {task_name}: deleting task old CSV file from GCS")
         self.intermediate_storage.delete_intermediate_by_id(task_name)
 
     def get_config_metadata(self) -> PipelineConfig:
@@ -117,6 +117,7 @@ class GeeExportPipeline(ExportPipeline):
                 delay_backoff = min(max_delay, delay_backoff * growth_factor)
 
             if task.status().get("state") != "COMPLETED":
+                logger.warning(f"Task {task_name} failed with status: {task.status()}")
                 error_message = task.status().get("error_message", "No error message")
                 msg = f"Task {task_name} failed: {error_message}"
                 raise RuntimeError(msg)

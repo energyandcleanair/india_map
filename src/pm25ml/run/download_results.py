@@ -419,6 +419,10 @@ def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> Non
             processor: ExportPipeline,
         ) -> tuple[ExportPipeline, _ResultStatus, Exception | None]:
             try:
+                logger.info(
+                    f"Starting upload for processor "
+                    f"{processor.get_config_metadata().result_subpath}",
+                )
                 processor.upload()
             except MissingDataError as e:
                 logger.warning(
