@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, call, patch
 
+import arrow
 import pytest
 from polars import DataFrame, Int64
+from polars.testing import assert_frame_equal
 
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
@@ -105,7 +107,7 @@ def mock_archive_storage():
 
 
 @pytest.fixture
-def example_plan_with_date_and_Grid():
+def example_plan_with_date_and_grid():
     planned_collection = MagicMock()
 
     return FeaturePlan(
@@ -118,6 +120,11 @@ def example_plan_with_date_and_Grid():
         },
         planned_collection=planned_collection,
         expected_n_rows=4,
+        dates=[
+            arrow.get("2025-06-01"),
+            arrow.get("2025-06-02"),
+            arrow.get("2025-06-03"),
+        ],  # Example dates
     )
 
 
@@ -297,13 +304,13 @@ def test_GeeExportPipeline_upload_allNullColumns(
 
 def test_GeeExportPipeline_process_tableSortingByDateAndGridId_outOfOrder(
     mock_intermediate_storage_out_of_order,
-    example_plan_with_date_and_Grid,
+    example_plan_with_date_and_grid,
     mock_archive_storage,
 ) -> None:
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,
         intermediate_storage=mock_intermediate_storage_out_of_order,
-        plan=example_plan_with_date_and_Grid,
+        plan=example_plan_with_date_and_grid,
         result_subpath="mock/result/path",
     )
 
@@ -340,3 +347,44 @@ def test_GeeExportPipeline_export_result(
     assert export_result.id_columns == example_feature_plan.expected_id_columns
     assert export_result.value_columns == example_feature_plan.expected_value_columns
     assert export_result.expected_rows == example_feature_plan.expected_n_rows
+
+
+def test_GeeExportPipeline_process_tableFillingWithNullValues(
+    mock_intermediate_storage_out_of_order,
+    example_plan_with_date_and_grid,
+    mock_archive_storage,
+) -> None:
+    example_plan_with_date_and_grid.dates = [
+        arrow.get("2025-06-01"),
+        arrow.get("2025-06-02"),
+        arrow.get("2025-06-03"),
+        arrow.get("2025-06-04"),  # Example additional date
+    ]
+
+    pipeline = GeeExportPipeline(
+        archive_storage=mock_archive_storage,
+        intermediate_storage=mock_intermediate_storage_out_of_order,
+        plan=example_plan_with_date_and_grid,
+        result_subpath="mock/result/path",
+    )
+
+    # Call the public upload method
+    pipeline.upload()
+
+    # Validate that missing rows are filled with null values
+    processed_table: DataFrame = mock_archive_storage.write_to_destination.call_args[0][0]
+
+    # Check that the table contains all combinations of dates and grid_ids
+    expected_dates = ["2025-06-01", "2025-06-02", "2025-06-03", "2025-06-04"]
+    expected_grid_ids = [1, 2, 3, 4]
+
+    expected_index = DataFrame(
+        [(date, grid_id) for date in expected_dates for grid_id in expected_grid_ids],
+        schema=["date", "grid_id"],
+    )
+
+    actual_index = processed_table.select(["date", "grid_id"]).unique()
+
+    assert_frame_equal(
+        expected_index, actual_index, check_column_order=False, check_row_order=False
+    )

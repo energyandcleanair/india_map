@@ -1,20 +1,25 @@
 """Feature planning for gridded feature collections."""
 
-from typing import cast
+from __future__ import annotations
 
-from arrow import Arrow
-from ee.computedobject import ComputedObject
+from typing import TYPE_CHECKING, cast
+
+from ee import Algorithms
 from ee.ee_date import Date
 from ee.ee_list import List
-from ee.ee_number import Number
-from ee.element import Element
-from ee.featurecollection import FeatureCollection
 from ee.image import Image
 from ee.imagecollection import ImageCollection
 from ee.reducer import Reducer
 
 from pm25ml.collectors.constants import INDIA_CRS
 from pm25ml.collectors.export_pipeline import AVAILABLE_ID_KEY_NAMES, AvailableIdKeys
+
+if TYPE_CHECKING:
+    from arrow import Arrow
+    from ee.computedobject import ComputedObject
+    from ee.ee_number import Number
+    from ee.element import Element
+    from ee.featurecollection import FeatureCollection
 
 ISO8601_WITHOUT_TZ = "YYYY-MM-DDTHH:mm:ss"
 ISO8601_DATE_ONLY = "YYYY-MM-DD"
@@ -27,6 +32,9 @@ class GriddedFeatureCollectionPlanner:
     This class provides methods to process Earth Engine data into gridded feature collections
     for various use cases, such as daily averages, static features, and annual summaries of
     classified pixels.
+
+    These may skip days if no data is available for that day, so the
+    resulting feature collection may not have a row for every day in the month.
 
     Reference: how the "scale" arguments works in Earth Engine: https://developers.google.com/earth-engine/guides/scale
     """
@@ -47,7 +55,7 @@ class GriddedFeatureCollectionPlanner:
         collection_name: str,
         selected_bands: list[str],
         dates: list[Arrow],
-    ) -> "FeaturePlan":
+    ) -> FeaturePlan:
         """
         Create a daily average feature plan.
 
@@ -82,24 +90,24 @@ class GriddedFeatureCollectionPlanner:
             start = Date(date_string)
             end = start.advance(1, "day")
 
-            return (
-                collection.filterDate(
-                    start,
-                    end,
-                )
-                .filterBounds(self.grid.geometry())
+            collection_for_day = collection.filterDate(start, end)
+
+            return Algorithms.If(
+                collection_for_day.size().gt(0),
+                collection_for_day.filterBounds(self.grid.geometry())
                 # Single value per pixel for the day for each band.
                 .reduce(Reducer.mean())
                 # We set the date property to the date to carry through
                 # to the final export.
-                .set("date", start)
+                .set("date", start),
+                None,
             )
 
         # We create an ImageCollection of daily composites for the month, each
         # the pixel-wise mean value for the day.
         images = ImageCollection.fromImages(
             # This does a server side map operation to create an image for each date.
-            gee_dates.map(daily_mean_image),
+            gee_dates.map(daily_mean_image).removeAll([None]),
         )
 
         # We then average the values for each grid cell for each date.
@@ -130,6 +138,7 @@ class GriddedFeatureCollectionPlanner:
             planned_collection=processed_images,
             column_mappings=column_mappings,
             expected_n_rows=self._get_n_grids() * len(dates),
+            dates=dates,
         )
 
     def plan_static_feature(
@@ -137,7 +146,7 @@ class GriddedFeatureCollectionPlanner:
         *,
         image_name: str,
         selected_bands: list[str],
-    ) -> "FeaturePlan":
+    ) -> FeaturePlan:
         """
         Create a static feature plan by regridding a single image to the grid.
 
@@ -184,7 +193,7 @@ class GriddedFeatureCollectionPlanner:
         classification_band: str,
         output_names_to_class_values: dict[str, list[int]],
         year: int,
-    ) -> "FeaturePlan":
+    ) -> FeaturePlan:
         """
         Create a feature plan for summarizing annual classified pixel data.
 
@@ -324,7 +333,7 @@ class FeaturePlan:
     and metadata.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         feature_name: str,
@@ -332,21 +341,24 @@ class FeaturePlan:
         column_mappings: dict[str, str],
         ignore_selectors: bool = False,
         expected_n_rows: int,
+        dates: list[Arrow] | None = None,
     ) -> None:
         """
         Initialize a feature plan.
 
         :param feature_name: The name of the feature plan.
-        :param feature_name: The name of the feature plan.
         :param planned_collection: The proposed feature collection.
         :param column_mappings: A mapping of exported column names to desired column names.
         :param ignore_selectors: Whether to ignore selectors during processing. Defaults to False.
+        :param expected_n_rows: The expected number of rows in the final export.
+        :param dates: Optional list of dates associated with the feature plan.
         """
         self.feature_name = feature_name
         self.planned_collection = planned_collection
         self.column_mappings = column_mappings
         self.ignore_selectors = ignore_selectors
         self.expected_n_rows = expected_n_rows
+        self.dates = dates
 
     @property
     def intermediate_columns(self) -> list[str]:

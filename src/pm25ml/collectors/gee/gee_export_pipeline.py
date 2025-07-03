@@ -1,6 +1,7 @@
 """Export pipeline for Google Earth Engine data to the underlying storage."""
 
 import contextlib
+from itertools import product
 from time import sleep
 from typing import TYPE_CHECKING
 
@@ -9,9 +10,8 @@ from nanoid import generate
 from polars import DataFrame
 
 from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
+from pm25ml.collectors.gee.feature_planner import FeaturePlan
 from pm25ml.logging import logger
-
-from .feature_planner import FeaturePlan
 
 if TYPE_CHECKING:
     from pm25ml.collectors.archive_storage import IngestArchiveStorage
@@ -156,6 +156,27 @@ class GeeExportPipeline(ExportPipeline):
         # Convert grid_id to integer if it exists in the table
         if "grid_id" in table.columns:
             table = table.with_columns(table["grid_id"].cast(int))
+
+        # Complete missing rows for date and grid_id combinations
+        if "date" in table.columns and "grid_id" in table.columns:
+            # Take dates from feature plan
+            if not self.plan.dates:
+                msg = "Feature plan does not have dates defined but has a date column."
+                raise ValueError(msg)
+            dates = [date.format("YYYY-MM-DD") for date in self.plan.dates]
+            grid_ids = table["grid_id"].unique().to_list()
+
+            full_index = DataFrame(
+                product(dates, grid_ids),
+                schema=["date", "grid_id"],
+            )
+
+            table = table.join(
+                full_index,
+                on=["date", "grid_id"],
+                how="full",
+                coalesce=True,
+            )
 
         # Sort the table (if possible) by preferred order
         preferred_sort_order = [

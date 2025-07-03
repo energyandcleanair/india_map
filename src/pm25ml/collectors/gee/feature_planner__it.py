@@ -537,3 +537,58 @@ def execute_plan_to_dataframe(feature_plan: FeaturePlan):
     features = plan.getInfo()["features"]  # type: ignore
     rows = [convert_record(f) for f in features]
     return pl.DataFrame(rows)
+
+
+def test_plan_daily_average__no_bands__returns_nulls(
+    feature_planner: GriddedFeatureCollectionPlanner,
+    upload_dummy_tiffs,
+):
+    """
+    Test that if there are no bands for an image, the plan does not throw an exception
+    and returns nulls for that grid.
+    """
+    daily_average_plan = feature_planner.plan_daily_average(
+        collection_name=upload_dummy_tiffs["image_collection"],
+        selected_bands=["b1"],
+        dates=[
+            arrow.get("2023-01-02"),
+            arrow.get("2023-01-03"),
+        ],
+    )
+
+    actual_df = execute_plan_to_dataframe(daily_average_plan)
+
+    second_date = arrow.get("2023-01-02").date()
+
+    expected_df = pl.DataFrame(
+        {
+            "date": [
+                second_date,
+                second_date,
+                second_date,
+                second_date,
+            ],
+            "mean": [
+                15.5,
+                15.5,
+                7.5,
+                7.5,
+            ],
+            "grid_id": [
+                0,
+                1,
+                2,
+                3,
+            ],
+        },
+    )
+
+    assert_frame_equal(
+        actual_df,
+        expected_df,
+        check_row_order=False,
+        check_column_order=False,
+        check_exact=False,
+        rtol=0,
+        atol=0.2,
+    )
