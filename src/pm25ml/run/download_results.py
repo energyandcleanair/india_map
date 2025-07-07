@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import os
-from concurrent.futures import ThreadPoolExecutor
-from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,11 +14,7 @@ from gcsfs import GCSFileSystem
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
-from pm25ml.collectors.export_pipeline import (
-    ErrorWhileFetchingDataError,
-    ExportPipeline,
-    MissingDataError,
-)
+from pm25ml.collectors.collector import RawDataCollector
 from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPlanner
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.grid_export_pipeline import GridExportPipeline
@@ -38,6 +32,10 @@ from pm25ml.logging import logger
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from pm25ml.collectors.export_pipeline import (
+        ExportPipeline,
+    )
 
 GCP_PROJECT = os.environ["GCP_PROJECT"]
 INDIA_SHAPEFILE_GEE_ASSET = os.environ["INDIA_SHAPEFILE_ASSET"]
@@ -124,6 +122,8 @@ def _main() -> None:  # noqa: PLR0915
             end=END_MONTH,
         ),
     )
+
+    collector = RawDataCollector(metadata_validator=metadata_validator)
 
     def _static_pipelines() -> Iterable[ExportPipeline]:
         """Fetch static datasets that do not change over time."""
@@ -300,21 +300,7 @@ def _main() -> None:  # noqa: PLR0915
     logger.info("Validating export pipeline config")
     validate_configuration(processors)
 
-    logger.info("Filtering down to only those datasets that need to be uploaded")
-    # Now we only want to download the results if we never have before.
-    # We can check with the archive_storage if the results already exist.
-    # Evaluate which processors need upload in parallel for speed.
-    filtered_processors = _filter_processors_needing_upload(metadata_validator, processors)
-
-    logger.info(f"Go ahead and download {len(filtered_processors)} datasets")
-    _run_pipelines_in_parallel(filtered_processors)
-
-    # Check all results were uploaded successfully, not just the ones we
-    # downloaded this time.
-    logger.info("Validating all recent results")
-    metadata_validator.validate_all_results(
-        [processor.get_config_metadata() for processor in filtered_processors],
-    )
+    collector.collect(processors)
 
     # Get files from the archive storage
     logger.info("Combining results from the archive storage")
@@ -370,98 +356,6 @@ def _main() -> None:  # noqa: PLR0915
                 f"but {missing} were missing."
             )
             raise ValueError(msg)
-
-
-def _filter_processors_needing_upload(
-    metadata_validator: ArchivedFileValidator,
-    processors: list[ExportPipeline],
-) -> list[ExportPipeline]:
-    with ThreadPoolExecutor() as executor:
-        needs_upload_results = list(
-            executor.map(
-                lambda processor: metadata_validator.needs_upload(
-                    expected_result=processor.get_config_metadata(),
-                ),
-                processors,
-            ),
-        )
-
-    return [
-        processor
-        for processor, needs_upload in zip(processors, needs_upload_results)
-        if needs_upload
-    ]
-
-
-def _run_pipelines_in_parallel(filtered_processors: list[ExportPipeline]) -> None:
-    if not filtered_processors:
-        logger.info("No processors to run, skipping upload.")
-        return
-
-    class _ResultStatus(Enum):
-        SUCCESS = "success"
-        MISSING_DATA = "missing_data"
-        FAILURE = "failure"
-
-    with ThreadPoolExecutor() as executor:
-
-        def _upload_processor(
-            processor: ExportPipeline,
-        ) -> tuple[ExportPipeline, _ResultStatus, Exception | None]:
-            try:
-                logger.info(
-                    f"Starting upload for processor "
-                    f"{processor.get_config_metadata().result_subpath}",
-                )
-                processor.upload()
-            except MissingDataError as e:
-                logger.warning(
-                    f"Missing data for processor {processor.get_config_metadata().result_subpath}",
-                    exc_info=True,
-                    stack_info=True,
-                )
-                return (processor, _ResultStatus.MISSING_DATA, e)
-            except Exception as e:  # noqa: BLE001
-                logger.error(
-                    f"Failed to upload processor {processor.get_config_metadata().result_subpath}",
-                    exc_info=True,
-                    stack_info=True,
-                )
-                return (processor, _ResultStatus.FAILURE, e)
-            else:
-                return (processor, _ResultStatus.SUCCESS, None)
-
-        results = executor.map(_upload_processor, filtered_processors)
-
-        completed_results = list(results)
-
-        results_by_status = {
-            status: [(x[0], x[2]) for x in filter(lambda x: x[1] == status, completed_results)]
-            for status in _ResultStatus.__members__.values()
-        }
-
-        if (
-            results_by_status[_ResultStatus.FAILURE]
-            or results_by_status[_ResultStatus.MISSING_DATA]
-        ):
-            failed_pipelines = results_by_status[_ResultStatus.FAILURE]
-            missing_data_pipelines = results_by_status[_ResultStatus.MISSING_DATA]
-
-            for pipeline, err in failed_pipelines:
-                logger.error(
-                    f"Failed to upload pipeline {pipeline.get_config_metadata().result_subpath}",
-                    exc_info=err,
-                )
-            for pipeline, err in missing_data_pipelines:
-                logger.warning(
-                    f"Missing data for pipeline {pipeline.get_config_metadata().result_subpath}",
-                    exc_info=err,
-                )
-            msg = (
-                f"Failed to upload {len(failed_pipelines)} pipelines and "
-                f"missing data for {len(missing_data_pipelines)} pipelines."
-            )
-            raise ErrorWhileFetchingDataError(msg)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,80 @@
+import pytest
+from unittest.mock import create_autospec
+from pm25ml.collectors.collector import RawDataCollector
+from pm25ml.collectors.export_pipeline import ExportPipeline
+from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
+from collections import namedtuple
+
+MockConfigMetadata = namedtuple("MockConfigMetadata", ["result_subpath"])
+
+
+@pytest.fixture
+def mock_metadata_validator():
+    return create_autospec(ArchivedFileValidator)
+
+
+@pytest.fixture
+def mock_processors():
+    return [create_autospec(ExportPipeline) for _ in range(3)]
+
+
+@pytest.fixture
+def collector(mock_metadata_validator):
+    return RawDataCollector(metadata_validator=mock_metadata_validator)
+
+
+def test__collect__validates_all_results__uploads_all_processors(
+    collector, mock_metadata_validator, mock_processors
+):
+    for processor in mock_processors:
+        processor.get_config_metadata.return_value = MockConfigMetadata(result_subpath="mock_path")
+        processor.upload.return_value = None
+
+    mock_metadata_validator.needs_upload.return_value = True
+    mock_metadata_validator.validate_all_results.return_value = None
+
+    collector.collect(mock_processors)
+
+    for processor in mock_processors:
+        processor.upload.assert_called_once()
+
+
+def test__collect__filters_processors_needing_upload__uploads_only_required_processors(
+    collector, mock_metadata_validator, mock_processors
+):
+    for i, processor in enumerate(mock_processors):
+        processor.get_config_metadata.return_value = MockConfigMetadata(
+            result_subpath=f"mock_path_{i}"
+        )
+        processor.upload.return_value = None
+
+    mock_metadata_validator.needs_upload.side_effect = [True, False, True]
+
+    collector.collect(mock_processors)
+
+    for i, processor in enumerate(mock_processors):
+        if i == 1:  # This processor should not be uploaded
+            processor.upload.assert_not_called()
+        else:  # These processors should be uploaded
+            processor.upload.assert_called_once()
+
+
+def test__run_pipelines_in_parallel__handles_success_and_failure__raises_exception_on_failure(
+    collector, mock_processors
+):
+    for i, processor in enumerate(mock_processors):
+        processor.get_config_metadata.return_value = MockConfigMetadata(
+            result_subpath=f"mock_path_{i}"
+        )
+
+    for processor in mock_processors:
+        if processor.get_config_metadata().result_subpath == "mock_path_1":
+            processor.upload.side_effect = Exception("Mock failure")
+        else:
+            processor.upload.return_value = None
+
+    with pytest.raises(Exception):
+        collector._run_pipelines_in_parallel(mock_processors)
+
+    for processor in mock_processors:
+        processor.upload.assert_called_once()
