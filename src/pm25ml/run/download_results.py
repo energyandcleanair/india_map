@@ -124,7 +124,7 @@ def _main() -> None:  # noqa: PLR0915
 
     first_year = START_MONTH.year
 
-    years = list(range(first_year, END_MONTH.year - 1))
+    years = list(range(first_year, END_MONTH.year + 1))
     # Every month between START_MONTH and END_MONTH, inclusive.
     # We don't want to start from the first month of each year.
     months = list(
