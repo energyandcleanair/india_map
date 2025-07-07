@@ -28,6 +28,7 @@ from pm25ml.collectors.ned.ned_export_pipeline import NedExportPipeline
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES, validate_configuration
 from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.combiners.combiner import MonthlyCombiner
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ START_MONTH = get("2018-08-01")
 END_MONTH = get("2025-03-31")
 
 
-def _main() -> None:  # noqa: PLR0915
+def _main() -> None:
     creds, _ = google.auth.default(
         scopes=[
             "https://www.googleapis.com/auth/earthengine",
@@ -121,6 +122,12 @@ def _main() -> None:  # noqa: PLR0915
             start=START_MONTH,
             end=END_MONTH,
         ),
+    )
+
+    monthly_combiner = MonthlyCombiner(
+        combined_storage=combined_storage,
+        archived_wide_combiner=archived_wide_combiner,
+        months=months,
     )
 
     collector = RawDataCollector(metadata_validator=metadata_validator)
@@ -300,62 +307,12 @@ def _main() -> None:  # noqa: PLR0915
     logger.info("Validating export pipeline config")
     validate_configuration(processors)
 
+    logger.info("Combining results from the archive storage")
     collector.collect(processors)
 
     # Get files from the archive storage
     logger.info("Combining results from the archive storage")
-
-    for month in months:
-        month_short = month.format("YYYY-MM")
-
-        dates_in_month: list[Arrow] = list(
-            Arrow.range("day", start=month, end=month.shift(months=1).shift(days=-1)),
-        )
-
-        if archived_wide_combiner.needs_combining(
-            month=month_short,
-        ):
-            # This needs to be all processors, not just the filtered ones.
-            archived_wide_combiner.combine(month=month_short, processors=processors)
-
-        all_id_columns = {
-            column
-            for processor in processors
-            for column in processor.get_config_metadata().id_columns
-        }
-
-        all_value_columns = {
-            f"{processor.get_config_metadata().hive_path.require_key('dataset')}__{column}"
-            for processor in processors
-            for column in processor.get_config_metadata().value_columns
-        }
-
-        all_expected_columns = all_id_columns | all_value_columns
-
-        expected_rows = VALID_COUNTRIES["india"] * len(dates_in_month)
-        logger.info(
-            f"Validating final combined result with {expected_rows} "
-            f"expected rows and {len(all_expected_columns)} expected columns",
-        )
-        final_combined = combined_storage.read_dataframe(
-            result_subpath=f"stage=combined_monthly/month={month_short}",
-        )
-
-        # Validate final combined result has expected rows and columns
-        if final_combined.shape[0] != expected_rows:
-            msg = (
-                f"Expected {expected_rows} rows in the final combined result, "
-                f"but found {final_combined.shape[0]} rows."
-            )
-            raise ValueError(msg)
-
-        missing = all_expected_columns - set(final_combined.columns)
-        if missing:
-            msg = (
-                f"Expected columns {all_expected_columns} in the final combined result, "
-                f"but {missing} were missing."
-            )
-            raise ValueError(msg)
+    monthly_combiner.combine_for_months(processors)
 
 
 if __name__ == "__main__":

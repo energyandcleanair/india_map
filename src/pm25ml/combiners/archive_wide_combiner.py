@@ -1,5 +1,6 @@
 """Combine data from multiple sources in the archive into a single file."""
 
+from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor
 from re import match
 
@@ -30,7 +31,7 @@ class ArchiveWideCombiner:
         self.archive_storage = archive_storage
         self.combined_storage = combined_storage
 
-    def combine(self, month: str, processors: list[ExportPipeline]) -> None:
+    def combine(self, month: str, processors: Collection[ExportPipeline]) -> None:
         """
         Combine data from multiple sources in the archive for a given month.
 
@@ -104,7 +105,7 @@ class ArchiveWideCombiner:
                 )
         return combined_table
 
-    def _list_paths_to_merge(self, month: str, processors: list[ExportPipeline]) -> list[str]:
+    def _list_paths_to_merge(self, month: str, processors: Collection[ExportPipeline]) -> list[str]:
         hive_paths = [processor.get_config_metadata().hive_path for processor in processors]
         year_filter = month[:4]
 
