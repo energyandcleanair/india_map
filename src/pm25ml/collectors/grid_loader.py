@@ -1,18 +1,23 @@
 """Load the grid from a shapefile zip file."""
 
+from __future__ import annotations
+
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import shapefile
 from polars import DataFrame
 from pyproj import CRS, Transformer
 from shapely.geometry import shape
-from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 from shapely.wkt import loads as load_wkt
 
 from pm25ml.collectors.ned.coord_types import Lat, Lon
+
+if TYPE_CHECKING:
+    from shapely.geometry.base import BaseGeometry
 
 
 class Grid:
@@ -22,6 +27,11 @@ class Grid:
     LAT_COL = "lat"
     LON_COL = "lon"
     GRID_ID_COL = "grid_id"
+
+    BOUNDS_BORDER: float = 1.0
+
+    _bounds_cache: tuple[Lon, Lat, Lon, Lat] | None = None
+    _expanded_bounds_cache: tuple[Lon, Lat, Lon, Lat] | None = None
 
     def __init__(self, df: DataFrame) -> None:
         """
@@ -36,34 +46,32 @@ class Grid:
     @property
     def bounds(self) -> tuple[Lon, Lat, Lon, Lat]:
         """Get the bounds of the grid."""
+        if self._bounds_cache is not None:
+            return self._bounds_cache
         bounds = [load_wkt(wkt).bounds for wkt in self.df[self.GEOM_COL]]
         minx = min(b[0] for b in bounds)
         miny = min(b[1] for b in bounds)
         maxx = max(b[2] for b in bounds)
         maxy = max(b[3] for b in bounds)
-        return (Lon(minx), Lat(miny), Lon(maxx), Lat(maxy))
+        self._bounds_cache = (Lon(minx), Lat(miny), Lon(maxx), Lat(maxy))
+        return self._bounds_cache
 
-    def get_bounds_with_border(
+    @property
+    def expanded_bounds(
         self,
-        border: float = 0.1,
     ) -> tuple[Lon, Lat, Lon, Lat]:
-        """
-        Get the bounds of the grid with an additional border.
+        """Get the bounds of the grid with an additional border."""
+        if self._expanded_bounds_cache is not None:
+            return self._expanded_bounds_cache
 
-        Args:
-            border (float): The border to add to the bounds.
-
-        Returns:
-            tuple: The bounds with the border added.
-
-        """
         minx, miny, maxx, maxy = self.bounds
-        return (
-            Lon(minx - border),
-            Lat(miny - border),
-            Lon(maxx + border),
-            Lat(maxy + border),
+        self._expanded_bounds_cache = (
+            Lon(minx - Grid.BOUNDS_BORDER),
+            Lat(miny - Grid.BOUNDS_BORDER),
+            Lon(maxx + Grid.BOUNDS_BORDER),
+            Lat(maxy + Grid.BOUNDS_BORDER),
         )
+        return self._expanded_bounds_cache
 
     @property
     def n_rows(self) -> int:

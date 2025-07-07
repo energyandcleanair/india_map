@@ -33,6 +33,7 @@ pyproj = "^3.7.1"
 pyarrow = "^20.0.0"
 h5netcdf = "^1.6.1"
 python-json-logger = "^3.3.0"
+dependency-injector = "^4.48.1"
 
 
 [tool.poetry.group.dev.dependencies]

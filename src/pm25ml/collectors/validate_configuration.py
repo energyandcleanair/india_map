@@ -1,5 +1,7 @@
 """Validates that the expected results from a dataset match the path's expected results."""
 
+from collections.abc import Collection
+
 import arrow
 
 from pm25ml.collectors.export_pipeline import ExportPipeline
@@ -10,7 +12,7 @@ VALID_COUNTRIES = {
 }
 
 
-def validate_configuration(processors: list[ExportPipeline]) -> None:
+def validate_configuration(processors: Collection[ExportPipeline]) -> None:
     """
     Perform a preliminary check on the expected result.
 

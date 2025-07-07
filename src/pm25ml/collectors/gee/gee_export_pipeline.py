@@ -22,22 +22,6 @@ if TYPE_CHECKING:
 class GeeExportPipeline(ExportPipeline):
     """Handles the export of data from GEE to the specified storage."""
 
-    @staticmethod
-    def with_storage(
-        *,
-        archive_storage: "IngestArchiveStorage",
-        intermediate_storage: "GeeIntermediateStorage",
-    ) -> "GeePipelineConstructor":
-        """
-        Create a GeePipelineConstructor with the given storage.
-
-        This allows for a more fluent interface when constructing pipelines.
-        """
-        return GeePipelineConstructor(
-            archive_storage=archive_storage,
-            intermediate_storage=intermediate_storage,
-        )
-
     def __init__(
         self,
         *,
