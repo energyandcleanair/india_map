@@ -25,7 +25,6 @@ from pm25ml.collectors.gee import GeeExportPipeline, GriddedFeatureCollectionPla
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.grid_export_pipeline import GridExportPipeline
 from pm25ml.collectors.grid_loader import load_grid_from_zip
-from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_reader_merra import MerraDataReader
 from pm25ml.collectors.ned.data_reader_omno2d import Omno2dReader
 from pm25ml.collectors.ned.data_retriever_harmony import HarmonySubsetterDataRetriever
@@ -111,15 +110,6 @@ def _main() -> None:  # noqa: PLR0915
     archived_wide_combiner = ArchiveWideCombiner(
         archive_storage=archive_storage,
         combined_storage=combined_storage,
-    )
-
-    bounds = in_memory_grid.bounds
-
-    bounds_with_border = (
-        Lon(bounds[0] - 1.0),
-        Lat(bounds[1] - 1.0),
-        Lon(bounds[2] + 1.0),
-        Lat(bounds[3] + 1.0),
     )
 
     first_year = START_MONTH.year
@@ -232,7 +222,7 @@ def _main() -> None:  # noqa: PLR0915
                     dataset_version="5.12.4",
                     start_date=month_start,
                     end_date=month_end,
-                    filter_bounds=bounds_with_border,
+                    filter_bounds=in_memory_grid.get_bounds_with_border(),
                     variable_mapping={
                         "TOTEXTTAU": "aot",
                     },
@@ -249,7 +239,7 @@ def _main() -> None:  # noqa: PLR0915
                     dataset_version="5.12.4",
                     start_date=month_start,
                     end_date=month_end,
-                    filter_bounds=bounds_with_border,
+                    filter_bounds=in_memory_grid.get_bounds_with_border(),
                     variable_mapping={
                         "CO": "co",
                     },
@@ -266,7 +256,7 @@ def _main() -> None:  # noqa: PLR0915
                     dataset_version="5.12.4",
                     start_date=month_start,
                     end_date=month_end,
-                    filter_bounds=bounds_with_border,
+                    filter_bounds=in_memory_grid.get_bounds_with_border(),
                     variable_mapping={
                         "CO": "co",
                     },
@@ -283,7 +273,7 @@ def _main() -> None:  # noqa: PLR0915
                     dataset_version="003",
                     start_date=month_start,
                     end_date=month_end,
-                    filter_bounds=bounds_with_border,
+                    filter_bounds=in_memory_grid.get_bounds_with_border(),
                     variable_mapping={
                         "ColumnAmountNO2": "no2",
                     },

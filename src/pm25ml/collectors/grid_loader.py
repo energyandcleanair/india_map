@@ -43,6 +43,28 @@ class Grid:
         maxy = max(b[3] for b in bounds)
         return (Lon(minx), Lat(miny), Lon(maxx), Lat(maxy))
 
+    def get_bounds_with_border(
+        self,
+        border: float = 0.1,
+    ) -> tuple[Lon, Lat, Lon, Lat]:
+        """
+        Get the bounds of the grid with an additional border.
+
+        Args:
+            border (float): The border to add to the bounds.
+
+        Returns:
+            tuple: The bounds with the border added.
+
+        """
+        minx, miny, maxx, maxy = self.bounds
+        return (
+            Lon(minx - border),
+            Lat(miny - border),
+            Lon(maxx + border),
+            Lat(maxy + border),
+        )
+
     @property
     def n_rows(self) -> int:
         """Get the number of rows in the grid."""
