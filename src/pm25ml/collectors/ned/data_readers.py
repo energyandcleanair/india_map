@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -31,12 +32,10 @@ class NedDayData:
         self.date = date
 
 
-class NedDataReader:
+class NedDataReader(ABC):
     """Extracts the data from a file for a dataset."""
 
-    def __init__(self) -> None:
-        """Initialize the data provider."""
-
+    @abstractmethod
     def extract_data(
         self,
         file: IO[bytes],
@@ -56,5 +55,3 @@ class NedDataReader:
             NedDayData: An object containing the results of the extraction.
 
         """
-        msg = "This method should be implemented by subclasses."
-        raise NotImplementedError(msg)

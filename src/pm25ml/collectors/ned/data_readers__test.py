@@ -17,14 +17,3 @@ def test__NedDayData__date_set__date_exists():
     day_data = NedDayData(dataset=mocked_xarray_dataset, date=date)
 
     assert day_data.date == date, "Date should be set correctly."
-
-
-def test__NedDataReader__extract_data__not_implemented():
-    """Test that the extract_data method raises NotImplementedError."""
-    from pm25ml.collectors.ned.data_readers import NedDataReader
-
-    reader = NedDataReader()
-    with pytest.raises(
-        NotImplementedError, match="This method should be implemented by subclasses."
-    ):
-        reader.extract_data(MagicMock(), MagicMock())

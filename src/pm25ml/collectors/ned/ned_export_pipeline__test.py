@@ -52,7 +52,7 @@ def test__NedPipelineConstructor__valid_inputs__creates_pipeline(
     mock_archive_storage, mock_dataset_descriptor, mock_grid
 ):
     # Mock inputs
-    mock_dataset_reader = NedDataReader()
+    mock_dataset_reader = MagicMock(spec=NedDataReader)
     mock_result_subpath = "mock/subpath"
 
     # Create NedPipelineConstructor
