@@ -29,7 +29,7 @@ def _main(
     logger.info("Validating export pipeline config")
     validate_configuration(processors)
 
-    logger.info("Combining results from the archive storage")
+    logger.info("Collect data from processors and store in the ingest archive")
     collector.collect(processors)
 
     # Get files from the archive storage
