@@ -5,6 +5,7 @@ import pytest
 from polars import DataFrame, Int64
 from polars.testing import assert_frame_equal
 
+from pm25ml.collectors.export_pipeline import MissingDataError
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
 
@@ -35,6 +36,19 @@ def example_feature_plan():
         column_mappings={"col1": "mapped_col1", "col2": "mapped_col2"},
         planned_collection=planned_collection,
         expected_n_rows=100,
+        availability_checker=lambda: True,
+    )
+
+
+@pytest.fixture
+def example_feature_plan_with_data_not_available():
+    planned_collection = MagicMock()
+    return FeaturePlan(
+        feature_name="mock_type",
+        column_mappings={"col1": "mapped_col1", "col2": "mapped_col2"},
+        planned_collection=planned_collection,
+        expected_n_rows=100,
+        availability_checker=lambda: False,
     )
 
 
@@ -125,6 +139,29 @@ def example_plan_with_date_and_grid():
             arrow.get("2025-06-02T00:00:00"),
             arrow.get("2025-06-03T00:00:00"),
         ],  # Example dates
+    )
+
+
+@pytest.fixture
+def example_plan_with_extra_dates():
+    planned_collection = MagicMock()
+
+    return FeaturePlan(
+        feature_name="mock_name",
+        column_mappings={
+            "date": "date",
+            "grid_id": "grid_id",
+            "col1": "mapped_col1",
+            "col2": "mapped_col2",
+        },
+        planned_collection=planned_collection,
+        expected_n_rows=4,
+        dates=[
+            arrow.get("2025-06-01T00:00:00"),
+            arrow.get("2025-06-02T00:00:00"),
+            arrow.get("2025-06-03T00:00:00"),
+            arrow.get("2025-06-04T00:00:00"),  # Example additional date
+        ],
     )
 
 
@@ -356,20 +393,13 @@ def test_GeeExportPipeline_export_result(
 
 def test_GeeExportPipeline_process_tableFillingWithNullValues(
     mock_intermediate_storage_out_of_order,
-    example_plan_with_date_and_grid,
+    example_plan_with_extra_dates,
     mock_archive_storage,
 ) -> None:
-    example_plan_with_date_and_grid.dates = [
-        arrow.get("2025-06-01T00:00:00"),
-        arrow.get("2025-06-02T00:00:00"),
-        arrow.get("2025-06-03T00:00:00"),
-        arrow.get("2025-06-04T00:00:00"),  # Example additional date
-    ]
-
     pipeline = GeeExportPipeline(
         archive_storage=mock_archive_storage,
         intermediate_storage=mock_intermediate_storage_out_of_order,
-        plan=example_plan_with_date_and_grid,
+        plan=example_plan_with_extra_dates,
         result_subpath="mock/result/path",
     )
 
@@ -398,3 +428,25 @@ def test_GeeExportPipeline_process_tableFillingWithNullValues(
     assert_frame_equal(
         expected_index, actual_index, check_column_order=False, check_row_order=False
     )
+
+
+def test_GeeExportPipeline_process__feature_plan_no_data_available__raises_error(
+    mock_intermediate_storage_valid_table,
+    example_feature_plan_with_data_not_available,
+    mock_archive_storage,
+) -> None:
+    pipeline = GeeExportPipeline(
+        archive_storage=mock_archive_storage,
+        intermediate_storage=mock_intermediate_storage_valid_table,
+        plan=example_feature_plan_with_data_not_available,
+        result_subpath="mock/result/path",
+    )
+
+    with pytest.raises(
+        MissingDataError,
+        match="Data for feature 'mock_type' is not available in GEE.",
+    ):
+        pipeline.upload()
+
+    # Ensure that no upload was attempted
+    mock_archive_storage.write_to_destination.assert_not_called()

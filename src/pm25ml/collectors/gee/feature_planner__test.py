@@ -64,6 +64,48 @@ def test__FeaturePlan_expected_value_columns__correct_values__returned() -> None
     assert feature_plan.expected_value_columns == {"value1"}
 
 
+def test__FeaturePlan_is_data_available__delegated_func_returns_true__true() -> None:
+    mock_feature_collection = MagicMock()
+    column_mappings = {"date": "date", "grid_id": "grid_id", "key1": "value1"}
+    feature_plan = FeaturePlan(
+        feature_name="test-type",
+        planned_collection=mock_feature_collection,
+        column_mappings=column_mappings,
+        expected_n_rows=DUMMY_N_ROWS_VALUE,
+        availability_checker=MagicMock(return_value=True),
+    )
+
+    assert feature_plan.is_data_available() is True
+
+
+def test__FeaturePlan_is_data_available__delegated_func_returns_false__false() -> None:
+    mock_feature_collection = MagicMock()
+    column_mappings = {"date": "date", "grid_id": "grid_id", "key1": "value1"}
+    feature_plan = FeaturePlan(
+        feature_name="test-type",
+        planned_collection=mock_feature_collection,
+        column_mappings=column_mappings,
+        expected_n_rows=DUMMY_N_ROWS_VALUE,
+        availability_checker=MagicMock(return_value=False),
+    )
+
+    assert feature_plan.is_data_available() is False
+
+
+def test__FeaturePlan_is_data_available__no_availability_checker__true() -> None:
+    mock_feature_collection = MagicMock()
+    column_mappings = {"date": "date", "grid_id": "grid_id", "key1": "value1"}
+    feature_plan = FeaturePlan(
+        feature_name="test-type",
+        planned_collection=mock_feature_collection,
+        column_mappings=column_mappings,
+        expected_n_rows=DUMMY_N_ROWS_VALUE,
+        availability_checker=None,
+    )
+
+    assert feature_plan.is_data_available() is True
+
+
 @pytest.fixture
 def mock_gee_for_daily_average() -> Iterator[dict[str, MagicMock]]:
     with (

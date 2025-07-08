@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable, cast
 
 from ee import Algorithms
 from ee.ee_date import Date
@@ -236,7 +237,7 @@ class GriddedFeatureCollectionPlanner:
 
             return new_image
 
-        image = Image(
+        images = (
             ImageCollection(collection_name)
             .select(classification_band)
             .filterBounds(self.grid.geometry())
@@ -244,7 +245,10 @@ class GriddedFeatureCollectionPlanner:
                 f"{year}-01-01T00:00:00",
                 f"{year + 1}-01-01T00:00:00",
             )
-            .map(add_classes_as_boolean_bands)
+        )
+
+        image = Image(
+            images.map(add_classes_as_boolean_bands)
             .select(expected_column_names)
             .reduce(Reducer.mean()),
         )
@@ -269,6 +273,15 @@ class GriddedFeatureCollectionPlanner:
 
         column_mappings = dict(zip(exported_columns, wanted_columns))
 
+        def availability_checker() -> bool:
+            """
+            Check if the feature collection is available for the specified year.
+
+            :return: True if the feature collection is available, False otherwise.
+            :rtype: bool
+            """
+            return images.size().getInfo() >= 1
+
         return FeaturePlan(
             feature_name=self._generate_clean_name(
                 "annual-classified-pixels",
@@ -278,6 +291,7 @@ class GriddedFeatureCollectionPlanner:
             planned_collection=flattened,
             column_mappings=column_mappings,
             expected_n_rows=self._get_n_grids(),
+            availability_checker=availability_checker,
         )
 
     @staticmethod
@@ -325,6 +339,9 @@ class GriddedFeatureCollectionPlanner:
         return self._n_grids
 
 
+@dataclass(
+    frozen=True,
+)
 class FeaturePlan:
     """
     Represents a plan for processing and exporting features.
@@ -333,32 +350,13 @@ class FeaturePlan:
     and metadata.
     """
 
-    def __init__(  # noqa: PLR0913
-        self,
-        *,
-        feature_name: str,
-        planned_collection: FeatureCollection,
-        column_mappings: dict[str, str],
-        ignore_selectors: bool = False,
-        expected_n_rows: int,
-        dates: list[Arrow] | None = None,
-    ) -> None:
-        """
-        Initialize a feature plan.
-
-        :param feature_name: The name of the feature plan.
-        :param planned_collection: The proposed feature collection.
-        :param column_mappings: A mapping of exported column names to desired column names.
-        :param ignore_selectors: Whether to ignore selectors during processing. Defaults to False.
-        :param expected_n_rows: The expected number of rows in the final export.
-        :param dates: Optional list of dates associated with the feature plan.
-        """
-        self.feature_name = feature_name
-        self.planned_collection = planned_collection
-        self.column_mappings = column_mappings
-        self.ignore_selectors = ignore_selectors
-        self.expected_n_rows = expected_n_rows
-        self.dates = dates
+    feature_name: str
+    planned_collection: FeatureCollection
+    column_mappings: dict[str, str]
+    expected_n_rows: int
+    ignore_selectors: bool = False
+    dates: list[Arrow] | None = None
+    availability_checker: Callable[[], bool] | None = None
 
     @property
     def intermediate_columns(self) -> list[str]:
@@ -407,3 +405,17 @@ class FeaturePlan:
             for key, value in self.column_mappings.items()
             if key not in AVAILABLE_ID_KEY_NAMES
         }
+
+    def is_data_available(self) -> bool:
+        """
+        Check if the feature collection is available.
+
+        If an availability checker is defined, it will be used to check
+        the availability of the feature collection.
+
+        :return: True if the feature collection is available, False otherwise.
+        :rtype: bool
+        """
+        if self.availability_checker:
+            return self.availability_checker()
+        return True

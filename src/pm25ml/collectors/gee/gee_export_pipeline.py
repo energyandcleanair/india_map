@@ -9,7 +9,7 @@ from ee.batch import Export, Task
 from nanoid import generate
 from polars import DataFrame, Float32
 
-from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
+from pm25ml.collectors.export_pipeline import ExportPipeline, MissingDataError, PipelineConfig
 from pm25ml.collectors.gee.feature_planner import FeaturePlan
 from pm25ml.logging import logger
 
@@ -40,6 +40,10 @@ class GeeExportPipeline(ExportPipeline):
         """Upload the data from GEE to the underlying storage."""
         temporary_file_prefix = generate(size=10)
         task_name = f"{temporary_file_prefix}__{self.plan.feature_name}"[:100]
+
+        if not self.plan.is_data_available():
+            msg = f"Data for feature '{self.plan.feature_name}' is not available in GEE."
+            raise MissingDataError(msg)
 
         # First, we define the task to export the data to GCS, run it, and then wait until it
         # completes.
