@@ -59,7 +59,7 @@ RUN poetry run pip install dist/*.whl
 
 
 # Stage 3: Minimal runtime image
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 # Security: run as non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
