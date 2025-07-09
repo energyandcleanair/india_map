@@ -1,6 +1,7 @@
 """CombineDescriptor for combining data for a specific month."""
 
 from collections.abc import Collection
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 
 from arrow import Arrow
@@ -19,9 +20,16 @@ class CombinePlan:
     The month in YYYY-MM format that this descriptor applies to.
     """
 
-    paths: Collection[HivePath]
+    paths: AbstractSet[HivePath]
+    """
+    The paths to the data that should be combined for this month.
+    """
 
-    expected_columns: list[str]
+    expected_columns: AbstractSet[str]
+    """
+    The columns that are expected in the combined data for this month.
+    This includes both ID columns and value columns.
+    """
 
     @property
     def month_id(self) -> str:
@@ -37,16 +45,6 @@ class CombinePlan:
     def days_in_month(self) -> int:
         """The number of days in the month."""
         return (self.month.ceil("month") - self.month.floor("month")).days + 1
-
-
-def _month_format(month: Arrow) -> str:
-    """
-    Format the month in 'YYYY-MM' format.
-
-    :param month: The month to format.
-    :return: The formatted month string.
-    """
-    return month.format("YYYY-MM")
 
 
 class CombinePlanner:
@@ -66,15 +64,13 @@ class CombinePlanner:
     ) -> Collection[CombinePlan]:
         """Choose what to combine for each month."""
         all_id_columns = {
-            column
-            for result in results
-            for column in result.processor.get_config_metadata().id_columns
+            column for result in results for column in result.pipeline_config.id_columns
         }
 
         all_value_columns = {
-            f"{result.processor.get_config_metadata().hive_path.require_key('dataset')}__{column}"
+            f"{result.pipeline_config.hive_path.require_key('dataset')}__{column}"
             for result in results
-            for column in result.processor.get_config_metadata().value_columns
+            for column in result.pipeline_config.value_columns
         }
 
         all_expected_columns = all_id_columns | all_value_columns
@@ -82,8 +78,8 @@ class CombinePlanner:
         return [
             CombinePlan(
                 month=month,
-                paths=self._list_paths_to_merge(month, results),
-                expected_columns=list(all_expected_columns),
+                paths=set(self._list_paths_to_merge(month, results)),
+                expected_columns=all_expected_columns,
             )
             for month in self.months
         ]
@@ -93,12 +89,24 @@ class CombinePlanner:
         month: Arrow,
         results: Collection[UploadResult],
     ) -> Collection[HivePath]:
-        hive_paths = [result.processor.get_config_metadata().hive_path for result in results]
+        hive_paths = [result.pipeline_config.hive_path for result in results]
         year_filter: str = str(month.year)
 
-        month_related = [path for path in hive_paths if path.metadata.get("month") == month]
+        month_as_str = _month_format(month)
+
+        month_related = [path for path in hive_paths if path.metadata.get("month") == month_as_str]
 
         year_related = [path for path in hive_paths if path.metadata.get("year") == year_filter]
         static_related = [path for path in hive_paths if path.metadata.get("type") == "static"]
 
         return month_related + year_related + static_related
+
+
+def _month_format(month: Arrow) -> str:
+    """
+    Format the month in 'YYYY-MM' format.
+
+    :param month: The month to format.
+    :return: The formatted month string.
+    """
+    return month.format("YYYY-MM")

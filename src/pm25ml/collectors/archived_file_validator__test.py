@@ -9,7 +9,12 @@ from pm25ml.collectors.archived_file_validator import (
     ArchivedFileValidatorError,
 )
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
-from pm25ml.collectors.export_pipeline import PipelineConfig
+from pm25ml.collectors.collector import DataCompleteness, UploadResult
+from pm25ml.collectors.export_pipeline import (
+    MissingDataHeuristic,
+    PipelineConfig,
+    PipelineConsumerBehaviour,
+)
 
 
 def test__validate_result_schema__valid_schema__no_error():
@@ -28,11 +33,15 @@ def test__validate_result_schema__valid_schema__no_error():
 
     validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
 
-    expected_result = PipelineConfig(
-        result_subpath="path/to/result",
-        expected_rows=100,
-        id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns={"value_column"},
+        ),
+        completeness=DataCompleteness.COMPLETE,
+        error=None,
     )
 
     validator.validate_result_schema(expected_result)
@@ -47,11 +56,15 @@ def test__validate_result_schema__invalid_row_count__raises_error():
 
     validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
 
-    expected_result = PipelineConfig(
-        result_subpath="path/to/result",
-        expected_rows=100,
-        id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns={"value_column"},
+        ),
+        completeness=DataCompleteness.COMPLETE,
+        error=None,
     )
 
     with pytest.raises(
@@ -75,11 +88,15 @@ def test__validate_result_schema__missing_column__raises_error():
 
     validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
 
-    expected_result = PipelineConfig(
-        result_subpath="path/to/result",
-        expected_rows=100,
-        id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns={"value_column"},
+        ),
+        completeness=DataCompleteness.COMPLETE,
+        error=None,
     )
 
     with pytest.raises(
@@ -105,11 +122,15 @@ def test__validate_result_schema__invalid_grid_column_type__raises_error():
 
     validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
 
-    expected_result = PipelineConfig(
-        result_subpath="path/to/result",
-        expected_rows=100,
-        id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns={"value_column"},
+        ),
+        completeness=DataCompleteness.COMPLETE,
+        error=None,
     )
 
     with pytest.raises(
@@ -117,6 +138,55 @@ def test__validate_result_schema__invalid_grid_column_type__raises_error():
         match="Expected 'grid_id' column to be of type int64 in path/to/result, but found (double|float).*.",
     ):
         validator.validate_result_schema(expected_result)
+
+
+def test__validate_result_schema__file_missing__raises_error():
+    """Test validate_result_schema when file is missing."""
+    archive_storage_mock = Mock(spec=IngestArchiveStorage)
+    archive_storage_mock.read_dataframe_metadata.side_effect = FileNotFoundError("File not found")
+
+    validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
+
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns={"value_column"},
+        ),
+        completeness=DataCompleteness.COMPLETE,
+        error=None,
+    )
+
+    with pytest.raises(
+        ArchivedFileValidatorError,
+        match="Result path/to/result does not exist in archive storage. It needs to be uploaded.",
+    ):
+        validator.validate_result_schema(expected_result)
+
+
+def test__validate_result_schema__missing_but_allowed__no_error():
+    """Test validate_result_schema with allowed missing columns."""
+    archive_storage_mock = Mock(spec=IngestArchiveStorage)
+    archive_storage_mock.read_dataframe_metadata.side_effect = FileNotFoundError("File not found")
+
+    validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
+
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns=set(),
+            consumer_behaviour=PipelineConsumerBehaviour(
+                missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE
+            ),
+        ),
+        completeness=DataCompleteness.EMPTY,
+        error=None,
+    )
+
+    validator.validate_result_schema(expected_result)
 
 
 def test__validate_result_schema__invalid_date_column_type__raises_error():
@@ -135,11 +205,15 @@ def test__validate_result_schema__invalid_date_column_type__raises_error():
 
     validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
 
-    expected_result = PipelineConfig(
-        result_subpath="path/to/result",
-        expected_rows=100,
-        id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns={"value_column"},
+        ),
+        completeness=DataCompleteness.COMPLETE,
+        error=None,
     )
 
     with pytest.raises(
@@ -165,11 +239,15 @@ def test__validate_result_schema__invalid_value_column__raises_error():
 
     validator = ArchivedFileValidator(archive_storage=archive_storage_mock)
 
-    expected_result = PipelineConfig(
-        result_subpath="path/to/result",
-        expected_rows=100,
-        id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+    expected_result = UploadResult(
+        PipelineConfig(
+            result_subpath="path/to/result",
+            expected_rows=100,
+            id_columns={"grid_id", "date"},
+            value_columns={"value_column"},
+        ),
+        completeness=DataCompleteness.COMPLETE,
+        error=None,
     )
 
     with pytest.raises(

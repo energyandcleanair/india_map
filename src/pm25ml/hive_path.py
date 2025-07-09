@@ -41,3 +41,36 @@ class HivePath:
             msg = f"Expected '{key}' key in {self.result_subpath}, but it is missing."
             raise ValueError(msg)
         return self.metadata[key]
+
+    def __eq__(self, value: object) -> bool:
+        """
+        Check if the value is equal to this HivePath instance.
+
+        :param value: The value to compare with.
+        :return: True if the value is a HivePath and has the same result subpath, False otherwise.
+        """
+        return isinstance(value, HivePath) and self.result_subpath == value.result_subpath
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of the HivePath.
+
+        :return: The result subpath.
+        """
+        return self.result_subpath
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the HivePath for debugging.
+
+        :return: A string representation of the HivePath.
+        """
+        return f"HivePath(result_subpath={self.result_subpath!r})"
+
+    def __hash__(self) -> int:
+        """
+        Return a hash of the HivePath instance.
+
+        :return: The hash of the result subpath.
+        """
+        return hash(self.result_subpath)

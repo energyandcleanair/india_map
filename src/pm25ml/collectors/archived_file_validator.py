@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from pyarrow import Schema, float32, float64, int64, large_string
 
+from pm25ml.collectors.collector import DataCompleteness, UploadResult
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
@@ -50,38 +51,39 @@ class ArchivedFileValidator:
         """
         self.archive_storage = archive_storage
 
-    def validate_all_results(self, pipelines: list[PipelineConfig]) -> None:
+    def validate_all_results(self, results: list[UploadResult]) -> None:
         """
         Validate the schema of all results against their expected schemas.
 
-        :param pipelines: A list of PipelineConfig objects containing the expected results.
+        :param results: A list of PipelineConfig objects containing the expected results.
         :raises ValueError: If any result's schema does not match the expected schema.
         """
         import concurrent.futures
 
         @dataclass
         class _ValidationResult:
-            pipeline: PipelineConfig
+            result: UploadResult
             exception: Exception | None = None
             traceback: str | None = None
 
             def __str__(self) -> str:
-                return f"{self.pipeline.result_subpath}: {self.traceback}"
+                metadata = self.result.pipeline_config
+                return f"{metadata.result_subpath}: {self.traceback}"
 
-        def validate_pipeline(pipeline: PipelineConfig) -> _ValidationResult:
+        def validate_pipeline(result: UploadResult) -> _ValidationResult:
             try:
-                self.validate_result_schema(pipeline)
+                self.validate_result_schema(result)
             except Exception as e:  # noqa: BLE001
                 return _ValidationResult(
-                    pipeline=pipeline,
+                    result=result,
                     exception=e,
                     traceback=traceback.format_exc(),
                 )
             else:
-                return _ValidationResult(pipeline=pipeline)
+                return _ValidationResult(result=result)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            validations = executor.map(validate_pipeline, pipelines)
+            validations = executor.map(validate_pipeline, results)
             validation_results = list(validations)
             errored_results = [
                 result for result in validation_results if result.exception is not None
@@ -94,14 +96,22 @@ class ArchivedFileValidator:
                 msg,
             )
 
-    def validate_result_schema(self, expected_result: PipelineConfig) -> None:
+    def validate_result_schema(self, expected_result: UploadResult) -> None:
         """
         Validate the schema of the result against the expected schema.
 
         :param result: The ExportResult object containing the result subpath and expected columns.
         :raises ValueError: If the actual schema does not match the expected schema.
         """
-        self._validate_expected_against_actual(expected_result)
+        config = expected_result.pipeline_config
+        if expected_result.completeness == DataCompleteness.EMPTY and config.allows_missing_data:
+            logger.info(
+                f"Skipping validation for {config.result_subpath} as it "
+                "is empty and allows missing data.",
+            )
+            return
+
+        self._validate_expected_against_actual(config)
 
     def needs_upload(self, expected_result: PipelineConfig) -> bool:
         """
@@ -132,9 +142,16 @@ class ArchivedFileValidator:
         return False
 
     def _validate_expected_against_actual(self, expected_result: PipelineConfig) -> None:
-        file_metadata = self.archive_storage.read_dataframe_metadata(
-            result_subpath=expected_result.result_subpath,
-        )
+        try:
+            file_metadata = self.archive_storage.read_dataframe_metadata(
+                result_subpath=expected_result.result_subpath,
+            )
+        except FileNotFoundError as exc:
+            msg = (
+                f"Result {expected_result.result_subpath} does not exist in archive storage. "
+                "It needs to be uploaded."
+            )
+            raise ArchivedFileValidatorError(msg) from exc
 
         rows = file_metadata.num_rows
         self._check_count_rows(expected_result, rows)

@@ -11,6 +11,7 @@ from pm25ml.collectors.export_pipeline import (
     ErrorWhileFetchingDataError,
     ExportPipeline,
     MissingDataError,
+    PipelineConfig,
 )
 from pm25ml.logging import logger
 
@@ -55,7 +56,7 @@ class DataCompleteness(Enum):
 class UploadResult:
     """Represents the result of an upload operation."""
 
-    processor: ExportPipeline
+    pipeline_config: PipelineConfig
     completeness: DataCompleteness
     error: Exception | None = None
 
@@ -100,13 +101,11 @@ class RawDataCollector:
         # Check all results were uploaded successfully, not just the ones we
         # downloaded this time.
         logger.info("Validating all recent results")
-        self.metadata_validator.validate_all_results(
-            [processor.get_config_metadata() for processor in filtered_processors],
-        )
+        self.metadata_validator.validate_all_results(results)
 
         skipped_results = [
             UploadResult(
-                processor,
+                processor.get_config_metadata(),
                 DataCompleteness.ALREADY_UPLOADED,
             )
             for processor in processors
@@ -165,24 +164,24 @@ class RawDataCollector:
                             exc_info=True,
                             stack_info=True,
                         )
-                        return UploadResult(processor, DataCompleteness.EMPTY, e)
+                        return UploadResult(config, DataCompleteness.EMPTY, e)
 
                     logger.error(
                         f"Missing data for processor {result_subpath} but not allowed",
                         exc_info=True,
                         stack_info=True,
                     )
-                    return UploadResult(processor, DataCompleteness.ERROR, e)
+                    return UploadResult(config, DataCompleteness.ERROR, e)
                 except Exception as e:  # noqa: BLE001
                     logger.error(
                         f"Failed to upload processor {result_subpath}",
                         exc_info=True,
                         stack_info=True,
                     )
-                    return UploadResult(processor, DataCompleteness.ERROR, e)
+                    return UploadResult(config, DataCompleteness.ERROR, e)
                 else:
                     return UploadResult(
-                        processor,
+                        config,
                         DataCompleteness.COMPLETE,
                     )
 
