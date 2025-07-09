@@ -1,7 +1,7 @@
 # Stage 1: Build package with Poetry. This needs both main and dev dependencies so,
 # while we can build the project from this, we don't want to include all the
 # dependencies from this stage.
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -33,7 +33,7 @@ RUN poetry build
 # Stage 2: Install dependencies and built package to a virtual environment. This
 # means we only have the main dependencies installed at this stage and the package
 # itself.
-FROM python:3.11-slim AS deps
+FROM python:3.12-slim AS deps
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -68,7 +68,7 @@ WORKDIR /app
 VOLUME /app/.config/gcloud
 
 # Copy only what's needed from previous stages
-COPY --from=deps /app/.venv/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=deps /app/.venv/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 
 # We also need any assets or static files that the application uses.
 COPY ./assets/ ./assets/

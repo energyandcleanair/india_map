@@ -7,11 +7,11 @@ runs:
       uses: actions/cache/restore@v3
       with:
         path: ~/.local
-        key: poetry-${{ env.POETRY_VERSION }}
+        key: poetry-${{ env.POETRY_VERSION }}-${{ env.PYTHON_VERSION }}
 
     - name: Load dependencies
       id: cache-deps
       uses: actions/cache/restore@v3
       with:
         path: .venv
-        key: pydeps-${{ hashFiles('**/poetry.lock') }}
+        key: pydeps-${{ env.PYTHON_VERSION }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
