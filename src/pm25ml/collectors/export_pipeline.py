@@ -1,5 +1,7 @@
 """ExportPipeline interface for exporting data."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -11,38 +13,56 @@ AvailableIdKeys = Literal["date", "grid_id"]
 AVAILABLE_ID_KEY_NAMES: list[AvailableIdKeys] = ["date", "grid_id"]
 
 
-class MissingDataError(Exception):
+class ExportPipeline(ABC):
     """
-    Exception raised when the export pipeline is missing data.
+    Abstract base class for export pipelines.
 
-    This exception is raised when the export pipeline cannot find the expected data
-    for the export operation.
-    """
+    Responsible for orchestrating the exporting the data from the origin, transforming it into the
+    grid format, and uploading it to the underlying storage.
 
-    def __init__(self, message: str) -> None:
-        """
-        Initialize the MissingDataError with a message.
+    It must raise MissingDataError if the export pipeline is missing a significant amount of data
+    (for example a whole month).
 
-        :param message: The error message to be displayed.
-        """
-        super().__init__(message)
+    The file uploaded must be in a parquet format and must contain the every grid ID for the map.
+    If it includes dates, it must include every date grid ID combination for the month being
+    exported.
 
-
-class ErrorWhileFetchingDataError(Exception):
-    """
-    Exception raised when there is an error while fetching data for the export pipeline.
-
-    This exception is raised when the export pipeline encounters an error while trying to
-    fetch the data required for the export operation.
+    The pipeline config metadata must match the expected result of the export operation.
     """
 
-    def __init__(self, message: str) -> None:
-        """
-        Initialize the ErrorWhileFetchingDataError with a message.
+    @abstractmethod
+    def upload(self) -> None:
+        """Export the given data."""
 
-        :param message: The error message to be displayed.
+    @abstractmethod
+    def get_config_metadata(self) -> PipelineConfig:
         """
-        super().__init__(message)
+        Get the expected result of the export operation.
+
+        This method should be overridden by subclasses to provide the expected result.
+        """
+
+
+@dataclass(frozen=True)
+class PipelineConsumerBehaviour:
+    """
+    Represents the behaviour of consumers of the export pipeline.
+
+    Pipelines must only use this class to communicate how consumers of the export pipeline
+    should behave when consuming the results of the export operation - not to modify their
+    own behaviour.
+    """
+
+    missing_data_heuristic: MissingDataHeuristic
+
+    @staticmethod
+    def default() -> PipelineConsumerBehaviour:
+        """
+        Get the default consumer behaviour.
+
+        This is used when the export pipeline does not specify a consumer behaviour.
+        """
+        return PipelineConsumerBehaviour(missing_data_heuristic=MissingDataHeuristic.FAIL)
 
 
 class MissingDataHeuristic(Enum):
@@ -72,28 +92,6 @@ class MissingDataHeuristic(Enum):
         """
         self.type_name = type_name
         self.allows_missing = allows_missing
-
-
-@dataclass(frozen=True)
-class PipelineConsumerBehaviour:
-    """
-    Represents the behaviour of consumers of the export pipeline.
-
-    Pipelines must only use this class to communicate how consumers of the export pipeline
-    should behave when consuming the results of the export operation - not to modify their
-    own behaviour.
-    """
-
-    missing_data_heuristic: MissingDataHeuristic
-
-    @staticmethod
-    def default() -> "PipelineConsumerBehaviour":
-        """
-        Get the default consumer behaviour.
-
-        This is used when the export pipeline does not specify a consumer behaviour.
-        """
-        return PipelineConsumerBehaviour(missing_data_heuristic=MissingDataHeuristic.FAIL)
 
 
 @dataclass(frozen=True)
@@ -157,22 +155,35 @@ class PipelineConfig:
         return self.consumer_behaviour.missing_data_heuristic.allows_missing
 
 
-class ExportPipeline(ABC):
+class MissingDataError(Exception):
     """
-    Abstract base class for export pipelines.
+    Exception raised when the export pipeline is missing data.
 
-    Responsible for orchestrating the exporting the data from the origin, transforming it into the
-    grid format, and uploading it to the underlying storage.
+    This exception is raised when the export pipeline cannot find the expected data
+    for the export operation.
     """
 
-    @abstractmethod
-    def upload(self) -> None:
-        """Export the given data."""
-
-    @abstractmethod
-    def get_config_metadata(self) -> PipelineConfig:
+    def __init__(self, message: str) -> None:
         """
-        Get the expected result of the export operation.
+        Initialize the MissingDataError with a message.
 
-        This method should be overridden by subclasses to provide the expected result.
+        :param message: The error message to be displayed.
         """
+        super().__init__(message)
+
+
+class ErrorWhileFetchingDataError(Exception):
+    """
+    Exception raised when there is an error while fetching data for the export pipeline.
+
+    This exception is raised when the export pipeline encounters an error while trying to
+    fetch the data required for the export operation.
+    """
+
+    def __init__(self, message: str) -> None:
+        """
+        Initialize the ErrorWhileFetchingDataError with a message.
+
+        :param message: The error message to be displayed.
+        """
+        super().__init__(message)

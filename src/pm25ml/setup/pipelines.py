@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from arrow import Arrow
 
+from pm25ml.collectors.export_pipeline import MissingDataHeuristic, PipelineConsumerBehaviour
 from pm25ml.collectors.grid_export_pipeline import GridExportPipeline
 from pm25ml.collectors.ned.data_reader_merra import MerraDataReader
 from pm25ml.collectors.ned.data_reader_omno2d import Omno2dReader
@@ -70,6 +71,9 @@ def define_pipelines(  # noqa: PLR0913
                     year=year,
                 ),
                 result_subpath=f"country=india/dataset=modis_land_cover/year={year}",
+                pipeline_consumer_behaviour=PipelineConsumerBehaviour(
+                    missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE,
+                ),
             ),
         ]
 
