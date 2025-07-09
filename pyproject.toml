@@ -48,6 +48,7 @@ responses = "^0.25.7"
 types-shapely = "^2.1.0.20250512"
 pyarrow = "^20.0.0"
 morefs = {extras = ["memfs"], version = "^0.2.2"}
+assertpy = "^1.1"
 
 [tool.poetry.group.experiment.dependencies]
 earthaccess = "^0.14.0"

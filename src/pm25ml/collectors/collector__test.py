@@ -1,3 +1,4 @@
+from assertpy import assert_that
 import pytest
 from unittest.mock import create_autospec
 from pm25ml.collectors.collector import DataCompleteness, RawDataCollector, UploadResult
@@ -8,7 +9,6 @@ from pm25ml.collectors.export_pipeline import (
     PipelineConfig,
 )
 from pm25ml.collectors.archived_file_validator import ArchivedFileValidator
-from collections import Counter, namedtuple
 
 
 @pytest.fixture
@@ -47,8 +47,8 @@ def test__collect__validates_all_results__uploads_all_processors(
     for processor in mock_processors:
         processor.upload.assert_called_once()
 
-    assert Counter(results) == Counter(
-        [UploadResult(processor, DataCompleteness.COMPLETE, None) for processor in mock_processors]
+    assert assert_that(results).contains_only(
+        *[UploadResult(processor, DataCompleteness.COMPLETE, None) for processor in mock_processors]
     )
 
 
@@ -75,8 +75,8 @@ def test__collect__filters_processors_needing_upload__uploads_only_required_proc
         else:  # These processors should be uploaded
             processor.upload.assert_called_once()
 
-    assert Counter(results) == Counter(
-        [
+    assert assert_that(results).contains_only(
+        *[
             UploadResult(mock_processors[0], DataCompleteness.COMPLETE, None),
             UploadResult(mock_processors[1], DataCompleteness.ALREADY_UPLOADED, None),
             UploadResult(mock_processors[2], DataCompleteness.COMPLETE, None),
@@ -140,8 +140,8 @@ def test__run_pipelines_in_parallel__allows_missing_error__runs_pipeline_success
 
     results = collector._run_pipelines_in_parallel(mock_processors)
 
-    assert Counter(results) == Counter(
-        [
+    assert assert_that(results).contains_only(
+        *[
             UploadResult(process_1, DataCompleteness.EMPTY, expected_error),
             UploadResult(process_2, DataCompleteness.COMPLETE, None),
         ]
