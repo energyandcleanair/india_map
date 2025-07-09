@@ -75,7 +75,7 @@ def define_pipelines(  # noqa: PLR0913
                 ),
                 result_subpath=f"country=india/dataset=modis_land_cover/year={year}",
                 pipeline_consumer_behaviour=PipelineConsumerBehaviour(
-                    missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE,
+                    missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE_BEFORE,
                 )
                 if year > MODIS_LAND_ALLOW_MISSING_FROM_YEAR
                 else PipelineConsumerBehaviour.default(),

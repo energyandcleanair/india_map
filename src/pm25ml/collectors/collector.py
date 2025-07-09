@@ -24,24 +24,24 @@ if TYPE_CHECKING:
 class DataCompleteness(Enum):
     """Enum representing the completeness status of data."""
 
-    ALREADY_UPLOADED = ("already_uploaded", True)
+    ALREADY_UPLOADED = ("already_uploaded", True, True)
     """
     Data has already been uploaded and is available, it was skipped for this run.
     """
-    COMPLETE = ("complete", True)
+    COMPLETE = ("complete", True, True)
     """
     Data is complete and available.
     """
-    EMPTY = ("empty", True)
+    EMPTY = ("empty", True, False)
     """
     Data is empty and not available but is allowed.
     """
-    ERROR = ("error", False)
+    ERROR = ("error", False, False)
     """
     An error occurred during the upload process.
     """
 
-    def __init__(self, type_name: str, successful: bool) -> None:  # noqa: FBT001
+    def __init__(self, type_name: str, successful: bool, data_available: bool) -> None:  # noqa: FBT001
         """
         Initialize the DataCompleteness with a name and successful flag.
 
@@ -50,6 +50,7 @@ class DataCompleteness(Enum):
         """
         self.type_name = type_name
         self.successful = successful
+        self.data_available = data_available
 
 
 @dataclass(frozen=True)

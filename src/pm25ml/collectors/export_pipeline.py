@@ -78,9 +78,9 @@ class MissingDataHeuristic(Enum):
     Fail the export operation if data is missing.
     """
 
-    COPY_LATEST_AVAILABLE = ("copy_latest_available", True)
+    COPY_LATEST_AVAILABLE_BEFORE = ("copy_latest_available_before", True)
     """
-    Copy the latest available data if missing.
+    Copy the latest available data that's before the missing data, if missing.
     """
 
     def __init__(self, type_name: str, allows_missing: bool) -> None:  # noqa: FBT001

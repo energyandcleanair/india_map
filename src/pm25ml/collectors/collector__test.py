@@ -120,7 +120,7 @@ def test__run_pipelines_in_parallel__allows_missing_error__runs_pipeline_success
         value_columns=set(),
         expected_rows=0,
         consumer_behaviour=PipelineConsumerBehaviour(
-            missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE,
+            missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE_BEFORE,
         ),
     )
 

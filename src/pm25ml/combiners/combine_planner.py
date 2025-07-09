@@ -3,10 +3,12 @@
 from collections.abc import Collection
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from typing import Literal
 
 from arrow import Arrow
 
 from pm25ml.collectors.collector import UploadResult
+from pm25ml.collectors.export_pipeline import MissingDataHeuristic
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES
 from pm25ml.hive_path import HivePath
 
@@ -89,17 +91,122 @@ class CombinePlanner:
         month: Arrow,
         results: Collection[UploadResult],
     ) -> Collection[HivePath]:
+        dataset_groups = _DatasetResultGroup.group_by_dataset(results)
+
+        return [group.get_best_matching(month) for group in dataset_groups]
+
+
+@dataclass(frozen=True)
+class _DatasetResultGroup:
+    """Group of results for a specific dataset."""
+
+    dataset: str
+    results: Collection[UploadResult]
+
+    def get_best_matching(self, month: Arrow) -> HivePath:
+        """
+        Get the best matching HivePath for the given month.
+
+        Usually, this will return the HivePath that matches "static", "month", or "year"
+        based on the dataset key.
+
+        If the dataset is empty and has a heuristic that allows a selection of a fallback dataset,
+        it will use the heuristic to find the matching data.
+        """
+        key = self.dataset_key
+        value = self.extract_value(month)
+
+        actual_match = next(
+            result
+            for result in self.results
+            if result.pipeline_config.hive_path.metadata.get(key) == value
+        )
+
+        if actual_match.completeness.data_available:
+            return actual_match.pipeline_config.hive_path
+
+        missing_data_heuristic = (
+            actual_match.pipeline_config.consumer_behaviour.missing_data_heuristic
+        )
+
+        if missing_data_heuristic == MissingDataHeuristic.COPY_LATEST_AVAILABLE_BEFORE:
+            earlier_available_paths = (
+                result.pipeline_config.hive_path
+                for result in self.results
+                if result.completeness.data_available
+                and result.pipeline_config.hive_path.metadata[key] < value
+            )
+
+            return max(
+                earlier_available_paths,
+                key=lambda result: result.metadata[key],
+            )
+
+        msg = (
+            f"No matching HivePath found for '{self.dataset}' with '{key}'='{value}'. "
+            "All results for this dataset are empty or do not match the expected key-value pair."
+        )
+        raise ValueError(
+            msg,
+        )
+
+    @property
+    def dataset_key(
+        self,
+    ) -> Literal["type", "month", "year"]:
+        if all(
+            result.pipeline_config.hive_path.metadata.get("type") == "static"
+            for result in self.results
+        ):
+            return "type"
+
+        if all(result.pipeline_config.hive_path.metadata.get("month") for result in self.results):
+            return "month"
+
+        if all(result.pipeline_config.hive_path.metadata.get("year") for result in self.results):
+            return "year"
+
+        msg = (
+            "Cannot determine dataset key for results. "
+            "All results must have the same metadata key for 'type', 'month', or 'year'."
+        )
+        raise ValueError(msg)
+
+    def extract_value(
+        self,
+        month: Arrow,
+    ) -> str:
+        if self.dataset_key == "type":
+            return "static"
+        if self.dataset_key == "month":
+            return _month_format(month)
+        if self.dataset_key == "year":
+            return str(month.year)
+        msg = (
+            "Cannot extract value for dataset key. "
+            "Dataset key must be one of 'type', 'month', or 'year'."
+        )
+        raise ValueError(msg)
+
+    @staticmethod
+    def group_by_dataset(
+        results: Collection[UploadResult],
+    ) -> Collection["_DatasetResultGroup"]:
         hive_paths = [result.pipeline_config.hive_path for result in results]
-        year_filter: str = str(month.year)
 
-        month_as_str = _month_format(month)
+        dataset_names = {path.metadata["dataset"] for path in hive_paths}
 
-        month_related = [path for path in hive_paths if path.metadata.get("month") == month_as_str]
-
-        year_related = [path for path in hive_paths if path.metadata.get("year") == year_filter]
-        static_related = [path for path in hive_paths if path.metadata.get("type") == "static"]
-
-        return month_related + year_related + static_related
+        return [
+            _DatasetResultGroup(
+                dataset=dataset,
+                results=[
+                    result
+                    for result in results
+                    if result.pipeline_config.hive_path.metadata.get("dataset") == dataset
+                ],
+            )
+            for dataset in dataset_names
+        ]
 
 
 def _month_format(month: Arrow) -> str:

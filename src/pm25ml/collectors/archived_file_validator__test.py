@@ -179,7 +179,7 @@ def test__validate_result_schema__missing_but_allowed__no_error():
             id_columns={"grid_id", "date"},
             value_columns=set(),
             consumer_behaviour=PipelineConsumerBehaviour(
-                missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE
+                missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE_BEFORE
             ),
         ),
         completeness=DataCompleteness.EMPTY,

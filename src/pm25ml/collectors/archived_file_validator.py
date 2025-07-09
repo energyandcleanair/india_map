@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING
 
 from pyarrow import Schema, float32, float64, int64, large_string
 
-from pm25ml.collectors.collector import DataCompleteness, UploadResult
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
     from pm25ml.collectors.archive_storage import IngestArchiveStorage
+    from pm25ml.collectors.collector import UploadResult
     from pm25ml.collectors.export_pipeline import PipelineConfig
 
 
@@ -104,7 +104,7 @@ class ArchivedFileValidator:
         :raises ValueError: If the actual schema does not match the expected schema.
         """
         config = expected_result.pipeline_config
-        if expected_result.completeness == DataCompleteness.EMPTY and config.allows_missing_data:
+        if not expected_result.completeness.data_available and config.allows_missing_data:
             logger.info(
                 f"Skipping validation for {config.result_subpath} as it "
                 "is empty and allows missing data.",
