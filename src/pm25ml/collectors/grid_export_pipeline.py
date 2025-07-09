@@ -37,7 +37,7 @@ class GridExportPipeline(ExportPipeline):
         """
         return PipelineConfig(
             result_subpath=self.result_subpath,
-            expected_n_rows=self.grid.n_rows,
+            expected_rows=self.grid.n_rows,
             id_columns={"grid_id"},
             value_columns={"lon", "lat"},
         )

@@ -23,7 +23,7 @@ def mock_pipeline_config():
         id_columns={"date", "grid_id"},
         value_columns={"value1"},
         result_subpath="country=india/dataset=test_dataset/month=2023-01",
-        expected_n_rows=33074 * 31,
+        expected_rows=33074 * 31,
     )
 
 
@@ -54,7 +54,7 @@ def mock_pipeline_collection():
             id_columns={"date", "grid_id"},
             value_columns={"value_static"},
             result_subpath="country=india/dataset=test_dataset_static/type=static",
-            expected_n_rows=33074 * 31,
+            expected_rows=33074 * 31,
         )
     )
     monthly_pipeline_2023_01 = MockExportPipeline(
@@ -62,7 +62,7 @@ def mock_pipeline_collection():
             id_columns={"date", "grid_id"},
             value_columns={"value_monthly"},
             result_subpath="country=india/dataset=test_dataset_monthly/month=2023-01",
-            expected_n_rows=33074 * 31,
+            expected_rows=33074 * 31,
         )
     )
     monthly_pipeline_2023_02 = MockExportPipeline(
@@ -70,7 +70,7 @@ def mock_pipeline_collection():
             id_columns={"date", "grid_id"},
             value_columns={"value_monthly"},
             result_subpath="country=india/dataset=test_dataset_monthly/month=2023-02",
-            expected_n_rows=33074 * 28,
+            expected_rows=33074 * 28,
         )
     )
     year_pipeline = MockExportPipeline(
@@ -78,7 +78,7 @@ def mock_pipeline_collection():
             id_columns={"date", "grid_id"},
             value_columns={"value_year"},
             result_subpath="country=india/dataset=test_dataset_yearly/year=2023",
-            expected_n_rows=33074 * 365,
+            expected_rows=33074 * 365,
         )
     )
 

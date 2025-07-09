@@ -30,7 +30,7 @@ def test__validate_result_schema__valid_schema__no_error():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -49,7 +49,7 @@ def test__validate_result_schema__invalid_row_count__raises_error():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -77,7 +77,7 @@ def test__validate_result_schema__missing_column__raises_error():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -107,7 +107,7 @@ def test__validate_result_schema__invalid_grid_column_type__raises_error():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -137,7 +137,7 @@ def test__validate_result_schema__invalid_date_column_type__raises_error():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -167,7 +167,7 @@ def test__validate_result_schema__invalid_value_column__raises_error():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -188,7 +188,7 @@ def test__needs_upload__missing_in_archive__returns_true():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -215,7 +215,7 @@ def test__needs_upload__validation_fails__returns_true():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )
@@ -242,7 +242,7 @@ def test__needs_upload__validation_passes__returns_false():
 
     expected_result = PipelineConfig(
         result_subpath="path/to/result",
-        expected_n_rows=100,
+        expected_rows=100,
         id_columns={"grid_id", "date"},
         value_columns={"value_column"},
     )

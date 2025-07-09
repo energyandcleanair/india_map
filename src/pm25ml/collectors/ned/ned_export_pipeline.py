@@ -246,7 +246,7 @@ class NedExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
             id_columns={"date", "grid_id"},
             value_columns=set(self.dataset_descriptor.variable_mapping.values()),
-            expected_n_rows=self._grid.n_rows * self.dataset_descriptor.days_in_range,
+            expected_rows=self._grid.n_rows * self.dataset_descriptor.days_in_range,
         )
 
     def _regrid(self, data: NedDayData) -> DataFrame:

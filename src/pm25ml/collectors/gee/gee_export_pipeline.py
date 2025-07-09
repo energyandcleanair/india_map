@@ -77,7 +77,7 @@ class GeeExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
             id_columns=self.plan.expected_id_columns,
             value_columns=self.plan.expected_value_columns,
-            expected_n_rows=self.plan.expected_n_rows,
+            expected_rows=self.plan.expected_n_rows,
         )
 
     def _define_task(self, task_name: str) -> Task:
