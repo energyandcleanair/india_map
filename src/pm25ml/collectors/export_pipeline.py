@@ -1,6 +1,8 @@
 """ExportPipeline interface for exporting data."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
 from pm25ml.hive_path import HivePath
@@ -43,6 +45,35 @@ class ErrorWhileFetchingDataError(Exception):
         super().__init__(message)
 
 
+class MissingDataHeuristic(Enum):
+    """
+    Enum representing the heuristic used to determine if data is missing.
+
+    This is used to define how the export pipeline should handle missing data.
+    """
+
+    FAIL = ("fail", False)
+    """
+    Fail the export operation if data is missing.
+    """
+
+    COPY_LATEST_AVAILABLE = ("copy_latest_available", True)
+    """
+    Copy the latest available data if missing.
+    """
+
+    def __init__(self, type_name: str, allows_missing: bool) -> None:  # noqa: FBT001
+        """
+        Initialize the MissingDataHeuristic with a name and allows_missing flag.
+
+        :param type_name: The name of the heuristic.
+        :param allows_missing: Whether the heuristic allows missing data.
+        """
+        self.type_name = type_name
+        self.allows_missing = allows_missing
+
+
+@dataclass(frozen=True)
 class PipelineConfig:
     """
     Represents the pipeline config metadata of an export operation.
@@ -52,25 +83,23 @@ class PipelineConfig:
     is complete.
     """
 
-    def __init__(
-        self,
-        result_subpath: str,
-        id_columns: set[AvailableIdKeys],
-        value_columns: set[str],
-        expected_n_rows: int,
-    ) -> None:
-        """
-        Initialize the ExportResult with the result subpath and expected columns.
-
-        :param result_subpath: The subpath where the result will be stored.
-        :param id_columns: The expected ID columns in the result.
-        :param value_columns: The expected value columns in the result.
-        :param expected_n_rows: The expected number of rows in the result.
-        """
-        self.result_subpath = result_subpath
-        self.id_columns = id_columns
-        self.value_columns = value_columns
-        self.expected_rows = expected_n_rows
+    result_subpath: str
+    """
+    The subpath where the result will be stored.
+    """
+    id_columns: set[AvailableIdKeys]
+    """
+    The expected ID columns in the result.
+    """
+    value_columns: set[str]
+    """
+    The expected value columns in the result.
+    """
+    expected_rows: int
+    """
+    The expected number of rows in the result.
+    """
+    missing_data_heuristic: MissingDataHeuristic = MissingDataHeuristic.FAIL
 
     @property
     def all_columns(self) -> set[str]:
