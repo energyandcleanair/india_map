@@ -101,7 +101,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         grid=gee_india_grid_reference,
     )
 
-    gcs_filesystem = providers.Singleton(
+    gcs_filesystem: providers.Provider[GCSFileSystem] = providers.Singleton(
         GCSFileSystem,
     )
 
