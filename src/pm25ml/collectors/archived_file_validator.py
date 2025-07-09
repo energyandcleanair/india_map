@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import traceback
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from pyarrow import Schema, float32, float64, int64, large_string
@@ -57,27 +59,37 @@ class ArchivedFileValidator:
         """
         import concurrent.futures
 
-        errors: list[tuple[PipelineConfig, Exception]] = []
+        @dataclass
+        class _ValidationResult:
+            pipeline: PipelineConfig
+            exception: Exception | None = None
+            traceback: str | None = None
 
-        def validate_pipeline(pipeline: PipelineConfig) -> tuple[PipelineConfig, Exception | None]:
+            def __str__(self) -> str:
+                return f"{self.pipeline.result_subpath}: {self.traceback}"
+
+        def validate_pipeline(pipeline: PipelineConfig) -> _ValidationResult:
             try:
                 self.validate_result_schema(pipeline)
             except Exception as e:  # noqa: BLE001
-                return (pipeline, e)
+                return _ValidationResult(
+                    pipeline=pipeline,
+                    exception=e,
+                    traceback=traceback.format_exc(),
+                )
             else:
-                return (pipeline, None)
+                return _ValidationResult(pipeline=pipeline)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(validate_pipeline, pipeline) for pipeline in pipelines]
-            for future in concurrent.futures.as_completed(futures):
-                result = future.result()
-                if result[1] is not None:
-                    error_result = (result[0], result[1])
-                    errors.append(error_result)
+            validations = executor.map(validate_pipeline, pipelines)
+            validation_results = list(validations)
+            errored_results = [
+                result for result in validation_results if result.exception is not None
+            ]
 
-        if errors:
-            error_msgs = "\n".join(f"{pipeline.result_subpath}: {exc}" for pipeline, exc in errors)
-            msg = f"Validation failed for {len(errors)} pipeline(s):\n{error_msgs}"
+        if errored_results:
+            error_msgs = "\n".join(str(errored_result) for errored_result in errored_results)
+            msg = f"Validation failed for {len(errored_results)} pipeline(s):\n{error_msgs}"
             raise ArchivedFileValidatorError(
                 msg,
             )
