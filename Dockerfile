@@ -76,4 +76,4 @@ COPY ./assets/ ./assets/
 USER appuser
 
 # Entrypoint runs the main data download script
-CMD ["python", "-m", "pm25ml.run.download_results"]
+CMD ["python", "-m", "pm25ml.run.main"]
