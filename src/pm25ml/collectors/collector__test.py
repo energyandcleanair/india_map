@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import create_autospec
 from pm25ml.collectors.collector import DataCompleteness, RawDataCollector, UploadResult
 from pm25ml.collectors.export_pipeline import (
+    PipelineConsumerBehaviour,
     ExportPipeline,
     MissingDataError,
     MissingDataHeuristic,
@@ -35,7 +36,6 @@ def test__collect__validates_all_results__uploads_all_processors(
             id_columns=set(),
             value_columns=set(),
             expected_rows=0,
-            missing_data_heuristic=MissingDataHeuristic.FAIL,
         )
         processor.upload.return_value = None
 
@@ -61,7 +61,6 @@ def test__collect__filters_processors_needing_upload__uploads_only_required_proc
             id_columns=set(),
             value_columns=set(),
             expected_rows=0,
-            missing_data_heuristic=MissingDataHeuristic.FAIL,
         )
         processor.upload.return_value = None
 
@@ -93,7 +92,6 @@ def test__run_pipelines_in_parallel__handles_success_and_failure__raises_excepti
             id_columns=set(),
             value_columns=set(),
             expected_rows=0,
-            missing_data_heuristic=MissingDataHeuristic.FAIL,
         )
 
     for processor in mock_processors:
@@ -116,7 +114,9 @@ def test__run_pipelines_in_parallel__allows_missing_error__runs_pipeline_success
         id_columns=set(),
         value_columns=set(),
         expected_rows=0,
-        missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE,
+        consumer_behaviour=PipelineConsumerBehaviour(
+            missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE,
+        ),
     )
 
     process_2 = create_autospec(ExportPipeline)
@@ -125,7 +125,6 @@ def test__run_pipelines_in_parallel__allows_missing_error__runs_pipeline_success
         id_columns=set(),
         value_columns=set(),
         expected_rows=0,
-        missing_data_heuristic=MissingDataHeuristic.FAIL,
     )
 
     mock_processors = [process_1, process_2]

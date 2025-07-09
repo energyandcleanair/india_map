@@ -10,7 +10,11 @@ import xarray
 from arrow import Arrow
 from polars import DataFrame
 
-from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
+from pm25ml.collectors.export_pipeline import (
+    ExportPipeline,
+    PipelineConfig,
+    PipelineConsumerBehaviour,
+)
 from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
 from pm25ml.collectors.ned.errors import NedMissingDataError
 from pm25ml.logging import logger
@@ -55,6 +59,7 @@ class NedPipelineConstructor:
         dataset_retriever: NedDataRetriever | None = None,
         dataset_reader: NedDataReader,
         result_subpath: str,
+        consumer_behaviour: PipelineConsumerBehaviour | None = None,
     ) -> NedExportPipeline:
         """
         Construct the NED export pipeline with the given parameters.
@@ -66,6 +71,9 @@ class NedPipelineConstructor:
             Defaults to the RawEarthAccessDataRetriever.
             dataset_reader (NedDataReader): The reader for the dataset.
             result_subpath (str): The subpath where the results will be stored.
+            consumer_behaviour (PipelineConsumerBehaviour, optional): The behaviour of the
+            consumers of the export pipeline. Defaults to None, which uses the default
+            consumer behaviour.
 
         Returns:
             NedExportPipeline: An instance of the NED export pipeline.
@@ -82,6 +90,7 @@ class NedPipelineConstructor:
                 else RawEarthAccessDataRetriever()
             ),
             result_subpath=result_subpath,
+            consumer_behaviour=consumer_behaviour,
         )
 
 
@@ -121,6 +130,7 @@ class NedExportPipeline(ExportPipeline):
         dataset_retriever: NedDataRetriever,
         dataset_reader: NedDataReader,
         result_subpath: str,
+        consumer_behaviour: PipelineConsumerBehaviour | None = None,
     ) -> None:
         """
         Initialize the NED export pipeline.
@@ -133,6 +143,9 @@ class NedExportPipeline(ExportPipeline):
             dataset_retriever (NedDataRetriever): The retriever for the dataset.
             dataset_reader (NedDataReader): The reader for the dataset.
             result_subpath (str): The subpath where the results will be stored.
+            consumer_behaviour (PipelineConsumerBehaviour, optional): The behaviour of the
+            consumers of the export pipeline. Defaults to None, which uses the default
+            consumer behaviour.
 
         """
         super().__init__()
@@ -149,6 +162,9 @@ class NedExportPipeline(ExportPipeline):
         self._lat = xarray.DataArray(
             self._grid.df["lat"],
             dims="points",
+        )
+        self.consumer_behaviour = (
+            consumer_behaviour if consumer_behaviour else PipelineConsumerBehaviour.default()
         )
 
     def upload(self) -> None:
@@ -247,6 +263,7 @@ class NedExportPipeline(ExportPipeline):
             id_columns={"date", "grid_id"},
             value_columns=set(self.dataset_descriptor.variable_mapping.values()),
             expected_rows=self._grid.n_rows * self.dataset_descriptor.days_in_range,
+            consumer_behaviour=self.consumer_behaviour,
         )
 
     def _regrid(self, data: NedDayData) -> DataFrame:

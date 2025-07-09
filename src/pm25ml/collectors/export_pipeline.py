@@ -1,7 +1,7 @@
 """ExportPipeline interface for exporting data."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal
 
@@ -47,9 +47,10 @@ class ErrorWhileFetchingDataError(Exception):
 
 class MissingDataHeuristic(Enum):
     """
-    Enum representing the heuristic used to determine if data is missing.
+    Represents the heuristic used to determine if data is missing.
 
-    This is used to define how the export pipeline should handle missing data.
+    It must not be used by the export pipeline directly. It's used to communicate to consumers of
+    the export pipeline how to handle missing data in the export operation.
     """
 
     FAIL = ("fail", False)
@@ -71,6 +72,28 @@ class MissingDataHeuristic(Enum):
         """
         self.type_name = type_name
         self.allows_missing = allows_missing
+
+
+@dataclass(frozen=True)
+class PipelineConsumerBehaviour:
+    """
+    Represents the behaviour of consumers of the export pipeline.
+
+    Pipelines must only use this class to communicate how consumers of the export pipeline
+    should behave when consuming the results of the export operation - not to modify their
+    own behaviour.
+    """
+
+    missing_data_heuristic: MissingDataHeuristic
+
+    @staticmethod
+    def default() -> "PipelineConsumerBehaviour":
+        """
+        Get the default consumer behaviour.
+
+        This is used when the export pipeline does not specify a consumer behaviour.
+        """
+        return PipelineConsumerBehaviour(missing_data_heuristic=MissingDataHeuristic.FAIL)
 
 
 @dataclass(frozen=True)
@@ -99,7 +122,12 @@ class PipelineConfig:
     """
     The expected number of rows in the result.
     """
-    missing_data_heuristic: MissingDataHeuristic = MissingDataHeuristic.FAIL
+    consumer_behaviour: PipelineConsumerBehaviour = field(
+        default_factory=PipelineConsumerBehaviour.default,
+    )
+    """
+    How consumers of the export pipeline should behave.
+    """
 
     @property
     def all_columns(self) -> set[str]:
@@ -118,6 +146,15 @@ class PipelineConfig:
         :return: A HivePath object representing the result subpath.
         """
         return HivePath(self.result_subpath)
+
+    @property
+    def allows_missing_data(self) -> bool:
+        """
+        Check if the consumer behaviour allows missing data.
+
+        :return: True if the consumer behaviour allows missing data, False otherwise.
+        """
+        return self.consumer_behaviour.missing_data_heuristic.allows_missing
 
 
 class ExportPipeline(ABC):

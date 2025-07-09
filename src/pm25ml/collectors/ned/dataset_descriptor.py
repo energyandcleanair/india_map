@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
 InterpolationMethods = Literal["linear", "nearest"]
 
 
+@dataclass
 class NedDatasetDescriptor:
     """
     Descriptor for the NED dataset.
@@ -21,38 +23,14 @@ class NedDatasetDescriptor:
     It only supports a single variable to extract from the dataset.
     """
 
-    def __init__(  # noqa: PLR0913
-        self,
-        *,
-        dataset_name: str,
-        dataset_version: str,
-        start_date: Arrow,
-        end_date: Arrow,
-        filter_bounds: tuple[Lon, Lat, Lon, Lat],
-        variable_mapping: dict[str, str],
-        interpolation_method: InterpolationMethods = "linear",
-        level: int | None = None,
-    ) -> None:
-        """
-        Initialize the dataset descriptor.
-
-        :param dataset_name: Name of the dataset.
-        :param dataset_version: Version of the dataset.
-        :param start_date: Start date of the dataset to filter the dataset to.
-        :param end_date: End date of the dataset to filter the dataset to.
-        :param filter_bounds: Geographic bounds for filtering the dataset (west, south, east,
-        north).
-        :param source_variable_name: Name of the variable in the dataset to be used as source.
-        :param target_variable_name: Name of the variable in the dataset to be used as target.
-        """
-        self.dataset_name = dataset_name
-        self.dataset_version = dataset_version
-        self.start_date = start_date
-        self.end_date = end_date
-        self.filter_bounds = filter_bounds
-        self.variable_mapping = variable_mapping
-        self.level = level
-        self.interpolation_method: InterpolationMethods = interpolation_method
+    dataset_name: str
+    dataset_version: str
+    start_date: Arrow
+    end_date: Arrow
+    filter_bounds: tuple[Lon, Lat, Lon, Lat]
+    variable_mapping: dict[str, str]
+    interpolation_method: InterpolationMethods = "linear"
+    level: int | None = None
 
     def __repr__(self) -> str:
         """Return a string representation of the dataset descriptor."""

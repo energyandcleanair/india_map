@@ -151,7 +151,7 @@ class RawDataCollector:
                 config = processor.get_config_metadata()
                 result_subpath = config.result_subpath
 
-                allows_missing_data = config.missing_data_heuristic.allows_missing
+                allows_missing_data = config.allows_missing_data
 
                 try:
                     logger.info(

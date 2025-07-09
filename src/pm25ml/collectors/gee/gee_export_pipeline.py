@@ -1,5 +1,7 @@
 """Export pipeline for Google Earth Engine data to the underlying storage."""
 
+from __future__ import annotations
+
 import contextlib
 from itertools import product
 from time import sleep
@@ -9,12 +11,17 @@ from ee.batch import Export, Task
 from nanoid import generate
 from polars import DataFrame, Float32
 
-from pm25ml.collectors.export_pipeline import ExportPipeline, MissingDataError, PipelineConfig
-from pm25ml.collectors.gee.feature_planner import FeaturePlan
+from pm25ml.collectors.export_pipeline import (
+    ExportPipeline,
+    MissingDataError,
+    PipelineConfig,
+    PipelineConsumerBehaviour,
+)
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
     from pm25ml.collectors.archive_storage import IngestArchiveStorage
+    from pm25ml.collectors.gee.feature_planner import FeaturePlan
 
     from .intermediate_storage import GeeIntermediateStorage
 
@@ -25,16 +32,22 @@ class GeeExportPipeline(ExportPipeline):
     def __init__(
         self,
         *,
-        intermediate_storage: "GeeIntermediateStorage",
-        archive_storage: "IngestArchiveStorage",
+        intermediate_storage: GeeIntermediateStorage,
+        archive_storage: IngestArchiveStorage,
         plan: FeaturePlan,
         result_subpath: str,
+        pipeline_consumer_behaviour: PipelineConsumerBehaviour | None = None,
     ) -> None:
         """Initialize the GeeExportPipeline with the storage and plan."""
         self.archive_storage = archive_storage
         self.intermediate_storage = intermediate_storage
         self.plan = plan
         self.result_subpath = result_subpath
+        self.pipeline_consumer_behaviour = (
+            pipeline_consumer_behaviour
+            if pipeline_consumer_behaviour
+            else PipelineConsumerBehaviour.default()
+        )
 
     def upload(self) -> None:
         """Upload the data from GEE to the underlying storage."""
@@ -78,6 +91,7 @@ class GeeExportPipeline(ExportPipeline):
             id_columns=self.plan.expected_id_columns,
             value_columns=self.plan.expected_value_columns,
             expected_rows=self.plan.expected_n_rows,
+            consumer_behaviour=self.pipeline_consumer_behaviour,
         )
 
     def _define_task(self, task_name: str) -> Task:
@@ -200,8 +214,8 @@ class GeePipelineConstructor:
     def __init__(
         self,
         *,
-        intermediate_storage: "GeeIntermediateStorage",
-        archive_storage: "IngestArchiveStorage",
+        intermediate_storage: GeeIntermediateStorage,
+        archive_storage: IngestArchiveStorage,
     ) -> None:
         """Initialize the GeePipelineConstructor with the storage."""
         self.archive_storage = archive_storage
@@ -211,7 +225,8 @@ class GeePipelineConstructor:
         self,
         plan: FeaturePlan,
         result_subpath: str,
-    ) -> "GeeExportPipeline":
+        pipeline_consumer_behaviour: PipelineConsumerBehaviour | None = None,
+    ) -> GeeExportPipeline:
         """
         Construct a GeeExportPipeline with the given plan and result subpath.
 
@@ -224,4 +239,5 @@ class GeePipelineConstructor:
             intermediate_storage=self.intermediate_storage,
             plan=plan,
             result_subpath=result_subpath,
+            pipeline_consumer_behaviour=pipeline_consumer_behaviour,
         )
