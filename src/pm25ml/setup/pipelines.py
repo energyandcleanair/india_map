@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
 
 
+MODIS_LAND_ALLOW_MISSING_FROM_YEAR = Arrow.now().year - 2
+
+
 def define_pipelines(  # noqa: PLR0913
     *,
     gee_pipeline_constructor: GeePipelineConstructor,
@@ -73,7 +76,9 @@ def define_pipelines(  # noqa: PLR0913
                 result_subpath=f"country=india/dataset=modis_land_cover/year={year}",
                 pipeline_consumer_behaviour=PipelineConsumerBehaviour(
                     missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE,
-                ),
+                )
+                if year > MODIS_LAND_ALLOW_MISSING_FROM_YEAR
+                else PipelineConsumerBehaviour.default(),
             ),
         ]
 

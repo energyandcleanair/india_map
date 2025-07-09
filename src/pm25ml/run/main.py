@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from pm25ml.collectors.export_pipeline import (
         ExportPipeline,
     )
+    from pm25ml.combiners.combine_planner import CombinePlanner
     from pm25ml.combiners.combiner import MonthlyCombiner
 
 
@@ -25,16 +26,18 @@ def _main(
     processors: Collection[ExportPipeline] = Provide[Pm25mlContainer.pipelines],
     collector: RawDataCollector = Provide[Pm25mlContainer.collector],
     monthly_combiner: MonthlyCombiner = Provide[Pm25mlContainer.monthly_combiner],
+    combine_planner: CombinePlanner = Provide[Pm25mlContainer.combine_planner],
 ) -> None:
     logger.info("Validating export pipeline config")
     validate_configuration(processors)
 
     logger.info("Collect data from processors and store in the ingest archive")
-    collector.collect(processors)
+    results = collector.collect(processors)
 
-    # Get files from the archive storage
+    combine_plans = combine_planner.plan(results)
+
     logger.info("Combining results from the archive storage")
-    monthly_combiner.combine_for_months(processors)
+    monthly_combiner.combine_for_months(combine_plans)
 
 
 if __name__ == "__main__":

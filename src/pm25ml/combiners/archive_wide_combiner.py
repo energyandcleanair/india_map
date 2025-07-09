@@ -1,13 +1,12 @@
 """Combine data from multiple sources in the archive into a single file."""
 
-from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor
 from re import match
 
 from polars import DataFrame, Float32
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage, IngestDataAsset
-from pm25ml.collectors.export_pipeline import ExportPipeline
+from pm25ml.combiners.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
 
@@ -31,7 +30,7 @@ class ArchiveWideCombiner:
         self.archive_storage = archive_storage
         self.combined_storage = combined_storage
 
-    def combine(self, month: str, processors: Collection[ExportPipeline]) -> None:
+    def combine(self, combine_def: CombinePlan) -> None:
         """
         Combine data from multiple sources in the archive for a given month.
 
@@ -43,11 +42,12 @@ class ArchiveWideCombiner:
         :raises ValueError: If the month does not match the expected 'YYYY-MM' format
         """
         # Check month matches YYYY-MM format
+        month = combine_def.month_id
         self._check_month_arg(month)
 
-        all_to_merge = self._list_paths_to_merge(month, processors)
+        all_paths_to_merge = combine_def.paths
 
-        if not all_to_merge:
+        if not all_paths_to_merge:
             msg = (
                 f"No data found for month '{month}'. "
                 "Ensure that the month is correct and that data exists in the archive."
@@ -55,9 +55,12 @@ class ArchiveWideCombiner:
             raise ValueError(msg)
 
         logger.info(
-            f"Loading data to combine for month {month} from {len(all_to_merge)} paths",
+            f"Loading data to combine for month {month} from {len(all_paths_to_merge)} paths",
         )
-        loaded_assets = [self.archive_storage.read_data_asset(path) for path in all_to_merge]
+        loaded_assets = [
+            self.archive_storage.read_data_asset(hive_path.result_subpath)
+            for hive_path in all_paths_to_merge
+        ]
 
         with_renamed_value_columns = self._add_dataset_to_value_columns(loaded_assets)
 
@@ -104,19 +107,6 @@ class ArchiveWideCombiner:
                     combined_table[column].cast(Float32).alias(column),
                 )
         return combined_table
-
-    def _list_paths_to_merge(self, month: str, processors: Collection[ExportPipeline]) -> list[str]:
-        hive_paths = [processor.get_config_metadata().hive_path for processor in processors]
-        year_filter = month[:4]
-
-        month_related = [path for path in hive_paths if path.metadata.get("month") == month]
-
-        year_related = [path for path in hive_paths if path.metadata.get("year") == year_filter]
-        static_related = [path for path in hive_paths if path.metadata.get("type") == "static"]
-
-        filtered_paths = month_related + year_related + static_related
-
-        return [path.result_subpath for path in filtered_paths]
 
     def _check_month_arg(self, month: str) -> None:
         regex = r"^\d{4}-\d{2}$"
