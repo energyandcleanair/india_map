@@ -5,7 +5,7 @@ from arrow import Arrow
 from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
 from pm25ml.combiners.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
-from pm25ml.combiners.combiner import MonthlyCombiner
+from pm25ml.combiners.combiner import MonthlyCombiner, MonthlyValidationError
 from pm25ml.collectors.export_pipeline import PipelineConfig
 from pm25ml.hive_path import HivePath
 
@@ -209,7 +209,7 @@ def test__combine_for_months__no_combining_needed__skips_combining(
     "mock_missing_columns_archived_wide_combiner",
 )
 def test__validate_combined__missing_columns__raises_error(monthly_combiner, combine_defs):
-    with pytest.raises(ValueError, match="Expected columns"):
+    with pytest.raises(MonthlyValidationError, match="Expected columns"):
         monthly_combiner.combine_for_months(combine_defs)
 
 
@@ -217,5 +217,5 @@ def test__validate_combined__missing_columns__raises_error(monthly_combiner, com
     "mock_missing_rows_archived_wide_combiner",
 )
 def test__validate_combined__incorrect_row_count__raises_error(monthly_combiner, combine_defs):
-    with pytest.raises(ValueError, match="Expected 1025294 rows"):
+    with pytest.raises(MonthlyValidationError, match="Expected 1025294 rows"):
         monthly_combiner.combine_for_months(combine_defs)
