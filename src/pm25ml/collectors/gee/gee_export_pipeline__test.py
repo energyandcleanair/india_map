@@ -421,6 +421,7 @@ def test_GeeExportPipeline_process_tableFillingWithNullValues(
     expected_index = DataFrame(
         [(date, grid_id) for date in expected_dates for grid_id in expected_grid_ids],
         schema=["date", "grid_id"],
+        orient="row",
     )
 
     actual_index = processed_table.select(["date", "grid_id"]).unique()

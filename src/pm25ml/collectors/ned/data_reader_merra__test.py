@@ -171,7 +171,7 @@ def test__MerraDataReader_extract_data__valid_lev_positive_down__data_correctly_
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
-    assert dict(result.data.dims) == {
+    assert result.data.sizes == {
         "lat": 3,
         "lon": 3,
     }  # Check that the dimensions are correct
@@ -199,7 +199,7 @@ def test__MerraDataReader_extract_data__valid_lev_positive_up__data_correctly_fi
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
-    assert dict(result.data.dims) == {
+    assert result.data.sizes == {
         "lat": 3,
         "lon": 3,
     }
@@ -225,7 +225,7 @@ def test__MerraDataReader_extract_data__valid_without_lev_dimension__data_correc
         result = reader.extract_data(mock_file, mock_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
-    assert dict(result.data.dims) == {
+    assert dict(result.data.sizes) == {
         "lat": 3,
         "lon": 3,
     }

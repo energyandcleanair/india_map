@@ -68,7 +68,7 @@ def test__omno2dreader__read_example_file__extracts_data(example_file_path, data
         ned_day_data = reader.extract_data(file, dataset_descriptor)
 
         assert ned_day_data.data is not None
-        assert dict(ned_day_data.data.dims) == {"lat": 80, "lon": 80}
+        assert ned_day_data.data.sizes == {"lat": 80, "lon": 80}
         assert ned_day_data.data.coords["lon"].min() == 70.125
         assert ned_day_data.data.coords["lon"].max() == 89.875
         assert ned_day_data.data.coords["lat"].min() == 10.125
@@ -92,7 +92,7 @@ def test__omno2dreader__read_example_file__extracts_data_trop(
         ned_day_data = reader.extract_data(file, dataset_descriptor_trop)
 
         assert ned_day_data.data is not None
-        assert dict(ned_day_data.data.dims) == {"lat": 80, "lon": 80}
+        assert ned_day_data.data.sizes == {"lat": 80, "lon": 80}
         assert ned_day_data.data.coords["lon"].min() == 70.125
         assert ned_day_data.data.coords["lon"].max() == 89.875
         assert ned_day_data.data.coords["lat"].min() == 10.125

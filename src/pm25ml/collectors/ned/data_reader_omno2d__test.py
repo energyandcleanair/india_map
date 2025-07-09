@@ -105,7 +105,7 @@ def test_extract_data(
         result = reader.extract_data(mock_file, fake_dataset_descriptor)
 
     assert isinstance(result, NedDayData)
-    assert dict(result.data.dims) == {
+    assert result.data.sizes == {
         "lat": 20,
         "lon": 10,
     }

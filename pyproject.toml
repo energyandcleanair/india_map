@@ -89,7 +89,7 @@ markers = [
 ]
 python_files = [ "*__test.py", "*__it.py" ]
 testpaths = [
-    "pm25ml"
+    "src/pm25ml"
 ]
 pythonpath = "."
 

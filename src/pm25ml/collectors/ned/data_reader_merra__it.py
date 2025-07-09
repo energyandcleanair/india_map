@@ -54,7 +54,7 @@ def test__merra_data_reader__read_example_file__extracts_data(
         ned_day_data = reader.extract_data(file, dataset_descriptor)
 
         assert ned_day_data.data is not None
-        assert dict(ned_day_data.data.dims) == {
+        assert ned_day_data.data.sizes == {
             "lat": 41,
             "lon": 33,
         }
