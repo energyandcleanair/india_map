@@ -43,33 +43,33 @@ def combine_defs():
     return [
         CombinePlan(
             month=Arrow(2023, 1, 1),
-            paths=[
+            paths={
                 HivePath("country=india/dataset=test_dataset_static/type=static"),
                 HivePath("country=india/dataset=test_dataset_monthly/month=2023-01"),
                 HivePath("country=india/dataset=test_dataset_yearly/year=2023"),
-            ],
-            expected_columns=[
+            },
+            expected_columns={
                 "date",
                 "grid_id",
                 "test_dataset_static__value_static",
                 "test_dataset_monthly__value_monthly",
                 "test_dataset_yearly__value_year",
-            ],
+            },
         ),
         CombinePlan(
             month=Arrow(2023, 2, 1),
-            paths=[
+            paths={
                 HivePath("country=india/dataset=test_dataset_static/type=static"),
                 HivePath("country=india/dataset=test_dataset_monthly/month=2023-02"),
                 HivePath("country=india/dataset=test_dataset_yearly/year=2023"),
-            ],
-            expected_columns=[
+            },
+            expected_columns={
                 "date",
                 "grid_id",
                 "test_dataset_static__value_static",
                 "test_dataset_monthly__value_monthly",
                 "test_dataset_yearly__value_year",
-            ],
+            },
         ),
     ]
 
