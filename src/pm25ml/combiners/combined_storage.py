@@ -69,3 +69,19 @@ class CombinedStorage:
         """
         parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
         return self.filesystem.exists(parquet_file_path)
+
+    def scan_stage(
+        self,
+        stage: str,
+    ) -> pl.LazyFrame:
+        """
+        Scan the specified stage in the destination bucket.
+
+        :param stage: The stage to scan.
+        :return: A LazyFrame representing the scanned data.
+        """
+        path = f"gs://{self.destination_bucket}/stage={stage}/"
+        return pl.scan_parquet(
+            path,
+            hive_partitioning=True,
+        )

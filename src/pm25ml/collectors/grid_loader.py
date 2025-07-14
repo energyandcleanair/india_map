@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import polars as pl
 import shapefile
 from polars import DataFrame
 from pyproj import CRS, Transformer
@@ -22,6 +23,10 @@ if TYPE_CHECKING:
 
 class Grid:
     """A class representing a grid for the NED dataset."""
+
+    ORIGINAL_GEOM_COL = "original_geometry_wkt"
+    ORIGINAL_X = "original_x"
+    ORIGINAL_Y = "original_y"
 
     GEOM_COL = "geometry_wkt"
     LAT_COL = "lat"
@@ -41,7 +46,23 @@ class Grid:
             df (DataFrame): The DataFrame containing grid data.
 
         """
-        self.df = df
+        self.df = df.select(
+            self.GRID_ID_COL,
+            self.GEOM_COL,
+            self.LAT_COL,
+            self.LON_COL,
+        )
+        self.df_original = df.select(
+            self.GRID_ID_COL,
+            self.ORIGINAL_GEOM_COL,
+            self.ORIGINAL_X,
+            self.ORIGINAL_Y,
+        ).with_columns(
+            [
+                pl.col(self.ORIGINAL_X).round(0).cast(float),
+                pl.col(self.ORIGINAL_Y).round(0).cast(float),
+            ],
+        )
 
     @property
     def bounds(self) -> tuple[Lon, Lat, Lon, Lat]:
@@ -139,6 +160,12 @@ def load_grid_from_zip(path_to_shapefile_zip: Path) -> Grid:
             centroid = geom_reproj.centroid
             attrs[Grid.LON_COL] = centroid.x
             attrs[Grid.LAT_COL] = centroid.y
+
+            # Extract original centroid
+            original_centroid = geom.centroid
+            attrs[Grid.ORIGINAL_GEOM_COL] = geom.wkt
+            attrs[Grid.ORIGINAL_X] = original_centroid.x
+            attrs[Grid.ORIGINAL_Y] = original_centroid.y
 
             records.append(attrs)
 
