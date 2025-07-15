@@ -80,7 +80,7 @@ class CombinedStorage:
         :param stage: The stage to scan.
         :return: A LazyFrame representing the scanned data.
         """
-        path = f"gs://{self.destination_bucket}/stage={stage}/"
+        path = f"{self.destination_bucket}/stage={stage}"
         return pl.scan_parquet(
             path,
             hive_partitioning=True,

@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import polars as pl
 from polars.testing import assert_frame_equal
@@ -55,3 +56,27 @@ def test__read_dataframe__valid_input__returns_dataframe(
 
     # Validate the DataFrame
     assert_frame_equal(dataframe, example_table)
+
+
+def test__scan_stage__valid_stage__returns_lazyframe(in_memory_filesystem, example_table) -> None:
+    with patch(
+        "polars.scan_parquet",
+    ) as mock_scan:
+        storage = CombinedStorage(
+            filesystem=in_memory_filesystem,
+            destination_bucket=DESTINATION_BUCKET,
+        )
+
+        # Mock the scan_parquet method to return a LazyFrame
+        mock_lazy_frame = pl.LazyFrame(example_table)
+        mock_scan.return_value = mock_lazy_frame
+
+        lazy_frame = storage.scan_stage("valid_stage")
+
+        mock_scan.assert_called_once_with(
+            f"{DESTINATION_BUCKET}/stage=valid_stage",
+            hive_partitioning=True,
+        )
+
+        # Validate that the returned object is a LazyFrame
+        assert lazy_frame is mock_lazy_frame
