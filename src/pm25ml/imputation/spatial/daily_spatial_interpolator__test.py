@@ -1,6 +1,6 @@
 import numpy as np
 import polars as pl
-from pm25ml.spatial_imputation.impute import DailySpatialImputer
+from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.collectors.grid_loader import Grid
 from polars.testing import assert_frame_equal
 
@@ -90,7 +90,7 @@ def test__impute__single_day_single_column__correct_imputation():
     )
 
     # Initialize the imputer
-    imputer = DailySpatialImputer(grid=grid, value_column_regex_selector=r"^value$")
+    imputer = DailySpatialInterpolator(grid=grid, value_column_regex_selector=r"^value$")
 
     # Perform imputation
     result = imputer.impute(input_data)
@@ -182,7 +182,7 @@ def test__impute__multiple_dates__separate_imputation():
     )
 
     # Initialize the imputer
-    imputer = DailySpatialImputer(grid=grid, value_column_regex_selector=r"^value$")
+    imputer = DailySpatialInterpolator(grid=grid, value_column_regex_selector=r"^value$")
 
     # Perform imputation
     result = imputer.impute(input_data)
@@ -300,7 +300,7 @@ def test__impute__multiple_columns__regex_selection():
     )
 
     # Initialize the imputer with a regex to select value columns
-    imputer = DailySpatialImputer(grid=grid, value_column_regex_selector=r"^value_\d$")
+    imputer = DailySpatialInterpolator(grid=grid, value_column_regex_selector=r"^value_\d$")
 
     # Perform imputation
     result = imputer.impute(input_data)

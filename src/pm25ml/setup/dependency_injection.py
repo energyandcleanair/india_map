@@ -24,6 +24,8 @@ from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
 from pm25ml.combiners.combine_planner import CombinePlanner
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.combiner import MonthlyCombiner
+from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
+from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
 from pm25ml.setup.pipelines import define_pipelines
 
@@ -178,6 +180,19 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         months=config.months,
     )
 
+    daily_spatial_interpolator = providers.Singleton(
+        DailySpatialInterpolator,
+        grid=in_memory_grid,
+        value_column_regex_selector=config.spatial_computation_value_column_regex,
+    )
+
+    spatial_imputation_manager = providers.Singleton(
+        SpatialImputationManager,
+        combined_storage=combined_storage,
+        spatial_imputer=daily_spatial_interpolator,
+        months=config.months,
+    )
+
 
 def init_dependencies_from_env() -> Pm25mlContainer:
     """
@@ -221,6 +236,10 @@ def init_dependencies_from_env() -> Pm25mlContainer:
                 end=container.config.end_month(),
             ),
         ),
+    )
+
+    container.config.spatial_computation_value_column_regex.from_env(
+        "SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX",
     )
 
     container.init_resources()

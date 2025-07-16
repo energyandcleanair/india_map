@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     )
     from pm25ml.combiners.combine_planner import CombinePlanner
     from pm25ml.combiners.combiner import MonthlyCombiner
+    from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 
 
 @inject
@@ -27,6 +28,9 @@ def _main(
     collector: RawDataCollector = Provide[Pm25mlContainer.collector],
     monthly_combiner: MonthlyCombiner = Provide[Pm25mlContainer.monthly_combiner],
     combine_planner: CombinePlanner = Provide[Pm25mlContainer.combine_planner],
+    spatial_imputation_manager: SpatialImputationManager = Provide[
+        Pm25mlContainer.spatial_imputation_manager
+    ],
 ) -> None:
     logger.info("Validating export pipeline config")
     validate_configuration(processors)
@@ -34,10 +38,10 @@ def _main(
     logger.info("Collect data from processors and store in the ingest archive")
     results = collector.collect(processors)
 
-    combine_plans = combine_planner.plan(results)
-
     logger.info("Combining results from the archive storage")
-    monthly_combiner.combine_for_months(combine_plans)
+    monthly_combiner.combine_for_months(combine_planner.plan(results))
+
+    spatial_imputation_manager.impute()
 
 
 if __name__ == "__main__":

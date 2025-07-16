@@ -1,83 +1,16 @@
 """Provide functionality for spatially imputing data using grid-based interpolation."""
 
 import re
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import polars as pl
-from dependency_injector.wiring import Provide, inject
 from scipy.interpolate import griddata
 
 from pm25ml.collectors.grid_loader import Grid
-from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
-from pm25ml.setup.dependency_injection import Pm25mlContainer, init_dependencies_from_env
 
 
-@inject
-def _main(
-    *,
-    grid: Grid = Provide[Pm25mlContainer.in_memory_grid],
-    combined_storage: CombinedStorage = Provide[Pm25mlContainer.combined_storage],
-    column_regex: str,
-) -> None:
-    """Perform spatial imputation for each month."""
-    ds = combined_storage.scan_stage("combined_monthly").select(
-        "month",
-        "grid_id",
-        "date",
-        pl.col(column_regex),
-    )
-
-    months = ds.select("month").unique().collect(engine="streaming").to_series().sort()
-
-    months_to_upload = [
-        month
-        for month in months
-        if not combined_storage.does_dataset_exist(f"stage=era5_spatially_imputed/month={month}")
-    ]
-
-    logger.info(
-        f"Found {len(months_to_upload)} months to process for spatial imputation.",
-    )
-
-    imputer = DailySpatialImputer(grid=grid, value_column_regex_selector=column_regex)
-
-    def process_month(month: str) -> None:
-        """Process spatial imputation for a specific month."""
-        logger.debug(f"Spatially imputing data for month: {month}")
-
-        ds_name = f"stage=era5_spatially_imputed/month={month}"
-        if combined_storage.does_dataset_exist(ds_name):
-            logger.debug(f"Dataset for month {month} already exists, skipping.")
-            return
-
-        month_df = ds.filter(pl.col("month") == month).collect(engine="streaming")
-
-        expected_length = month_df.select(pl.len()).to_series()[0]
-
-        imputed_month = imputer.impute(month_df).select(
-            "grid_id",
-            "date",
-            pl.col(column_regex),
-        )
-
-        actual_length = imputed_month.select(pl.len()).to_series()[0]
-
-        if actual_length != expected_length:
-            msg = f"Imputed month {month} has length {actual_length}, expected {expected_length}."
-            raise ValueError(msg)
-
-        combined_storage.write_to_destination(
-            imputed_month,
-            f"stage=era5_spatially_imputed/month={month}",
-        )
-
-    with ThreadPoolExecutor(8) as executor:
-        executor.map(process_month, months_to_upload)
-
-
-class DailySpatialImputer:
+class DailySpatialInterpolator:
     """
     Impute missing values in a DataFrame using spatial interpolation.
 
@@ -179,11 +112,3 @@ class DailySpatialImputer:
         return df_out.sort(["date", "grid_id"]).drop(
             columns_to_drop,
         )
-
-
-if __name__ == "__main__":
-    container = init_dependencies_from_env()
-    container.wire(modules=[__name__])
-    _main(
-        column_regex=r"^era5_land__.*$",
-    )
