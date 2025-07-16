@@ -73,90 +73,152 @@ configuration provided so that your code is checked before committing:
 
 ## Implementation
 
-This shows the overall process flow for the application.
+This shows the overall process flow for the application. More detail is provided on some of these
+areas in the document below.
 
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TB
   collect_station_data["Collect station data"]
-  collect_features["Collect features"]
-  impute_satellite["Impute satellite"]
+  collect_features["Collect and prepare features"]
+  impute_satellite["Impute satellite using ML"]
   train_pm25_model["Train PM2.5 model"]
   predict_pm25["Predict PM2.5"]
+  recombine_datasets["Combine collected, imputed, and station data"]
 
-  collect_features --> train_pm25_model
   collect_features --> impute_satellite
-  collect_features --> predict_pm25
 
-  impute_satellite --> train_pm25_model
-  impute_satellite --> predict_pm25
+  impute_satellite --> recombine_datasets
+  
+  recombine_datasets --> train_pm25_model
+  recombine_datasets --> predict_pm25
 
-  collect_station_data --> train_pm25_model
+  collect_features --> recombine_datasets
+  collect_station_data --> recombine_datasets
 
   train_pm25_model --> predict_pm25
 
 ```
 
-### Imputing data
+### Collect and prepare features
 
-This shows the data needed to impute the data.
+We collect and combine data for each month in the analysis period.
+
+Simple imputation that happens at this stage can include spatial or temporal imputation using
+nearest neighbour or interpolation.
 
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TB
-  direction TB
-
-  to_impute["`
-    **NASA Earth Data**
-    MERRA AOT
-    MERRA CO
-    OMI NO2
-  `"]
-  grid_to_impute{{"Grid"}}
-  gridded_to_impute["`
-    **Gridded NASA Earth Data**
-  `"]
-
-  gee_feature_sets["`
-    **GEE feature sets**
+  collect_gee_feature_sets{{"`
+    **Collect GEE feature sets**
+    *Regrids and processes data*
     TROPOMI CO
     TROPOMI NO2
     AOD*
-    Meteorology
-    Land cover type
+    ERA5 land data
+    ERA5 land cover type
     Elevation
+  `"}}
+
+  gee_feature_sets["**GEE feature sets**"]
+
+  collect_ned{{"`
+    **Collect NASA Earth Data**
+    MERRA AOT
+    MERRA CO
+    OMI NO2
+  `"}}
+  ned_regrid{{"Regrid"}}
+  ned_regridded["`
+    **Gridded NASA Earth Data**
   `"]
 
-  generated_feature_sets["`
-    **Generated feature sets**
+  static_datasets["`
+    **Static datasets**
+    India 10km grid
+    India 50km grid
+    Region clustering
+  `"]
+
+  combine_datasets{{"**Combine datasets**"}}
+
+  combined_datasets["**Combined datsets**"]
+
+  simple_imputation{{"`
+    **Impute minor missing data**
+    Spatial ERA5 land coastal
+  `"}}
+  simple_imputed_datasets["Combined w/ simple imputation"]
+
+  generate_features{{"`
+    **Generate features sets**
     Monsoon flag
-  `"]
+    Date related features
+    Moving averages
+    Combined features
+  `"}}
 
-  imputation{{Impute}}
+  prepared_features["Prepared features"]
 
-  imputed_data["`
-    **Imputed data**
-    TROPOMI NO2
-    TROPOMI CO
-    AOD
-  `"]
+  collect_gee_feature_sets --> gee_feature_sets
+  collect_ned --> ned_regrid --> ned_regridded
 
-  to_impute --> grid_to_impute --> gridded_to_impute
+  gee_feature_sets --> combine_datasets
+  ned_regridded --> combine_datasets
+  static_datasets --> combine_datasets
 
-  gee_feature_sets --> imputation
-  generated_feature_sets --> imputation
-  gridded_to_impute --> imputation
+  combine_datasets --> combined_datasets
 
+  combined_datasets --> simple_imputation
+  combined_datasets -->|extended| simple_imputed_datasets
+  simple_imputation --> simple_imputed_datasets
 
-  imputation --> imputed_data
+  simple_imputed_datasets --> generate_features
+  simple_imputed_datasets -->|extended| prepared_features
 
-  classDef missing fill:#630014,color:#ffc7d2;
+  generate_features --> prepared_features
 
-  class to_impute,grid_to_impute,feature_sets,grid_feature_sets missing
+  
 
 ```
 
-### Training the model
+### Impute satellite using ML
+
+This shows the processing that happens at the satellite imputation stage.
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+flowchart TB
+
+  prepared_features["`
+    **Prepared features**
+    From _Collect and prepare features_
+  `"]
+
+  subgraph for_each["`
+  **For each:** AOD, NO2, CO
+  `"]
+    subgraph imputation["ML imputation"]
+      sample{{"Sample prepared"}}
+      train{{"Train model"}}
+      impute{{"Impute missing"}}
+
+      sample --> train
+      train --> impute
+    end
+  end
+
+  combined["Combined with imputed"]
+
+  prepared_features --> sample  
+  prepared_features --> impute
+  prepared_features -->|extended| combined
+  impute --> combined
+
+```
+
+### Train PM2.5 model
 
 This shows the data needed to train the model.
 
@@ -222,10 +284,7 @@ flowchart TB
 
   training --> model
 
-  classDef missing fill:#630014,color:#ffc7d2;
   classDef from_elsewhere fill:#004517,color:#bdfcd2;
-
-  class nasa_earth_data,grid_nasa_earth_data,feature_sets,grid_feature_sets,station_data_cleaning missing
 
   class imputed_data from_elsewhere
 
