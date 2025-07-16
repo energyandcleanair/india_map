@@ -51,6 +51,7 @@ types-shapely = "^2.1.0.20250512"
 pyarrow = "^20.0.0"
 morefs = {extras = ["memfs"], version = "^0.2.2"}
 assertpy = "^1.1"
+scipy-stubs = "^1.16.0.2"
 
 [tool.poetry.group.experiment.dependencies]
 earthaccess = "^0.14.0"
