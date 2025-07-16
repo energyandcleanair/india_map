@@ -5,7 +5,7 @@ from __future__ import annotations
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import polars as pl
 import shapefile
@@ -33,6 +33,20 @@ class Grid:
     LON_COL = "lon"
     GRID_ID_COL = "grid_id"
 
+    ACTUAL_COLUMNS: ClassVar[set[str]] = {
+        GRID_ID_COL,
+        GEOM_COL,
+        LAT_COL,
+        LON_COL,
+    }
+
+    ORIGINAL_COLUMNS: ClassVar[set[str]] = {
+        GRID_ID_COL,
+        ORIGINAL_GEOM_COL,
+        ORIGINAL_X,
+        ORIGINAL_Y,
+    }
+
     BOUNDS_BORDER: float = 1.0
 
     _bounds_cache: tuple[Lon, Lat, Lon, Lat] | None = None
@@ -47,21 +61,10 @@ class Grid:
 
         """
         self.df = df.select(
-            self.GRID_ID_COL,
-            self.GEOM_COL,
-            self.LAT_COL,
-            self.LON_COL,
+            [pl.col(col) for col in self.ACTUAL_COLUMNS if col in df.columns],
         )
         self.df_original = df.select(
-            self.GRID_ID_COL,
-            self.ORIGINAL_GEOM_COL,
-            self.ORIGINAL_X,
-            self.ORIGINAL_Y,
-        ).with_columns(
-            [
-                pl.col(self.ORIGINAL_X).round(0).cast(float),
-                pl.col(self.ORIGINAL_Y).round(0).cast(float),
-            ],
+            [pl.col(col) for col in self.ORIGINAL_COLUMNS if col in df.columns],
         )
 
     @property
@@ -170,4 +173,11 @@ def load_grid_from_zip(path_to_shapefile_zip: Path) -> Grid:
             records.append(attrs)
 
         # Load into polars
-        return Grid(DataFrame(records))
+        return Grid(
+            DataFrame(records).with_columns(
+                [
+                    pl.col(Grid.ORIGINAL_X).round(0).cast(float),
+                    pl.col(Grid.ORIGINAL_Y).round(0).cast(float),
+                ],
+            ),
+        )
