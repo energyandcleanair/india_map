@@ -1,6 +1,7 @@
 """Combines monthly data from the archive storage into a single dataset."""
 
 from collections.abc import Collection
+from concurrent.futures import ThreadPoolExecutor
 
 from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
 from pm25ml.combiners.combine_planner import CombinePlan
@@ -39,23 +40,21 @@ class MonthlyCombiner:
         :param months: A collection of Arrow objects representing the months to combine.
         :param processors: A collection of ExportPipeline instances to process the data for.
         """
-        for desc in combine_descriptors:
+        # Filter descriptors that need combining in parallel
+        with ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(self._needs_combining, desc): desc for desc in combine_descriptors
+            }
+            targets_for_combining = [desc for future, desc in futures.items() if future.result()]
+
+        # Process each descriptor sequentially
+        for desc in targets_for_combining:
             month_short = desc.month_id
-            if self._needs_combining(
-                desc,
-            ):
-                # This needs to be all processors, not just the filtered ones.
-                self.archived_wide_combiner.combine(
-                    desc,
-                )
-                logger.info(
-                    f"Combined data for month {month_short} into wide format.",
-                )
-                self._validate_combined(desc)
-            else:
-                logger.info(
-                    f"Skipping combining for month {month_short} as it is already combined.",
-                )
+            self.archived_wide_combiner.combine(desc)
+            logger.info(
+                f"Combined data for month {month_short} into wide format.",
+            )
+            self._validate_combined(desc)
 
     def _needs_combining(self, desc: CombinePlan) -> bool:
         logger.debug(
@@ -89,19 +88,21 @@ class MonthlyCombiner:
             f"Validating final combined result with {expected_rows} "
             f"expected rows and {len(all_expected_columns)} expected columns",
         )
-        final_combined = self.combined_storage.read_dataframe(
+
+        final_combined_metadata = self.combined_storage.read_dataframe_metadata(
             result_subpath=f"stage=combined_monthly/month={month_short}",
         )
-
-        # Validate final combined result has expected rows and columns
-        if final_combined.shape[0] != expected_rows:
+        n_rows = final_combined_metadata.num_rows
+        if n_rows != expected_rows:
             msg = (
                 f"Expected {expected_rows} rows in the final combined result, "
-                f"but found {final_combined.shape[0]} rows."
+                f"but found {n_rows} rows."
             )
             raise MonthlyValidationError(msg)
 
-        missing = all_expected_columns - set(final_combined.columns)
+        actual_schema = final_combined_metadata.schema.to_arrow_schema()
+        actual_columns = set(actual_schema.names)
+        missing = all_expected_columns - set(actual_columns)
         if missing:
             msg = (
                 f"Expected columns {all_expected_columns} in the final combined result, "

@@ -74,7 +74,7 @@ def test__scan_stage__valid_stage__returns_lazyframe(in_memory_filesystem, examp
         lazy_frame = storage.scan_stage("valid_stage")
 
         mock_scan.assert_called_once_with(
-            f"{DESTINATION_BUCKET}/stage=valid_stage",
+            f"gs://{DESTINATION_BUCKET}/stage=valid_stage/",
             hive_partitioning=True,
         )
 

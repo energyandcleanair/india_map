@@ -3,8 +3,10 @@
 from typing import IO, cast
 
 import polars as pl
+import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
 from polars import DataFrame
+from pyarrow.parquet import FileMetaData
 
 from pm25ml.logging import logger
 
@@ -56,6 +58,22 @@ class CombinedStorage:
         with self.filesystem.open(parquet_file_path) as file:
             return pl.read_parquet(cast("IO[bytes]", file))
 
+    def read_dataframe_metadata(
+        self,
+        result_subpath: str,
+    ) -> FileMetaData:
+        """
+        Read the metadata DataFrame from the destination bucket.
+
+        :param result_subpath: The subpath in the destination bucket where the
+        metadata DataFrame is stored.
+        :return: The polars DataFrame containing metadata.
+        """
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+
+        parquet_file = pq.ParquetFile(parquet_file_path, filesystem=self.filesystem)
+        return parquet_file.metadata
+
     def does_dataset_exist(
         self,
         result_subpath: str,
@@ -80,7 +98,7 @@ class CombinedStorage:
         :param stage: The stage to scan.
         :return: A LazyFrame representing the scanned data.
         """
-        path = f"{self.destination_bucket}/stage={stage}"
+        path = f"gs://{self.destination_bucket}/stage={stage}/"
         return pl.scan_parquet(
             path,
             hive_partitioning=True,
