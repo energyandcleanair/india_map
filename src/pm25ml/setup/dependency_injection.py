@@ -20,10 +20,10 @@ from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.grid_loader import Grid, load_grid_from_zip
 from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES
-from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
-from pm25ml.combiners.combine_planner import CombinePlanner
+from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager
+from pm25ml.combiners.archive.combine_planner import CombinePlanner
+from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
-from pm25ml.combiners.combiner import MonthlyCombiner
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
@@ -154,7 +154,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     )
 
     monthly_combiner = providers.Singleton(
-        MonthlyCombiner,
+        MonthlyCombinerManager,
         combined_storage=combined_storage,
         archived_wide_combiner=archived_wide_combiner,
     )

@@ -2,10 +2,10 @@ from polars import DataFrame
 import pytest
 from unittest.mock import Mock, MagicMock
 from arrow import Arrow
-from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
-from pm25ml.combiners.combine_planner import CombinePlan
+from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
+from pm25ml.combiners.archive.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
-from pm25ml.combiners.combiner import MonthlyCombiner, MonthlyValidationError
+from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager, MonthlyValidationError
 from pm25ml.collectors.export_pipeline import PipelineConfig
 from pm25ml.hive_path import HivePath
 
@@ -90,7 +90,7 @@ def mock_pipeline_config():
 
 @pytest.fixture
 def monthly_combiner(in_memory_combined_storage, mock_archived_wide_combiner):
-    return MonthlyCombiner(
+    return MonthlyCombinerManager(
         combined_storage=in_memory_combined_storage,
         archived_wide_combiner=mock_archived_wide_combiner,
     )

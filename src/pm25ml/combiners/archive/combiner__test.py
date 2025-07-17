@@ -1,14 +1,14 @@
 """Unit tests for ArchiveWideCombiner."""
 
 from unittest.mock import MagicMock
-from arrow import Arrow, get
+from arrow import get
 import pytest
 from polars import DataFrame
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
-from pm25ml.combiners.combine_planner import CombinePlan
+from pm25ml.combiners.archive.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
-from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
+from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from morefs.memory import MemFS
 
 from pm25ml.hive_path import HivePath

@@ -1,10 +1,10 @@
-"""Combines monthly data from the archive storage into a single dataset."""
+"""Manages the combining of monthly data from the archive storage into a single dataset."""
 
 from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor
 
-from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
-from pm25ml.combiners.combine_planner import CombinePlan
+from pm25ml.combiners.archive.combine_planner import CombinePlan
+from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
 
@@ -13,7 +13,7 @@ class MonthlyValidationError(Exception):
     """An error raised when the combined monthly data does not match expectations."""
 
 
-class MonthlyCombiner:
+class MonthlyCombinerManager:
     """Combines monthly data from the archive storage into a single dataset."""
 
     def __init__(

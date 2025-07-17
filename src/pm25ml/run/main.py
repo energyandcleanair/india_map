@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from pm25ml.collectors.export_pipeline import (
         ExportPipeline,
     )
-    from pm25ml.combiners.combine_planner import CombinePlanner
-    from pm25ml.combiners.combiner import MonthlyCombiner
+    from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager
+    from pm25ml.combiners.archive.combine_planner import CombinePlanner
     from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 def _main(
     processors: Collection[ExportPipeline] = Provide[Pm25mlContainer.pipelines],
     collector: RawDataCollector = Provide[Pm25mlContainer.collector],
-    monthly_combiner: MonthlyCombiner = Provide[Pm25mlContainer.monthly_combiner],
+    monthly_combiner: MonthlyCombinerManager = Provide[Pm25mlContainer.monthly_combiner],
     combine_planner: CombinePlanner = Provide[Pm25mlContainer.combine_planner],
     spatial_imputation_manager: SpatialImputationManager = Provide[
         Pm25mlContainer.spatial_imputation_manager

@@ -6,7 +6,7 @@ from re import match
 from polars import DataFrame, Float32
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage, IngestDataAsset
-from pm25ml.combiners.combine_planner import CombinePlan
+from pm25ml.combiners.archive.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.logging import logger
 

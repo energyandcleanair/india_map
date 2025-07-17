@@ -1,6 +1,5 @@
 """Tests for the PipelineConfig class, ensuring its attributes and methods work as expected."""
 
-import pytest
 from pm25ml.collectors.export_pipeline import PipelineConfig, AvailableIdKeys
 
 

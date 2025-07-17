@@ -1,4 +1,15 @@
-"""CombineDescriptor for combining data for a specific month."""
+"""
+Planner for combining data for a specific month.
+
+It abstracts the logic for determining which data paths are needed to be combined
+for a given month:
+- Finding the paths that need to be merged
+- Handling missing data heuristics for datasets missing data
+
+It also provides information needed to validate the combined data by providing
+the expected columns and the number of rows that should be present in the final
+combined dataset for the month.
+"""
 
 from collections.abc import Collection
 from collections.abc import Set as AbstractSet

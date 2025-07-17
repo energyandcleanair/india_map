@@ -6,8 +6,6 @@ import pytest
 from morefs.memory import MemFS
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
-from pm25ml.combiners.archive_wide_combiner import ArchiveWideCombiner
-from pm25ml.combiners.combined_storage import CombinedStorage
 
 DESTINATION_BUCKET = "destination_bucket"
 
