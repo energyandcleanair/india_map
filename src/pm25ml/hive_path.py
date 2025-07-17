@@ -8,6 +8,19 @@ class HivePath:
     This class is used to extract metadata from the result subpath.
     """
 
+    @staticmethod
+    def from_args(**kwargs: str) -> "HivePath":
+        """
+        Create a HivePath from kwargs.
+
+        This will construct the path in the order that the args are passed in.
+
+        :param kwargs: Ordered key-value pairs representing the metadata.
+        :return: A HivePath instance.
+        """
+        result_subpath = "/".join(f"{key}={value}" for key, value in kwargs.items())
+        return HivePath(result_subpath=result_subpath)
+
     def __init__(self, result_subpath: str) -> None:
         """
         Initialize the PathWithMetadata with the result subpath.

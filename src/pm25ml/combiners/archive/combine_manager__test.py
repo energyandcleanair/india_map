@@ -24,9 +24,11 @@ def in_memory_combined_storage():
 
 @pytest.fixture
 def mock_archived_wide_combiner():
-    return MagicMock(
+    wide_combiner = MagicMock(
         spec=ArchiveWideCombiner,
     )
+    wide_combiner.STAGE_NAME = ArchiveWideCombiner.STAGE_NAME
+    return wide_combiner
 
 
 def create_valid_dataframe_for_month(month: Arrow, rows: int) -> DataFrame:

@@ -1,5 +1,6 @@
 """Manage the spatial imputation of data using a specified imputer."""
 
+from collections import deque
 from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor
 
@@ -46,7 +47,7 @@ class SpatialImputationManager:
         logger.info(
             f"Scanning combined monthly data for spatial imputation with regex: {column_regex}",
         )
-        ds = self.combined_storage.scan_stage("combined_monthly").select(
+        combined_dataset = self.combined_storage.scan_stage("combined_monthly").select(
             "month",
             "grid_id",
             "date",
@@ -56,22 +57,31 @@ class SpatialImputationManager:
         logger.info(
             "Checking if all expected months are present in the dataset we're going to impute for",
         )
-        self._check_all_months_present(ds)
+        self._check_all_months_present(combined_dataset)
 
-        expected_columns = ds.collect_schema().names()
-
-        months_to_upload = [
-            month
-            for month in self.months_as_ids
-            if self._needs_upload(
-                month=month,
-                expected_columns=expected_columns,
-            )
-        ]
+        expected_columns = combined_dataset.collect_schema().names()
+        months_to_upload = self._identify_months_to_upload(expected_columns)
 
         logger.info(
             f"Found {len(months_to_upload)} months to process for spatial imputation.",
         )
+        self._impute_all_months(
+            ds=combined_dataset,
+            months_to_upload=months_to_upload,
+        )
+
+        logger.info(
+            "Checking the results of spatial imputation",
+        )
+
+        self._validate_all(months_to_upload, expected_columns)
+
+    def _impute_all_months(
+        self,
+        ds: pl.LazyFrame,
+        months_to_upload: Collection[str],
+    ) -> None:
+        column_regex = self.spatial_imputer.value_column_regex_selector
 
         def process_month(month: Arrow) -> None:
             """Process spatial imputation for a specific month."""
@@ -103,15 +113,39 @@ class SpatialImputationManager:
         with ThreadPoolExecutor(8) as executor:
             executor.map(process_month, months_to_upload)
 
-        logger.info(
-            "Checking the results of spatial imputation",
-        )
+    def _validate_all(
+        self,
+        months_to_upload: Collection[str],
+        expected_columns: Collection[str],
+    ) -> None:
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(
+                lambda month: self._validate_result(
+                    month=month,
+                    expected_columns=expected_columns,
+                ),
+                months_to_upload,
+            )
 
-        for month in self.months_as_ids:
-            self._validate_result(month=month, expected_columns=expected_columns)
+            deque(results)
+
+    def _identify_months_to_upload(self, expected_columns: Collection[str]) -> Collection[str]:
+        with ThreadPoolExecutor() as executor:
+            months_to_upload = list(
+                executor.map(
+                    lambda month: month
+                    if self._needs_upload(
+                        month=month,
+                        expected_columns=expected_columns,
+                    )
+                    else None,
+                    self.months_as_ids,
+                ),
+            )
+        return [month for month in months_to_upload if month is not None]
 
     def _needs_upload(self, month: str, expected_columns: Collection[str]) -> bool:
-        logger.debug(f"Checking if month {month} needs upload")
+        logger.debug(f"Checking if spatial imputation month {month} needs upload")
         if not self.combined_storage.does_dataset_exist(
             f"stage={self.STAGE_NAME}/month={month}",
         ):

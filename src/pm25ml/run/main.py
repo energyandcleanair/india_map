@@ -19,17 +19,21 @@ if TYPE_CHECKING:
     )
     from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager
     from pm25ml.combiners.archive.combine_planner import CombinePlanner
+    from pm25ml.combiners.recombiner.recombiner import Recombiner
     from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 
 
 @inject
-def _main(
+def _main(  # noqa: PLR0913
     processors: Collection[ExportPipeline] = Provide[Pm25mlContainer.pipelines],
     collector: RawDataCollector = Provide[Pm25mlContainer.collector],
     monthly_combiner: MonthlyCombinerManager = Provide[Pm25mlContainer.monthly_combiner],
     combine_planner: CombinePlanner = Provide[Pm25mlContainer.combine_planner],
     spatial_imputation_manager: SpatialImputationManager = Provide[
         Pm25mlContainer.spatial_imputation_manager
+    ],
+    spatial_interpolation_recombiner: Recombiner = Provide[
+        Pm25mlContainer.spatial_interpolation_recombiner
     ],
 ) -> None:
     logger.info("Validating export pipeline config")
@@ -41,7 +45,16 @@ def _main(
     logger.info("Combining results from the archive storage")
     monthly_combiner.combine_for_months(combine_planner.plan(results))
 
+    logger.info("Imputing spatial data")
     spatial_imputation_manager.impute()
+    logger.info("Recombining combined data with spatial interpolation")
+    spatial_interpolation_recombiner.recombine(
+        stages=[
+            monthly_combiner.archived_wide_combiner.STAGE_NAME,
+            spatial_imputation_manager.STAGE_NAME,
+        ],
+        overwrite_columns=True,
+    )
 
 
 if __name__ == "__main__":

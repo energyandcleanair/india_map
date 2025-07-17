@@ -1,14 +1,20 @@
 """Handles storage for combined data."""
 
-from typing import IO, cast
+from __future__ import annotations
+
+from typing import IO, TYPE_CHECKING, cast
 
 import polars as pl
 import pyarrow.parquet as pq
-from fsspec import AbstractFileSystem
 from polars import DataFrame
-from pyarrow.parquet import FileMetaData
 
 from pm25ml.logging import logger
+
+if TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
+    from pyarrow.parquet import FileMetaData
+
+    from pm25ml.hive_path import HivePath
 
 
 class CombinedStorage:
@@ -28,7 +34,7 @@ class CombinedStorage:
         self.filesystem = filesystem
         self.destination_bucket = destination_bucket
 
-    def write_to_destination(self, table: DataFrame, result_subpath: str) -> None:
+    def write_to_destination(self, table: DataFrame, result_subpath: str | HivePath) -> None:
         """
         Write the processed DataFrame to the destination bucket.
 
@@ -36,7 +42,7 @@ class CombinedStorage:
         :param result_subpath: The subpath in the destination bucket where the
         table will be written.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/data.parquet"
 
         with self.filesystem.open(parquet_file_path, "wb") as file:
             # Convert the DataFrame to Parquet format and write it to the file
@@ -45,22 +51,23 @@ class CombinedStorage:
 
     def read_dataframe(
         self,
-        result_subpath: str,
+        result_subpath: str | HivePath,
     ) -> DataFrame:
         """
         Read the processed DataFrame from the destination bucket.
 
         :param result_subpath: The subpath in the destination bucket where the
-        DataFrame is stored.
+        DataFrame is stored. Can be a string or a HivePath.
         :return: The polars DataFrame read from the Parquet file.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/data.parquet"
+
         with self.filesystem.open(parquet_file_path) as file:
             return pl.read_parquet(cast("IO[bytes]", file))
 
     def read_dataframe_metadata(
         self,
-        result_subpath: str,
+        result_subpath: str | HivePath,
     ) -> FileMetaData:
         """
         Read the metadata DataFrame from the destination bucket.
@@ -76,7 +83,7 @@ class CombinedStorage:
 
     def does_dataset_exist(
         self,
-        result_subpath: str,
+        result_subpath: str | HivePath,
     ) -> bool:
         """
         Check if the dataset exists in the destination bucket.

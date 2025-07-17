@@ -24,6 +24,7 @@ from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager
 from pm25ml.combiners.archive.combine_planner import CombinePlanner
 from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
@@ -190,6 +191,13 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         SpatialImputationManager,
         combined_storage=combined_storage,
         spatial_imputer=daily_spatial_interpolator,
+        months=config.months,
+    )
+
+    spatial_interpolation_recombiner = providers.Singleton(
+        Recombiner,
+        combined_storage=combined_storage,
+        new_stage_name="combined_with_spatial_interpolation",
         months=config.months,
     )
 

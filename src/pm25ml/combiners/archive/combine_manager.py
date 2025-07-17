@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pm25ml.combiners.archive.combine_planner import CombinePlan
 from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.hive_path import HivePath
 from pm25ml.logging import logger
 
 
@@ -61,7 +62,10 @@ class MonthlyCombinerManager:
             f"Checking if data for month {desc.month_id} needs to be combined.",
         )
         exists_in_storage = self.combined_storage.does_dataset_exist(
-            result_subpath=f"stage=combined_monthly/month={desc.month_id}",
+            HivePath.from_args(
+                stage=self.archived_wide_combiner.STAGE_NAME,
+                month=desc.month_id,
+            ),
         )
         if not exists_in_storage:
             return True
@@ -85,12 +89,15 @@ class MonthlyCombinerManager:
         all_expected_columns = set(desc.expected_columns)
         month_short = desc.month_id
         logger.debug(
-            f"Validating final combined result with {expected_rows} "
-            f"expected rows and {len(all_expected_columns)} expected columns",
+            f"Validating combined result for {month_short}: expecting {expected_rows} "
+            f"rows and {len(all_expected_columns)} columns",
         )
 
         final_combined_metadata = self.combined_storage.read_dataframe_metadata(
-            result_subpath=f"stage=combined_monthly/month={month_short}",
+            HivePath.from_args(
+                stage=self.archived_wide_combiner.STAGE_NAME,
+                month=month_short,
+            ),
         )
         n_rows = final_combined_metadata.num_rows
         if n_rows != expected_rows:

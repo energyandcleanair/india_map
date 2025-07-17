@@ -7,6 +7,7 @@ import pytest
 from morefs.memory import MemFS
 
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.hive_path import HivePath
 
 DESTINATION_BUCKET = "destination_bucket"
 
@@ -40,6 +41,25 @@ def test__write_to_destination__valid_input__writes_parquet(
     assert in_memory_filesystem.exists(result_path)
 
 
+def test__write_to_destination__hivepath_input__writes_parquet(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = CombinedStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Use a HivePath format
+    hive_path = HivePath.from_args(stage="result_path", test="test")
+
+    # Write the table to the destination using the HivePath
+    storage.write_to_destination(example_table, hive_path)
+
+    # Validate that the Parquet file was written to the temp directory
+    result_path = os.path.join(DESTINATION_BUCKET, "stage=result_path", "test=test", "data.parquet")
+    assert in_memory_filesystem.exists(result_path)
+
+
 def test__read_dataframe__valid_input__returns_dataframe(
     in_memory_filesystem, example_table
 ) -> None:
@@ -53,6 +73,28 @@ def test__read_dataframe__valid_input__returns_dataframe(
 
     # Read the DataFrame
     dataframe = storage.read_dataframe("result_path")
+
+    # Validate the DataFrame
+    assert_frame_equal(dataframe, example_table)
+
+
+def test__read_dataframe__hivepath_input__returns_dataframe(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = CombinedStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+    # Use a HivePath format
+    hive_path = HivePath.from_args(
+        stage="result_path",
+    )
+
+    # Write the table to the destination
+    storage.write_to_destination(example_table, hive_path)
+
+    # Read the DataFrame using the HivePath
+    dataframe = storage.read_dataframe(hive_path)
 
     # Validate the DataFrame
     assert_frame_equal(dataframe, example_table)
@@ -80,3 +122,52 @@ def test__scan_stage__valid_stage__returns_lazyframe(in_memory_filesystem, examp
 
         # Validate that the returned object is a LazyFrame
         assert lazy_frame is mock_lazy_frame
+
+
+def test__does_dataset_exist__dataset_written__returns_true(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = CombinedStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Initially, the dataset should not exist
+    assert not storage.does_dataset_exist("result_path")
+
+    # Write the table to the destination
+    storage.write_to_destination(example_table, "result_path")
+
+    # Now, the dataset should exist
+    assert storage.does_dataset_exist("result_path")
+
+
+def test__does_dataset_exist__dataset_not_written__returns_false(in_memory_filesystem) -> None:
+    storage = CombinedStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Ensure the dataset does not exist
+    assert not storage.does_dataset_exist("non_existent_path")
+
+
+def test__does_dataset_exist__hivepath_input__returns_true(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = CombinedStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Use a HivePath format
+    hive_path = f"gs://{DESTINATION_BUCKET}/result_path/"
+
+    # Initially, the dataset should not exist
+    assert not storage.does_dataset_exist(hive_path)
+
+    # Write the table to the destination using the HivePath
+    storage.write_to_destination(example_table, hive_path)
+
+    # Now, the dataset should exist
+    assert storage.does_dataset_exist(hive_path)
