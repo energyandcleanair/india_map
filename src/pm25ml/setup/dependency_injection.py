@@ -28,6 +28,7 @@ from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
+from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
 
 LOCAL_GRID_ZIP_PATH = "./assets/grid_india_10km_shapefiles.zip"
@@ -89,6 +90,12 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     """
 
     config = providers.Configuration(strict=True)
+
+    temporal_config = providers.Singleton(
+        TemporalConfig,
+        start_date=config.start_month,
+        end_date=config.end_month,
+    )
 
     gee_auth = providers.Resource(
         _init_gee,
@@ -172,13 +179,12 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         in_memory_grid=in_memory_grid,
         archive_storage=archive_storage,
         feature_planner=feature_planner,
-        years=config.years,
-        months=config.months,
+        temporal_config=temporal_config,
     )
 
     combine_planner = providers.Singleton(
         CombinePlanner,
-        months=config.months,
+        temporal_config=temporal_config,
     )
 
     daily_spatial_interpolator = providers.Singleton(
@@ -191,14 +197,14 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         SpatialImputationManager,
         combined_storage=combined_storage,
         spatial_imputer=daily_spatial_interpolator,
-        months=config.months,
+        temporal_config=temporal_config,
     )
 
     spatial_interpolation_recombiner = providers.Singleton(
         Recombiner,
         combined_storage=combined_storage,
         new_stage_name="combined_with_spatial_interpolation",
-        months=config.months,
+        temporal_config=temporal_config,
     )
 
 
@@ -219,32 +225,8 @@ def init_dependencies_from_env() -> Pm25mlContainer:
 
     container.config.gcp.gee.india_shapefile_asset.from_env("INDIA_SHAPEFILE_ASSET")
 
-    container.config.start_month_as_str.from_env("START_MONTH")
-    container.config.end_month_as_str.from_env("END_MONTH")
-
-    container.config.start_month.from_value(
-        arrow.get(container.config.start_month_as_str()),
-    )
-    container.config.end_month.from_value(
-        arrow.get(container.config.end_month_as_str()),
-    )
-    container.config.years.from_value(
-        list(
-            range(
-                container.config.start_month().year,
-                container.config.end_month().year + 1,
-            ),
-        ),
-    )
-    container.config.months.from_value(
-        list(
-            arrow.Arrow.range(
-                "month",
-                start=container.config.start_month(),
-                end=container.config.end_month(),
-            ),
-        ),
-    )
+    container.config.start_month.from_env("START_MONTH", as_=lambda x: arrow.get(x, "YYYY-MM-DD"))
+    container.config.end_month.from_env("END_MONTH", as_=lambda x: arrow.get(x, "YYYY-MM-DD"))
 
     container.config.spatial_computation_value_column_regex.from_env(
         "SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX",

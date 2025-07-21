@@ -7,6 +7,8 @@ from pyarrow.parquet import FileMetaData
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES
 from pyarrow import schema
 
+from pm25ml.setup.date_params import TemporalConfig
+
 
 @pytest.fixture
 def fake_data_with_missing():
@@ -89,9 +91,6 @@ def test__impute__all_months_available__processes_all_months(
     # Mock dependencies
     combined_storage_mock = MagicMock()
 
-    # Mock data
-    months = [Arrow(2023, 1, 1), Arrow(2023, 2, 1)]
-
     combined_storage_mock.scan_stage.return_value = fake_data_with_missing.lazy()
     combined_storage_mock.does_dataset_exist.side_effect = lambda ds_name: False
     combined_storage_mock.read_dataframe_metadata.side_effect = create_mock_file_metadata
@@ -100,7 +99,10 @@ def test__impute__all_months_available__processes_all_months(
     manager = SpatialImputationManager(
         combined_storage=combined_storage_mock,
         spatial_imputer=mock_imputer_fills_missing,
-        months=months,
+        temporal_config=TemporalConfig(
+            start_date=Arrow(2023, 1, 1),
+            end_date=Arrow(2023, 2, 1),
+        ),
     )
 
     # Call the method under test
@@ -138,7 +140,10 @@ def test__impute__missing_months__raises_value_error(
     manager = SpatialImputationManager(
         combined_storage=combined_storage_mock,
         spatial_imputer=mock_imputer,
-        months=months,
+        temporal_config=TemporalConfig(
+            start_date=Arrow(2023, 1, 1),
+            end_date=Arrow(2023, 3, 1),
+        ),
     )
 
     # Call the method under test and assert exception
@@ -169,7 +174,10 @@ def test__impute__some_months_already_uploaded__skips_those_months(
     manager = SpatialImputationManager(
         combined_storage=combined_storage_mock,
         spatial_imputer=mock_imputer_fills_missing,
-        months=months,
+        temporal_config=TemporalConfig(
+            start_date=Arrow(2023, 1, 1),
+            end_date=Arrow(2023, 2, 1),
+        ),
     )
 
     # Call the method under test

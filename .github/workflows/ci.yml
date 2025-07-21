@@ -19,6 +19,7 @@ env:
   DEVELOP_DEPENDENCY_GROUPS: main,dev
   PRODUCTION_DEPENDENCY_GROUPS: main
   GOOGLE_SERVICE_ACCOUNT_NAME: crea-india-map-github-actions@vital-form-455413-p8.iam.gserviceaccount.com
+  ORCHESTRATOR_SERVICE_ACCOUNT_NAME: pm25ml-orchestrator@vital-form-455413-p8.iam.gserviceaccount.com
   GCP_PROJECT: vital-form-455413-p8
   WORKFLOW_IDENTITY_PROVIDER: 'projects/716476042137/locations/global/workloadIdentityPools/github-wif-pool/providers/crea-org-actions-provider'
   DOCKER_REGISTRY_ROOT: europe-west1-docker.pkg.dev
@@ -215,4 +216,12 @@ jobs:
       - name: Deploy latest job specs
         id: deploy-job-spec
         run: |
-          gcloud run jobs replace infra/pm25ml.yaml
+          gcloud run jobs replace infra/run.yaml
+      - name: Deploy workflow
+        id: deploy-workflow
+        run: |
+          gcloud workflows deploy pm25ml-orchestrator \
+            --source=infra/workflow.yaml \
+            --location=europe-west1 \
+            --service-account=${{ env.ORCHESTRATOR_SERVICE_ACCOUNT_NAME }} \
+            --quiet

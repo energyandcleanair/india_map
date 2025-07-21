@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from pm25ml.collectors.gee.gee_export_pipeline import GeePipelineConstructor
     from pm25ml.collectors.grid_loader import Grid
     from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
+    from pm25ml.setup.date_params import TemporalConfig
 
 
 MODIS_LAND_ALLOW_MISSING_FROM_YEAR = Arrow.now().year - 2
@@ -35,8 +36,7 @@ def define_pipelines(  # noqa: PLR0913
     in_memory_grid: Grid,
     archive_storage: IngestArchiveStorage,
     feature_planner: GriddedFeatureCollectionPlanner,
-    years: Iterable[int],
-    months: Iterable[Arrow],
+    temporal_config: TemporalConfig,
 ) -> Collection[ExportPipeline]:
     """Define export pipelines for the PM2.5 ML project."""
 
@@ -206,8 +206,12 @@ def define_pipelines(  # noqa: PLR0913
             ),
         ]
 
-    yearly_pipelines = [pipeline for year in years for pipeline in _yearly_pipelines(year)]
-    monthly_pipelines = [pipeline for month in months for pipeline in _monthly_pipelines(month)]
+    yearly_pipelines = [
+        pipeline for year in temporal_config.years for pipeline in _yearly_pipelines(year)
+    ]
+    monthly_pipelines = [
+        pipeline for month in temporal_config.months for pipeline in _monthly_pipelines(month)
+    ]
     static_pipelines = _static_pipelines()
 
     return [

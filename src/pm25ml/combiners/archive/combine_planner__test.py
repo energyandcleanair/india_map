@@ -8,6 +8,8 @@ from pm25ml.hive_path import HivePath
 from collections.abc import Collection
 from dataclasses import dataclass
 
+from pm25ml.setup.date_params import TemporalConfig
+
 
 def test__CombinePlan__month_id():
     desc = CombinePlan(
@@ -42,8 +44,11 @@ def test__CombinePlan__days_in_month():
 
 
 def test__plan__valid_results__returns_combine_plans():
-    months = [Arrow(2023, 1, 1), Arrow(2023, 2, 1)]
-    planner = CombinePlanner(months)
+    temporal_config = TemporalConfig(
+        start_date=Arrow(2023, 1, 1),
+        end_date=Arrow(2023, 2, 1),
+    )
+    planner = CombinePlanner(temporal_config)
 
     results: Collection[UploadResult] = [
         UploadResult(
@@ -149,8 +154,11 @@ def test__plan__valid_results__returns_combine_plans():
 
 
 def test__plan__empty_results__returns_empty_plans():
-    months = [Arrow(2023, 1, 1), Arrow(2023, 2, 1)]
-    planner = CombinePlanner(months)
+    temporal_config = TemporalConfig(
+        start_date=Arrow(2023, 1, 1),
+        end_date=Arrow(2023, 2, 1),
+    )
+    planner = CombinePlanner(temporal_config)
 
     results: Collection[UploadResult] = []
 
@@ -173,8 +181,11 @@ def test__plan__empty_results__returns_empty_plans():
 
 
 def test__plan__missing_yearly_dataset__returns_last_previously_available():
-    months = [Arrow(2023, 1, 1), Arrow(2023, 2, 1)]
-    planner = CombinePlanner(months)
+    temporal_config = TemporalConfig(
+        start_date=Arrow(2023, 1, 1),
+        end_date=Arrow(2023, 2, 1),
+    )
+    planner = CombinePlanner(temporal_config)
 
     results: Collection[UploadResult] = [
         UploadResult(

@@ -22,6 +22,7 @@ from pm25ml.collectors.collector import UploadResult
 from pm25ml.collectors.export_pipeline import MissingDataHeuristic
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES
 from pm25ml.hive_path import HivePath
+from pm25ml.setup.date_params import TemporalConfig
 
 
 @dataclass(frozen=True)
@@ -63,13 +64,13 @@ class CombinePlan:
 class CombinePlanner:
     """Planner for combining data for multiple months."""
 
-    def __init__(self, months: Collection[Arrow]) -> None:
+    def __init__(self, temporal_config: TemporalConfig) -> None:
         """
         Initialize the CombinePlanner.
 
         :param months: A collection of Arrow objects representing the months to combine.
         """
-        self.months = months
+        self.months = temporal_config.months
 
     def plan(
         self,

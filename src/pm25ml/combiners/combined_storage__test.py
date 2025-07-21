@@ -15,6 +15,7 @@ DESTINATION_BUCKET = "destination_bucket"
 @pytest.fixture
 def example_table():
     data = {
+        "month": ["2023-01", "2023-01", "2023-02"],
         "col1": [1, 2, 3],
         "col2": [4, 5, 6],
     }

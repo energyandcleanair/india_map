@@ -1,0 +1,57 @@
+# pm25ml-orchestrator.yaml
+main:
+  steps:
+    - run_pm25ml:
+        call: googleapis.run.v1.namespaces.jobs.run
+        args:
+          name: namespaces/vital-form-455413-p8/jobs/pm25ml
+          location: europe-west1
+        result: run_job_result
+
+    - start_feature_generation:
+        call: googleapis.batch.v1.projects.locations.jobs.create
+        args:
+          parent: projects/vital-form-455413-p8/locations/europe-west1
+          jobId: ${"pm25ml-feature-" + string(int(sys.now()))}
+          body:
+            allocationPolicy:
+              serviceAccount:
+                email: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
+              instances:
+                - policy:
+                    machineType: n4-standard-8     # 8 vCPU / 32 GiB
+                    provisioningModel: SPOT        # pre-emptible
+            taskGroups:
+              - taskCount: 1
+                taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
+                        commands:
+                          - python
+                          - -m
+                          - pm25ml.feature_generation.generate
+                  computeResource:
+                    memoryMib: 32768               # 32 GiB
+                    cpuMilli: 8000                 # 8 vCPU
+            logsPolicy:
+              destination: CLOUD_LOGGING
+            env:
+              - name: GCP_PROJECT
+                value: vital-form-455413-p8
+              - name: COMBINED_BUCKET_NAME
+                value: crea-pm25ml-combined
+              - name: SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX
+                value: "^era5_land__.*$"
+              - name: TQDM_DISABLE
+                value: "1"
+              - name: START_MONTH
+                value: 2018-08
+              - name: END_MONTH
+                value: 2025-03
+        result: batch_job_result
+
+    - done:
+        return:
+          cloudRunExecution: ${run_job_result.name}
+          batchJobName:     ${batch_job_result.name}

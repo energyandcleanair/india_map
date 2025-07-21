@@ -11,6 +11,7 @@ from pm25ml.collectors.validate_configuration import VALID_COUNTRIES
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.logging import logger
+from pm25ml.setup.date_params import TemporalConfig
 
 
 class SpatialImputationValidationError(Exception):
@@ -26,7 +27,7 @@ class SpatialImputationManager:
         self,
         combined_storage: CombinedStorage,
         spatial_imputer: DailySpatialInterpolator,
-        months: Collection[Arrow],
+        temporal_config: TemporalConfig,
     ) -> None:
         """
         Initialize the SpatialImputationManager.
@@ -37,7 +38,7 @@ class SpatialImputationManager:
         """
         self.combined_storage = combined_storage
         self.spatial_imputer = spatial_imputer
-        self.months = months
+        self.months = temporal_config.months
         self.months_as_ids = [month.format("YYYY-MM") for month in self.months]
 
     def impute(self) -> None:

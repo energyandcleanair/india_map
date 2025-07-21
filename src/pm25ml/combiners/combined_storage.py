@@ -110,3 +110,26 @@ class CombinedStorage:
             path,
             hive_partitioning=True,
         )
+
+    def sink_stage(
+        self,
+        lf: pl.LazyFrame,
+        stage: str,
+    ) -> None:
+        """
+        Sink the LazyFrame to the specified stage in the destination bucket.
+
+        :param lf: The LazyFrame to sink.
+        :param stage: The stage to sink the LazyFrame to.
+        """
+        path = f"gs://{self.destination_bucket}/stage={stage}/"
+        scheme = pl.PartitionParted(
+            base_path=path,
+            by=["month"],
+            include_key=False,
+        )
+        lf.sink_parquet(
+            path=scheme,
+            mkdir=True,
+            engine="streaming",
+        )

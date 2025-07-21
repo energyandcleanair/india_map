@@ -32,6 +32,10 @@ spec:
                   value: "^era5_land__.*$"
                 - name: TQDM_DISABLE
                   value: "1"
+                - name: START_MONTH
+                  value: 2018-08
+                - name: END_MONTH
+                  value: 2025-03
                 - name: EARTHDATA_USERNAME
                   valueFrom:
                     secretKeyRef:

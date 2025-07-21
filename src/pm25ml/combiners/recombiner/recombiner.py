@@ -10,6 +10,7 @@ from arrow import Arrow
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.hive_path import HivePath
 from pm25ml.logging import logger
+from pm25ml.setup.date_params import TemporalConfig
 
 
 class Recombiner:
@@ -27,7 +28,7 @@ class Recombiner:
         self,
         *,
         combined_storage: CombinedStorage,
-        months: Collection[Arrow],
+        temporal_config: TemporalConfig,
         new_stage_name: str,
     ) -> None:
         """
@@ -38,7 +39,7 @@ class Recombiner:
         """
         self.combined_storage = combined_storage
         self.new_stage_name = new_stage_name
-        self.months = months
+        self.months = temporal_config.months
 
     def recombine(
         self,

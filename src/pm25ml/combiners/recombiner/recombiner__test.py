@@ -7,6 +7,8 @@ from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.hive_path import HivePath
 from morefs.memory import MemFS
 
+from pm25ml.setup.date_params import TemporalConfig
+
 
 @pytest.fixture
 def in_memory_combined_storage():
@@ -18,9 +20,13 @@ def in_memory_combined_storage():
 
 @pytest.fixture
 def recombiner(in_memory_combined_storage):
+    temporal_config = TemporalConfig(
+        start_date=Arrow(2023, 1, 1),
+        end_date=Arrow(2023, 2, 1),
+    )
     return Recombiner(
         combined_storage=in_memory_combined_storage,
-        months=[Arrow(2023, 1, 1), Arrow(2023, 2, 1)],
+        temporal_config=temporal_config,
         new_stage_name="recombined_stage",
     )
 
