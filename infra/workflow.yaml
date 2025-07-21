@@ -31,24 +31,24 @@ main:
                           - python
                           - -m
                           - pm25ml.feature_generation.generate
+                        environment:
+                          - name: GCP_PROJECT
+                            value: vital-form-455413-p8
+                          - name: COMBINED_BUCKET_NAME
+                            value: crea-pm25ml-combined
+                          - name: SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX
+                            value: "^era5_land__.*$"
+                          - name: TQDM_DISABLE
+                            value: "1"
+                          - name: START_MONTH
+                            value: "2018-08-01"
+                          - name: END_MONTH
+                            value: "2025-03-01"
                   computeResource:
                     memoryMib: 32768               # 32 GiB
                     cpuMilli: 8000                 # 8 vCPU
             logsPolicy:
               destination: CLOUD_LOGGING
-            env:
-              - name: GCP_PROJECT
-                value: vital-form-455413-p8
-              - name: COMBINED_BUCKET_NAME
-                value: crea-pm25ml-combined
-              - name: SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX
-                value: "^era5_land__.*$"
-              - name: TQDM_DISABLE
-                value: "1"
-              - name: START_MONTH
-                value: "2018-08-01"
-              - name: END_MONTH
-                value: "2025-03-01"
         result: batch_job_result
 
     - done:
