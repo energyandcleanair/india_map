@@ -42,6 +42,8 @@ main:
                           TQDM_DISABLE: "1"
                           START_MONTH: "2018-08-01"
                           END_MONTH: "2025-03-01"
+                          POLARS_VERBOSE: "1"
+                          GCS_REQUEST_LOGGING: "1"
                   computeResource:
                     memoryMib: 32768               # 32 GiB
                     cpuMilli: 8000                 # 8 vCPU
