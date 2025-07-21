@@ -16,6 +16,12 @@ def _in_cloud_run_job() -> bool:
     )
 
 
+def _in_cloud_batch_job() -> bool:
+    return bool(
+        os.getenv("BATCH_TASK_INDEX"),
+    )
+
+
 class _CloudRunJsonFormatter(JsonFormatter):
     def formatTime(self, record: LogRecord, datefmt: str | None = None) -> str:  # noqa: ARG002, N802
         # Format the timestamp as RFC 3339 with microsecond precision
@@ -31,7 +37,7 @@ stream_handler = StreamHandler(sys.stdout)
 
 formatter: Formatter
 
-if _in_cloud_run_job():
+if _in_cloud_run_job() or _in_cloud_batch_job():
     # Production: structured JSON logs
     formatter = _CloudRunJsonFormatter(
         "%(asctime)s %(levelname)s %(threadName)s %(message)s "
