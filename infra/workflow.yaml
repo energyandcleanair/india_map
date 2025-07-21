@@ -31,19 +31,17 @@ main:
                           - python
                           - -m
                           - pm25ml.feature_generation.generate
-                        environment:
-                          - name: GCP_PROJECT
-                            value: vital-form-455413-p8
-                          - name: COMBINED_BUCKET_NAME
-                            value: crea-pm25ml-combined
-                          - name: SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX
-                            value: "^era5_land__.*$"
-                          - name: TQDM_DISABLE
-                            value: "1"
-                          - name: START_MONTH
-                            value: "2018-08-01"
-                          - name: END_MONTH
-                            value: "2025-03-01"
+                      environment:
+                        variables:
+                          GCP_PROJECT: vital-form-455413-p8
+                          INDIA_SHAPEFILE_ASSET: projects/vital-form-455413-p8
+                          CSV_BUCKET_NAME: crea-ee-csv-buffer
+                          INGEST_ARCHIVE_BUCKET_NAME: crea-pm25ml-ingest-archive
+                          COMBINED_BUCKET_NAME: crea-pm25ml-combined
+                          SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX: "^era5_land__.*$"
+                          TQDM_DISABLE: "1"
+                          START_MONTH: "2018-08-01"
+                          END_MONTH: "2025-03-01"
                   computeResource:
                     memoryMib: 32768               # 32 GiB
                     cpuMilli: 8000                 # 8 vCPU
