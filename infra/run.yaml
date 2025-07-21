@@ -33,9 +33,9 @@ spec:
                 - name: TQDM_DISABLE
                   value: "1"
                 - name: START_MONTH
-                  value: 2018-08
+                  value: 2018-08-01
                 - name: END_MONTH
-                  value: 2025-03
+                  value: 2025-03-01
                 - name: EARTHDATA_USERNAME
                   valueFrom:
                     secretKeyRef:
