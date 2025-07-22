@@ -44,9 +44,14 @@ class GridExportPipeline(ExportPipeline):
 
     def upload(self) -> None:
         """Upload the grid data to the ingest archive."""
-        # Select the grid_id, lon, and lat columns from the grid DataFrame
+        # Select the grid_id, id_50km, lon, and lat columns from the grid DataFrame
         table = self.grid.df.select(
-            [self.grid.GRID_ID_COL, self.grid.LON_COL, self.grid.LAT_COL],
+            [
+                self.grid.GRID_ID_COL,
+                self.grid.GRID_ID_50KM_COL,
+                self.grid.LON_COL,
+                self.grid.LAT_COL,
+            ],
         )
         # Write the DataFrame to the destination bucket
         self.archive_storage.write_to_destination(

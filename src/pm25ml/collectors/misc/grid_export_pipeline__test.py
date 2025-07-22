@@ -22,6 +22,7 @@ def mock_grid():
         DataFrame(
             {
                 "grid_id": ["01", "02", "03", "04"],
+                "id_50km": [1001, 1002, 1003, 1004],
                 "lon": [0.5, 1.5, 2.5, 3.5],
                 "lat": [2.5, 3.5, 4.5, 5.5],
                 "extra_col": [10, 20, 30, 40],
@@ -44,7 +45,7 @@ def test__GridExportPipeline__get_config_metadata__returns_correct_metadata(
     assert metadata.result_subpath == "mock/subpath"
     assert metadata.expected_rows == mock_grid.n_rows
     assert metadata.id_columns == {"grid_id"}
-    assert metadata.value_columns == {"lon", "lat"}
+    assert metadata.value_columns == {"id_50km", "lon", "lat"}
 
 
 def test__GridExportPipeline__upload__writes_correct_data(mock_grid, mock_archive_storage):
@@ -63,6 +64,7 @@ def test__GridExportPipeline__upload__writes_correct_data(mock_grid, mock_archiv
     expected_data = DataFrame(
         {
             "grid_id": ["01", "02", "03", "04"],
+            "id_50km": [1001, 1002, 1003, 1004],
             "lon": [0.5, 1.5, 2.5, 3.5],
             "lat": [2.5, 3.5, 4.5, 5.5],
         }

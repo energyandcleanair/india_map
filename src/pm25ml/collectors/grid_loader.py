@@ -32,7 +32,7 @@ class Grid:
     LAT_COL = "lat"
     LON_COL = "lon"
     GRID_ID_COL = "grid_id"
-    GRID_ID_50KM_COL = "50km"
+    GRID_ID_50KM_COL = "id_50km"
 
     ACTUAL_COLUMNS: ClassVar[set[str]] = {
         GRID_ID_COL,
