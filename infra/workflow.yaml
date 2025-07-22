@@ -44,6 +44,7 @@ main:
                           END_MONTH: "2025-03-01"
                           POLARS_VERBOSE: "1"
                           GCS_REQUEST_LOGGING: "1"
+                          GCSFS_DEBUG: "DEBUG"
                           POLARS_TEMP_DIR: "/app/tmp/polars"
                   computeResource:
                     memoryMib: 32768               # 32 GiB
