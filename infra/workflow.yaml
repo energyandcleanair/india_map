@@ -1,4 +1,3 @@
-# pm25ml-orchestrator.yaml
 main:
   steps:
     - run_pm25ml:
