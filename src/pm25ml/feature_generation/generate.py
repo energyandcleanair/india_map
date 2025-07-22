@@ -76,6 +76,7 @@ def _main(
                 f"{col_name}__mean_r7d": weekly_rolling_mean(col_name),
                 f"{col_name}__mean_r365d": annual_rolling_mean(col_name),
                 f"{col_name}__mean_year": annual_average(col_name),
+                f"{col_name}__whole_mean": pl.col(col_name).mean().over("grid_id"),
             }
 
         lf_for_year = (
@@ -93,7 +94,6 @@ def _main(
             .with_columns(
                 pl.col("date").dt.year().alias("year"),
             )
-            .filter((pl.col("year") == year) | (pl.col("year") == year - 1))
             .with_columns(
                 day_of_year=pl.col("date").dt.ordinal_day(),
                 era5_land__relative_humidity_computed=relative_humidity,
