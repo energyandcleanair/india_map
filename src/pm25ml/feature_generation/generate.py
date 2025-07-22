@@ -112,6 +112,8 @@ def _main(
                 **all_averages("era5_land__total_precipitation_sum"),
                 **all_averages("era5_land__surface_net_thermal_radiation_sum"),
                 **all_averages("era5_land__surface_pressure"),
+                **all_averages("era5_land__leaf_area_index_high_vegetation"),
+                **all_averages("era5_land__leaf_area_index_low_vegetation"),
                 **all_averages("omi_no2__no2"),
                 day_of_year=pl.col("date").dt.ordinal_day(),
                 cos_day_of_year=(pl.col("day_of_year") * 2 * math.pi / 365.0).cos(),
