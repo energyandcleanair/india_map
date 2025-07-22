@@ -1,12 +1,15 @@
 """A module for setting up the PM2.5 ML project using Dependency Injection."""
 
-from collections.abc import Generator
+from __future__ import annotations
+
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import arrow
 import ee
 import google.auth
+import requests
 from dependency_injector import containers, providers
 from ee.featurecollection import FeatureCollection
 from gcsfs import GCSFileSystem
@@ -30,6 +33,9 @@ from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputati
 from pm25ml.logging import logger
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 LOCAL_GRID_ZIP_PATH = "./assets/grid_india_10km_shapefiles.zip"
 
@@ -234,11 +240,24 @@ def init_dependencies_from_env() -> Pm25mlContainer:
 
     container.init_resources()
 
-    creds, _ = google.auth.default()
-    service_account_email = getattr(creds, "service_account_email", None)
+    def try_getting_user_info() -> str | None:
+        try:
+            return requests.get(
+                "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+                headers={"Metadata-Flavor": "Google"},
+                timeout=5,
+            ).text
+        except requests.RequestException as e:
+            logger.debug(f"Failed to get user info: {e}")
+            return None
 
     logger.debug(
-        f"GCS is using service account email: {service_account_email}",
+        f"Google Cloud account from metadata server: {try_getting_user_info()}",
+    )
+    creds, _ = google.auth.default()
+    service_account_email = getattr(creds, "service_account_email", None)
+    logger.debug(
+        f"Google Cloud account from auth: {service_account_email}",
     )
 
     return container
