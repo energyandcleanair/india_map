@@ -23,6 +23,10 @@ def _main(
     recombiner: Recombiner = Provide[Pm25mlContainer.spatial_interpolation_recombiner],
     temporal_config: TemporalConfig = Provide[Pm25mlContainer.temporal_config],
 ) -> None:
+    # Test writing random file
+    test_table = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    combined_storage.write_to_destination(test_table, "test/random")
+
     lf = combined_storage.scan_stage(recombiner.new_stage_name)
     for year in temporal_config.years:
         logger.info(f"Generating features for year: {year}")
