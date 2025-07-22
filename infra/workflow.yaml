@@ -48,8 +48,3 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
         result: batch_job_result
-
-    - done:
-        return:
-          cloudRunExecution: ${run_job_result.name}
-          batchJobName:     ${batch_job_result.name}
