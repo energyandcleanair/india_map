@@ -225,5 +225,5 @@ jobs:
             --location=europe-west1 \
             --service-account=${{ env.ORCHESTRATOR_SERVICE_ACCOUNT_NAME }} \
             --call-log-level=LOG_ALL_CALLS \
-            --execution-history-level=DETAILED \
+            --execution-history-level=execution-history-detailed \
             --quiet
