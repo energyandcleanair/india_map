@@ -71,6 +71,13 @@ def _main(
         def annual_average(col_name: str) -> pl.Expr:
             return pl.col(col_name).mean().over(["grid_id", "year"])
 
+        def all_averages(col_name: str) -> dict[str, pl.Expr]:
+            return {
+                f"{col_name}__mean_r7d": weekly_rolling_mean(col_name),
+                f"{col_name}__mean_r365d": annual_rolling_mean(col_name),
+                f"{col_name}__mean_year": annual_average(col_name),
+            }
+
         lf_for_year = (
             lf.filter(pl.col("month").is_in(months_in_window))
             .with_columns(
@@ -88,65 +95,26 @@ def _main(
             )
             .filter((pl.col("year") == year) | (pl.col("year") == year - 1))
             .with_columns(
-                era5_land__c_relative_humidity=relative_humidity,
-                era5_land__c_wind_degree=wind_degree,
+                day_of_year=pl.col("date").dt.ordinal_day(),
+                era5_land__relative_humidity_computed=relative_humidity,
+                era5_land__c_wind_degree_computed=wind_degree,
             )
             .with_columns(
-                merra_aot__aot__7d=weekly_rolling_mean("merra_aot__aot"),
-                merra_aot__aot__365d=annual_rolling_mean("merra_aot__aot"),
-                merra_co__co__7d=weekly_rolling_mean("merra_co__co"),
-                merra_co__co__365d=annual_rolling_mean("merra_co__co"),
-                merra_co__co__grid_year_mean=annual_average("merra_co__co"),
-                merra_co_top__co__7d=weekly_rolling_mean("merra_co_top__co"),
-                merra_co_top__co__365d=annual_rolling_mean("merra_co_top__co"),
-                merra_co_top__co__grid_year_mean=annual_average("merra_co_top__co"),
-                era5_land__temperature_2m__7d=weekly_rolling_mean("era5_land__temperature_2m"),
-                era5_land__temperature_2m__grid_year_mean=annual_average(
-                    "era5_land__temperature_2m",
-                ),
-                era5_land__dewpoint_temperature_2m__7d=weekly_rolling_mean(
-                    "era5_land__dewpoint_temperature_2m",
-                ),
-                era5_land__dewpoint_temperature_2m__grid_year_mean=annual_average(
-                    "era5_land__dewpoint_temperature_2m",
-                ),
-                era5_land__c_relative_humidity__7d=weekly_rolling_mean(
-                    "era5_land__c_relative_humidity",
-                ),
-                era5_land__c_relative_humidity__365d=annual_rolling_mean(
-                    "era5_land__c_relative_humidity",
-                ),
-                era5_land__c_wind_degree__7d=weekly_rolling_mean("era5_land__c_wind_degree"),
-                era5_land__c_wind_degree__365d=annual_rolling_mean("era5_land__c_wind_degree"),
-                era5_land__u_component_of_wind_10m__7d=weekly_rolling_mean(
-                    "era5_land__u_component_of_wind_10m",
-                ),
-                era5_land__u_component_of_wind_10m__365d=annual_rolling_mean(
-                    "era5_land__u_component_of_wind_10m",
-                ),
-                era5_land__v_component_of_wind_10m__7d=weekly_rolling_mean(
-                    "era5_land__v_component_of_wind_10m",
-                ),
-                era5_land__v_component_of_wind_10m__365d=annual_rolling_mean(
-                    "era5_land__v_component_of_wind_10m",
-                ),
-                era5_land__total_precipitation_sum__7d=weekly_rolling_mean(
-                    "era5_land__total_precipitation_sum",
-                ),
-                era5_land__total_precipitation_sum__365d=annual_rolling_mean(
-                    "era5_land__total_precipitation_sum",
-                ),
-                era5_land__surface_net_thermal_radiation_sum__7d=weekly_rolling_mean(
-                    "era5_land__surface_net_thermal_radiation_sum",
-                ),
-                era5_land__surface_net_thermal_radiation_sum__365d=annual_rolling_mean(
-                    "era5_land__surface_net_thermal_radiation_sum",
-                ),
-                era5_land__surface_pressure__7d=weekly_rolling_mean("era5_land__surface_pressure"),
-                era5_land__surface_pressure__365d=annual_rolling_mean(
-                    "era5_land__surface_pressure",
-                ),
+                **all_averages("merra_aot__aot"),
+                **all_averages("merra_co__co"),
+                **all_averages("merra_co_top__co"),
+                **all_averages("era5_land__temperature_2m"),
+                **all_averages("era5_land__dewpoint_temperature_2m"),
+                **all_averages("era5_land__relative_humidity_computed"),
+                **all_averages("era5_land__c_wind_degree_computed"),
+                **all_averages("era5_land__u_component_of_wind_10m"),
+                **all_averages("era5_land__v_component_of_wind_10m"),
+                **all_averages("era5_land__total_precipitation_sum"),
+                **all_averages("era5_land__surface_net_thermal_radiation_sum"),
+                **all_averages("era5_land__surface_pressure"),
+                **all_averages("omi_no2__no2"),
                 day_of_year=pl.col("date").dt.ordinal_day(),
+                cos_day_of_year=(pl.col("day_of_year") * 2 * math.pi / 365.0).cos(),
                 monsoon_season=monsoon_season,
             )
             .filter(
