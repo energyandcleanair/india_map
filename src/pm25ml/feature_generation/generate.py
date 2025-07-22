@@ -67,9 +67,9 @@ def _main(
                 pl.col(col_name)
                 .fill_nan(None)
                 .rolling_mean(7, min_samples=1)
-                .over("grid_id")
                 .backward_fill()
                 .forward_fill()
+                .over("grid_id")
             )
 
         def annual_rolling_mean(col_name: str) -> pl.Expr:
@@ -77,9 +77,9 @@ def _main(
                 pl.col(col_name)
                 .fill_nan(None)
                 .rolling_mean(365, min_samples=1)
-                .over("grid_id")
                 .backward_fill()
                 .forward_fill()
+                .over("grid_id")
             )
 
         def annual_average(col_name: str) -> pl.Expr:
