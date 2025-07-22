@@ -33,6 +33,7 @@ def main():
     best_params_XGB, hyper_tuning_metrics = find_hyper_params(
         df_sampled, outer_cv[0], tree_method='hist')
 
+    # cross checked, these best parameters from the code are the same as in the paper
     # best_params_XGB = {'subsample': 0.8, 'n_estimators': 1000, 'min_child_weight': 1,
     #                    'max_depth': 20, 'lambda': 100, 'gamma': 0.8, 'eta': 0.1, 'booster': 'gbtree'}
 
@@ -106,9 +107,11 @@ def get_data_for_imputation(input_file, supergrid_file, training=True):
     # 1. Read data for imputation model and keep needed columns
     df = pd.read_parquet(input_file)
 
-    # NOTE: not checked against paper, the column list was created based on the
-    # list of columns used in the prediction step
-    # TODO check against the list of features in the paper
+    # NOTE: this column list was created based on the
+    # list of columns used in the prediction step.
+    # Compared to the paper, the following columns are missing: temp_annual,
+    # pressure_rolling, pressure_annual. The following are used but mentioned
+    # in the paper: low_veg_annual, high_veg_annual, cos_day_of_year
     aod_imput_cols = ['grid_id', 'date', 'aot_daily', 'co_daily', 'v_wind', 'u_wind',
                       'rainfall', 'temp', 'pressure', 'thermal_radiation', 'low_veg',
                       'high_veg', 'dewpoint_temp', 'aod', 'elevation', 'water', 'shurub',
