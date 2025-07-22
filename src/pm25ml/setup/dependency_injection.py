@@ -233,4 +233,12 @@ def init_dependencies_from_env() -> Pm25mlContainer:
     )
 
     container.init_resources()
+
+    creds, _ = google.auth.default()
+    service_account_email = getattr(creds, "service_account_email", None)
+
+    logger.debug(
+        f"GCS is using service account email: {service_account_email}",
+    )
+
     return container
