@@ -63,10 +63,24 @@ def _main(
         )
 
         def weekly_rolling_mean(col_name: str) -> pl.Expr:
-            return pl.col(col_name).fill_nan(None).rolling_mean(7, min_samples=1).over("grid_id")
+            return (
+                pl.col(col_name)
+                .fill_nan(None)
+                .rolling_mean(7, min_samples=1)
+                .over("grid_id")
+                .backward_fill()
+                .forward_fill()
+            )
 
         def annual_rolling_mean(col_name: str) -> pl.Expr:
-            return pl.col(col_name).fill_nan(None).rolling_mean(365, min_samples=1).over("grid_id")
+            return (
+                pl.col(col_name)
+                .fill_nan(None)
+                .rolling_mean(365, min_samples=1)
+                .over("grid_id")
+                .backward_fill()
+                .forward_fill()
+            )
 
         def annual_average(col_name: str) -> pl.Expr:
             return pl.col(col_name).fill_nan(None).mean().over(["grid_id", "year"])
