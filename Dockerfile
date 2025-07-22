@@ -61,18 +61,20 @@ RUN poetry run pip install dist/*.whl
 # Stage 3: Minimal runtime image
 FROM python:3.12-slim AS runtime
 
-# Security: run as non-root user
+# Security: create a non-root user to run the application
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
+# Create working directory and give ownership to the non-root user
 WORKDIR /app
+RUN chown appuser:appuser /app
 VOLUME /app/.config/gcloud
 
 # Copy only what's needed from previous stages
 COPY --from=deps /app/.venv/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-
-# We also need any assets or static files that the application uses.
 COPY ./assets/ ./assets/
 
+# Set the user to the non-root user, this ensures that the app can't write to the earlier
+# stages' files but can read them.
 USER appuser
 
 # Entrypoint runs the main data download script

@@ -9,4 +9,14 @@ services:
       - ${HOME}/.config/gcloud/application_default_credentials.json:/app/.config/google-creds.json:ro
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/.config/google-creds.json
-
+  pm25ml-generate-features:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/app/.config/google-creds.json:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/.config/google-creds.json
+    command: ["python", "-m", "pm25ml.feature_generation.generate"]
