@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from arrow import Arrow
 
 from pm25ml.collectors.export_pipeline import MissingDataHeuristic, PipelineConsumerBehaviour
-from pm25ml.collectors.grid_export_pipeline import GridExportPipeline
+from pm25ml.collectors.misc.grid_export_pipeline import GridExportPipeline
 from pm25ml.collectors.ned.data_reader_merra import MerraDataReader
 from pm25ml.collectors.ned.data_reader_omno2d import Omno2dReader
 from pm25ml.collectors.ned.data_retriever_harmony import HarmonySubsetterDataRetriever

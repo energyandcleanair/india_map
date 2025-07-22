@@ -39,7 +39,7 @@ class GridExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
             expected_rows=self.grid.n_rows,
             id_columns={"grid_id"},
-            value_columns={"lon", "lat"},
+            value_columns={"id_50km", "lon", "lat"},
         )
 
     def upload(self) -> None:

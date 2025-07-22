@@ -32,9 +32,11 @@ class Grid:
     LAT_COL = "lat"
     LON_COL = "lon"
     GRID_ID_COL = "grid_id"
+    GRID_ID_50KM_COL = "50km"
 
     ACTUAL_COLUMNS: ClassVar[set[str]] = {
         GRID_ID_COL,
+        GRID_ID_50KM_COL,
         GEOM_COL,
         LAT_COL,
         LON_COL,
@@ -42,6 +44,7 @@ class Grid:
 
     ORIGINAL_COLUMNS: ClassVar[set[str]] = {
         GRID_ID_COL,
+        GRID_ID_50KM_COL,
         ORIGINAL_GEOM_COL,
         ORIGINAL_X,
         ORIGINAL_Y,
@@ -110,7 +113,11 @@ class Grid:
 #   - grid_india_10km.shx
 #   - grid_india_10km.dbf
 #   - grid_india_10km.prj
-def load_grid_from_zip(path_to_shapefile_zip: Path) -> Grid:
+def load_grid_from_zip(
+    *,
+    path_to_shapefile_zip: Path,
+    path_to_50km_csv: Path,
+) -> Grid:
     """Load the grid from a file."""
     # Extract ZIP to temp directory
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -172,12 +179,27 @@ def load_grid_from_zip(path_to_shapefile_zip: Path) -> Grid:
 
             records.append(attrs)
 
+        grid_id_to_50km_grids = pl.read_csv(
+            path_to_50km_csv,
+            has_header=True,
+        ).select(
+            pl.col("grid_id_10km").alias(Grid.GRID_ID_COL),
+            pl.col("grid_id_50km").alias(Grid.GRID_ID_50KM_COL),
+        )
+
         # Load into polars
         return Grid(
-            DataFrame(records).with_columns(
+            DataFrame(records)
+            .with_columns(
                 [
                     pl.col(Grid.ORIGINAL_X).round(0).cast(float),
                     pl.col(Grid.ORIGINAL_Y).round(0).cast(float),
                 ],
+            )
+            .join(
+                grid_id_to_50km_grids,
+                on=Grid.GRID_ID_COL,
+                how="left",
+                coalesce=True,
             ),
         )

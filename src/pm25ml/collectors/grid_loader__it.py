@@ -37,14 +37,20 @@ EXPECTED_ORIGINAL_POLYGON = (
 EXPECTED_CENTROID_X = 5296162.5154203195
 EXPECTED_CENTROID_Y = 4016391.9136853046
 
+EXPECTED_50KM_GRID_ID = 2494
+
 
 def test__load_grid_from_zip__valid_shapefile_zip__grid_loaded():
     """Test loading a grid from a valid shapefile zip file."""
     # Arrange
     path_to_shapefile_zip = Path("./assets/grid_india_10km_shapefiles.zip")
+    path_to_csv_50km = Path("./assets/grid_intersect_with_50km.csv")
 
     # Act
-    grid = load_grid_from_zip(path_to_shapefile_zip)
+    grid = load_grid_from_zip(
+        path_to_shapefile_zip=path_to_shapefile_zip,
+        path_to_50km_csv=path_to_csv_50km,
+    )
 
     assert isinstance(grid, Grid)
 
@@ -73,6 +79,13 @@ def test__load_grid_from_zip__valid_shapefile_zip__grid_loaded():
 
     # Check that the sampled GRID ID has a polygon close to the expected one
     sample_row = grid.df.filter(grid.df["grid_id"] == SAMPLE_GRID_ID)
+
+    grid_id_50km = sample_row["id_50km"].item()
+    assert grid_id_50km == EXPECTED_50KM_GRID_ID, (
+        f"Expected 50km grid ID {EXPECTED_50KM_GRID_ID}, "
+        f"but got {grid_id_50km} for grid ID {SAMPLE_GRID_ID}"
+    )
+
     polygon_wkt = sample_row["geometry_wkt"].item()
     expected_wkt: Polygon = cast(Polygon, load_wkt(EXPECTED_COVNERTED_POLYGON))
     actual_wkt = load_wkt(polygon_wkt)
@@ -109,6 +122,14 @@ def test__load_grid_from_zip__valid_shapefile_zip__grid_loaded():
     assert df_original["original_x"].dtype == Float64
     assert "original_y" in df_original.columns
     assert df_original["original_y"].dtype == Float64
+
+    original_grid_id_50km = df_original.filter(df_original["grid_id"] == SAMPLE_GRID_ID)[
+        "id_50km"
+    ].item()
+    assert original_grid_id_50km == EXPECTED_50KM_GRID_ID, (
+        f"Expected 50km grid ID {EXPECTED_50KM_GRID_ID}, "
+        f"but got {original_grid_id_50km} for grid ID {SAMPLE_GRID_ID}"
+    )
 
     # Check that the original polygon matches the expected one
     original_polygon_wkt = df_original.filter(df_original["grid_id"] == SAMPLE_GRID_ID)[

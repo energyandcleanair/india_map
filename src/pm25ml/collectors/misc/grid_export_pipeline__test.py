@@ -6,7 +6,7 @@ from morefs.memory import MemFS
 
 from pm25ml.collectors.grid_loader import Grid
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
-from pm25ml.collectors.grid_export_pipeline import GridExportPipeline
+from pm25ml.collectors.misc.grid_export_pipeline import GridExportPipeline
 
 
 @pytest.fixture

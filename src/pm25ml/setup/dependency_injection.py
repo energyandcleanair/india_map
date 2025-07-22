@@ -37,7 +37,8 @@ from pm25ml.setup.pipelines import define_pipelines
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-LOCAL_GRID_ZIP_PATH = "./assets/grid_india_10km_shapefiles.zip"
+LOCAL_GRID_ZIP_PATH = Path("./assets/grid_india_10km_shapefiles.zip")
+LOCAL_GRID_50KM_MAPPING_CSV_PATH = Path("./assets/grid_intersect_with_50km.csv")
 
 
 @contextmanager
@@ -84,7 +85,8 @@ def _load_india_grid_reference_asset(india_shapefile_asset: str) -> FeatureColle
 def _load_in_memory_grid() -> Grid:
     logger.debug("Loading in-memory grid from local zip file: %s", LOCAL_GRID_ZIP_PATH)
     return load_grid_from_zip(
-        Path(LOCAL_GRID_ZIP_PATH),
+        path_to_shapefile_zip=LOCAL_GRID_ZIP_PATH,
+        path_to_50km_csv=LOCAL_GRID_50KM_MAPPING_CSV_PATH,
     )
 
 
