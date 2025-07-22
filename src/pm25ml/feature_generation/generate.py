@@ -76,7 +76,7 @@ def _main(
                 f"{col_name}__mean_r7d": weekly_rolling_mean(col_name),
                 f"{col_name}__mean_r365d": annual_rolling_mean(col_name),
                 f"{col_name}__mean_year": annual_average(col_name),
-                f"{col_name}__whole_mean": pl.col(col_name).mean().over("grid_id"),
+                f"{col_name}__mean_all": pl.col(col_name).mean().over("grid_id"),
             }
 
         lf_for_year = (
