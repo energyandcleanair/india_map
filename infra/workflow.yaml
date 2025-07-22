@@ -1,13 +1,13 @@
 main:
   steps:
-    - run_pm25ml:
+    - collect_data_and_combine:
         call: googleapis.run.v1.namespaces.jobs.run
         args:
           name: namespaces/vital-form-455413-p8/jobs/pm25ml
           location: europe-west1
         result: run_job_result
 
-    - start_feature_generation:
+    - generate_features:
         call: googleapis.batch.v1.projects.locations.jobs.create
         args:
           parent: projects/vital-form-455413-p8/locations/europe-west1
@@ -48,7 +48,7 @@ main:
               destination: CLOUD_LOGGING
         result: batch_job_result
 
-    - run_aod_sampling:
+    - sample_aod:
         call: googleapis.run.v1.namespaces.jobs.run
         args:
           name: namespaces/vital-form-455413-p8/jobs/pm25ml
