@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from pyarrow import Schema, float32, float64, int64, large_string
 
+from pm25ml.collectors.export_pipeline import ValueColumnType
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
@@ -200,7 +201,7 @@ class ArchivedFileValidator:
                 )
                 raise IncorrectColumnTypeError(msg)
 
-        for value_column in result.value_columns:
+        for value_column, value_type in result.value_column_type_map.items():
             try:
                 actual_value_column = actual_schema.field(value_column)
             except KeyError as exc:
@@ -210,7 +211,12 @@ class ArchivedFileValidator:
                 )
                 raise MissingValueColumnError(msg) from exc
 
-            allowed_value_types = {float64(), float32()}
+            valid_types = {
+                ValueColumnType.FLOAT: [float64(), float32()],
+                ValueColumnType.INT: [int64()],
+            }
+
+            allowed_value_types = valid_types[value_type]
             if actual_value_column.type not in allowed_value_types:
                 msg = (
                     f"Expected '{value_column}' column to be of type of {allowed_value_types} in "

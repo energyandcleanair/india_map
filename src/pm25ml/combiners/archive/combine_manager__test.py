@@ -84,7 +84,7 @@ def mock_missing_rows_archived_wide_combiner(
 def mock_pipeline_config():
     return PipelineConfig(
         id_columns={"date", "grid_id"},
-        value_columns={"value1"},
+        value_column_type_map={"value1"},
         result_subpath="country=india/dataset=test_dataset/month=2023-01",
         expected_rows=33074 * 31,
     )

@@ -14,6 +14,7 @@ from pm25ml.collectors.export_pipeline import (
     MissingDataHeuristic,
     PipelineConfig,
     PipelineConsumerBehaviour,
+    ValueColumnType,
 )
 
 
@@ -38,7 +39,7 @@ def test__validate_result_schema__valid_schema__no_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns={"value_column"},
+            value_column_type_map={"value_column": ValueColumnType.FLOAT},
         ),
         completeness=DataCompleteness.COMPLETE,
         error=None,
@@ -61,7 +62,9 @@ def test__validate_result_schema__invalid_row_count__raises_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns={"value_column"},
+            value_column_type_map={
+                "value_column": ValueColumnType.FLOAT,
+            },
         ),
         completeness=DataCompleteness.COMPLETE,
         error=None,
@@ -93,7 +96,9 @@ def test__validate_result_schema__missing_column__raises_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns={"value_column"},
+            value_column_type_map={
+                "value_column": ValueColumnType.FLOAT,
+            },
         ),
         completeness=DataCompleteness.COMPLETE,
         error=None,
@@ -127,7 +132,9 @@ def test__validate_result_schema__invalid_grid_column_type__raises_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns={"value_column"},
+            value_column_type_map={
+                "value_column": ValueColumnType.FLOAT,
+            },
         ),
         completeness=DataCompleteness.COMPLETE,
         error=None,
@@ -152,7 +159,7 @@ def test__validate_result_schema__file_missing__raises_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns={"value_column"},
+            value_column_type_map={"value_column": ValueColumnType.FLOAT},
         ),
         completeness=DataCompleteness.COMPLETE,
         error=None,
@@ -177,7 +184,7 @@ def test__validate_result_schema__missing_but_allowed__no_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns=set(),
+            value_column_type_map=dict(),
             consumer_behaviour=PipelineConsumerBehaviour(
                 missing_data_heuristic=MissingDataHeuristic.COPY_LATEST_AVAILABLE_BEFORE
             ),
@@ -210,7 +217,9 @@ def test__validate_result_schema__invalid_date_column_type__raises_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns={"value_column"},
+            value_column_type_map={
+                "value_column": ValueColumnType.FLOAT,
+            },
         ),
         completeness=DataCompleteness.COMPLETE,
         error=None,
@@ -244,7 +253,9 @@ def test__validate_result_schema__invalid_value_column__raises_error():
             result_subpath="path/to/result",
             expected_rows=100,
             id_columns={"grid_id", "date"},
-            value_columns={"value_column"},
+            value_column_type_map={
+                "value_column": ValueColumnType.FLOAT,
+            },
         ),
         completeness=DataCompleteness.COMPLETE,
         error=None,
@@ -268,7 +279,9 @@ def test__needs_upload__missing_in_archive__returns_true():
         result_subpath="path/to/result",
         expected_rows=100,
         id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+        value_column_type_map={
+            "value_column": ValueColumnType.FLOAT,
+        },
     )
 
     assert validator.needs_upload(expected_result) is True
@@ -295,7 +308,9 @@ def test__needs_upload__validation_fails__returns_true():
         result_subpath="path/to/result",
         expected_rows=100,
         id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+        value_column_type_map={
+            "value_column": ValueColumnType.FLOAT,
+        },
     )
 
     assert validator.needs_upload(expected_result) is True
@@ -322,7 +337,9 @@ def test__needs_upload__validation_passes__returns_false():
         result_subpath="path/to/result",
         expected_rows=100,
         id_columns={"grid_id", "date"},
-        value_columns={"value_column"},
+        value_column_type_map={
+            "value_column": ValueColumnType.FLOAT,
+        },
     )
 
     assert validator.needs_upload(expected_result) is False

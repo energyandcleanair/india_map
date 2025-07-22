@@ -84,7 +84,7 @@ class CombinePlanner:
         all_value_columns = {
             f"{result.pipeline_config.hive_path.require_key('dataset')}__{column}"
             for result in results
-            for column in result.pipeline_config.value_columns
+            for column in result.pipeline_config.value_column_type_map
         }
 
         all_expected_columns = all_id_columns | all_value_columns

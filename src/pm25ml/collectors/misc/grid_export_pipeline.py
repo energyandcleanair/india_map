@@ -1,7 +1,7 @@
 """Export pipeline for grid data to the ingest archive."""
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
-from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig
+from pm25ml.collectors.export_pipeline import ExportPipeline, PipelineConfig, ValueColumnType
 from pm25ml.collectors.grid_loader import Grid
 
 
@@ -39,7 +39,11 @@ class GridExportPipeline(ExportPipeline):
             result_subpath=self.result_subpath,
             expected_rows=self.grid.n_rows,
             id_columns={"grid_id"},
-            value_columns={"id_50km", "lon", "lat"},
+            value_column_type_map={
+                "id_50km": ValueColumnType.INT,
+                "lon": ValueColumnType.FLOAT,
+                "lat": ValueColumnType.FLOAT,
+            },
         )
 
     def upload(self) -> None:

@@ -94,6 +94,21 @@ class MissingDataHeuristic(Enum):
         self.allows_missing = allows_missing
 
 
+class ValueColumnType(Enum):
+    """
+    Represents the type of value columns in the export pipeline.
+
+    This is used to specify the type of value columns in the export pipeline.
+    """
+
+    FLOAT = "float"
+    INT = "int"
+
+    def __str__(self) -> str:
+        """Return the string representation of the value column type."""
+        return self.value
+
+
 @dataclass(frozen=True)
 class PipelineConfig:
     """
@@ -112,7 +127,7 @@ class PipelineConfig:
     """
     The expected ID columns in the result.
     """
-    value_columns: set[str]
+    value_column_type_map: dict[str, ValueColumnType]
     """
     The expected value columns in the result.
     """
@@ -134,7 +149,7 @@ class PipelineConfig:
 
         :return: A set of all columns in the result.
         """
-        return self.id_columns.union(self.value_columns)
+        return self.id_columns.union(self.value_column_type_map.keys())
 
     @property
     def hive_path(self) -> HivePath:
@@ -153,6 +168,15 @@ class PipelineConfig:
         :return: True if the consumer behaviour allows missing data, False otherwise.
         """
         return self.consumer_behaviour.missing_data_heuristic.allows_missing
+
+    @property
+    def value_columns(self) -> set[str]:
+        """
+        Get the value columns in the result.
+
+        :return: A set of value columns in the result.
+        """
+        return set(self.value_column_type_map.keys())
 
 
 class MissingDataError(Exception):

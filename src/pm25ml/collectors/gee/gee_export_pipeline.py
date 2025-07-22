@@ -16,6 +16,7 @@ from pm25ml.collectors.export_pipeline import (
     MissingDataError,
     PipelineConfig,
     PipelineConsumerBehaviour,
+    ValueColumnType,
 )
 from pm25ml.logging import logger
 
@@ -89,7 +90,10 @@ class GeeExportPipeline(ExportPipeline):
         return PipelineConfig(
             result_subpath=self.result_subpath,
             id_columns=self.plan.expected_id_columns,
-            value_columns=self.plan.expected_value_columns,
+            value_column_type_map=dict.fromkeys(
+                self.plan.expected_value_columns,
+                ValueColumnType.FLOAT,
+            ),
             expected_rows=self.plan.expected_n_rows,
             consumer_behaviour=self.pipeline_consumer_behaviour,
         )

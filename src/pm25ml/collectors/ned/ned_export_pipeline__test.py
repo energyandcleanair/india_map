@@ -7,6 +7,7 @@ import xarray as xr
 from polars.testing import assert_frame_equal
 from polars import DataFrame
 
+from pm25ml.collectors.export_pipeline import ValueColumnType
 from pm25ml.collectors.grid_loader import Grid
 from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
@@ -313,7 +314,7 @@ def test__NedExportPipeline__export_result__matches_expected_format_and_values()
 
     assert result.result_subpath == "mock/subpath"
     assert result.id_columns == {"date", "grid_id"}
-    assert result.value_columns == {"mock_var_target"}
+    assert result.value_column_type_map == {"mock_var_target": ValueColumnType.FLOAT}
     assert result.expected_rows == 4
 
 

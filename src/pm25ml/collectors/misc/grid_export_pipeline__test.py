@@ -4,6 +4,7 @@ from polars import DataFrame
 import polars as pl
 from morefs.memory import MemFS
 
+from pm25ml.collectors.export_pipeline import ValueColumnType
 from pm25ml.collectors.grid_loader import Grid
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
 from pm25ml.collectors.misc.grid_export_pipeline import GridExportPipeline
@@ -45,7 +46,11 @@ def test__GridExportPipeline__get_config_metadata__returns_correct_metadata(
     assert metadata.result_subpath == "mock/subpath"
     assert metadata.expected_rows == mock_grid.n_rows
     assert metadata.id_columns == {"grid_id"}
-    assert metadata.value_columns == {"id_50km", "lon", "lat"}
+    assert metadata.value_column_type_map == {
+        "id_50km": ValueColumnType.INT,
+        "lon": ValueColumnType.FLOAT,
+        "lat": ValueColumnType.FLOAT,
+    }
 
 
 def test__GridExportPipeline__upload__writes_correct_data(mock_grid, mock_archive_storage):

@@ -5,7 +5,7 @@ import pytest
 from polars import DataFrame, Int64
 from polars.testing import assert_frame_equal
 
-from pm25ml.collectors.export_pipeline import MissingDataError
+from pm25ml.collectors.export_pipeline import MissingDataError, ValueColumnType
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
 
@@ -387,6 +387,9 @@ def test_GeeExportPipeline_export_result(
     # Validate the ExportResult
     assert export_result.result_subpath == "mock/result/path"
     assert export_result.id_columns == example_feature_plan.expected_id_columns
+    assert export_result.value_column_type_map == {
+        col: ValueColumnType.FLOAT for col in example_feature_plan.expected_value_columns
+    }
     assert export_result.value_columns == example_feature_plan.expected_value_columns
     assert export_result.expected_rows == example_feature_plan.expected_n_rows
 

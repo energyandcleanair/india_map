@@ -14,6 +14,7 @@ from pm25ml.collectors.export_pipeline import (
     ExportPipeline,
     PipelineConfig,
     PipelineConsumerBehaviour,
+    ValueColumnType,
 )
 from pm25ml.collectors.ned.data_retriever_raw import RawEarthAccessDataRetriever
 from pm25ml.collectors.ned.errors import NedMissingDataError
@@ -261,7 +262,10 @@ class NedExportPipeline(ExportPipeline):
         return PipelineConfig(
             result_subpath=self.result_subpath,
             id_columns={"date", "grid_id"},
-            value_columns=set(self.dataset_descriptor.variable_mapping.values()),
+            value_column_type_map=dict.fromkeys(
+                self.dataset_descriptor.variable_mapping.values(),
+                ValueColumnType.FLOAT,
+            ),
             expected_rows=self._grid.n_rows * self.dataset_descriptor.days_in_range,
             consumer_behaviour=self.consumer_behaviour,
         )
