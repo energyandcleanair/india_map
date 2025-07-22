@@ -63,20 +63,20 @@ def _main(
         )
 
         def weekly_rolling_mean(col_name: str) -> pl.Expr:
-            return pl.col(col_name).rolling_mean(7, min_samples=1).over("grid_id")
+            return pl.col(col_name).fill_nan(None).rolling_mean(7, min_samples=1).over("grid_id")
 
         def annual_rolling_mean(col_name: str) -> pl.Expr:
-            return pl.col(col_name).rolling_mean(365, min_samples=1).over("grid_id")
+            return pl.col(col_name).fill_nan(None).rolling_mean(365, min_samples=1).over("grid_id")
 
         def annual_average(col_name: str) -> pl.Expr:
-            return pl.col(col_name).mean().over(["grid_id", "year"])
+            return pl.col(col_name).fill_nan(None).mean().over(["grid_id", "year"])
 
         def all_averages(col_name: str) -> dict[str, pl.Expr]:
             return {
                 f"{col_name}__mean_r7d": weekly_rolling_mean(col_name),
                 f"{col_name}__mean_r365d": annual_rolling_mean(col_name),
                 f"{col_name}__mean_year": annual_average(col_name),
-                f"{col_name}__mean_all": pl.col(col_name).mean().over("grid_id"),
+                f"{col_name}__mean_all": pl.col(col_name).fill_nan(None).mean().over("grid_id"),
             }
 
         lf_for_year = (
