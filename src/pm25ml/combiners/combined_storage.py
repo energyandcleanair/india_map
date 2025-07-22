@@ -52,6 +52,7 @@ class CombinedStorage:
     def read_dataframe(
         self,
         result_subpath: str | HivePath,
+        file_name: str = "data.parquet",
     ) -> DataFrame:
         """
         Read the processed DataFrame from the destination bucket.
@@ -60,7 +61,7 @@ class CombinedStorage:
         DataFrame is stored. Can be a string or a HivePath.
         :return: The polars DataFrame read from the Parquet file.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/data.parquet"
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/{file_name}"
 
         with self.filesystem.open(parquet_file_path) as file:
             return pl.read_parquet(cast("IO[bytes]", file))

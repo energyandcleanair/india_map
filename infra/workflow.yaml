@@ -48,3 +48,17 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
         result: batch_job_result
+
+    - run_aod_sampling:
+        call: googleapis.run.v1.namespaces.jobs.run
+        args:
+          name: namespaces/vital-form-455413-p8/jobs/pm25ml
+          location: europe-west1
+          body:
+            overrides:
+              containerOverrides:
+                - args:
+                    - python
+                    - -m
+                    - pm25ml.sample.aod
+        result: run_job_result

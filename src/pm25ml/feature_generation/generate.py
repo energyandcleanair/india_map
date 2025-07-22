@@ -16,6 +16,8 @@ MAGNUS_APPROXIMATION_A = 17.625
 MAGNUS_APPROXIMATION_B = 234.04
 MONSOON_SEASON_MONTHS = [6, 7, 8, 9]  # June to September
 
+GENERATED_FEATURES_STAGE = "generated_features"
+
 
 @inject
 def _main(
@@ -140,7 +142,7 @@ def _main(
 
         combined_storage.sink_stage(
             lf_for_year,
-            "generated_features",
+            GENERATED_FEATURES_STAGE,
         )
 
 
