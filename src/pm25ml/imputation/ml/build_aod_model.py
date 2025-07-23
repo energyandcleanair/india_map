@@ -265,10 +265,12 @@ def find_hyper_params(
     gkf = GroupKFold(n_splits=5)
     inner_cv = gkf.split(predictors_inner, target_inner, groups=predictors_inner["grid__id_50km"])
 
+    n_parallel_searches = 3
+
     # Use RandomizedSearchCV to tune hyperparameters for xgbRegressor
     pipe_xgb = XGBRegressor(
         tree_method="hist",
-        n_jobs=int(MAX_PARALLEL_TASKS / 2),
+        n_jobs=MAX_PARALLEL_TASKS / n_parallel_searches,
     )
 
     params_xgb = {
@@ -285,7 +287,7 @@ def find_hyper_params(
     xgb_search = RandomizedSearchCV(
         pipe_xgb,
         params_xgb,
-        n_jobs=int(MAX_PARALLEL_TASKS / 2),
+        n_jobs=n_parallel_searches,
         scoring={
             "r_squared": "r2",
             "rmse": "neg_root_mean_squared_error",
