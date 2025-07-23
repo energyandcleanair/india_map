@@ -410,8 +410,6 @@ def train_model(
     # The final score of the cross validated model are the means of the scores
     # from all folds.
 
-    logger.info(f"Training metrics:\n {trn_metrics}")
-
     train_metrics_summary = trn_metrics.aggregate(
         {
             "train_r2": ["mean", "std", "min", "max"],
@@ -421,16 +419,18 @@ def train_model(
         },
     )
 
-    logger.info(f"Training metrics summary:\n{train_metrics_summary}")
-
     # Diagnostics output: feature importances
     # (merge lists of df's to a single df)
-    df_feat_imp = pd.concat(df_feat_imp, ignore_index=True)
+    combined_feat_imp = pd.concat(df_feat_imp, ignore_index=True)
+
+    logger.info(f"Training metrics:\n {trn_metrics}")
+    logger.info(f"Training metrics summary:\n{train_metrics_summary}")
+    logger.info(f"Feature importances:\n{combined_feat_imp}")
 
     return model_xgb, {
         "train_metrics_summary": train_metrics_summary,
         "trn_metrics": trn_metrics,
-        "feature_importance": df_feat_imp,
+        "feature_importance": combined_feat_imp,
     }
 
 
