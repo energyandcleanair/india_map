@@ -112,6 +112,22 @@ class CombinedStorage:
             hive_partitioning=True,
         )
 
+    def scan_path(
+        self,
+        path: str | HivePath,
+    ) -> pl.LazyFrame:
+        """
+        Scan the specified path in the destination bucket.
+
+        :param path: The path to scan.
+        :return: A LazyFrame representing the scanned data.
+        """
+        parquet_file_path = f"gs://{self.destination_bucket}/{path!s}"
+        return pl.scan_parquet(
+            parquet_file_path,
+            hive_partitioning=True,
+        )
+
     def sink_stage(
         self,
         lf: pl.LazyFrame,

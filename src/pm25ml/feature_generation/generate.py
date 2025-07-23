@@ -113,7 +113,7 @@ def _main(
             .with_columns(
                 day_of_year=pl.col("date").dt.ordinal_day(),
                 era5_land__relative_humidity_computed=relative_humidity,
-                era5_land__c_wind_degree_computed=wind_degree,
+                era5_land__wind_degree_computed=wind_degree,
             )
             .with_columns(
                 **all_averages("merra_aot__aot"),
@@ -122,7 +122,7 @@ def _main(
                 **all_averages("era5_land__temperature_2m"),
                 **all_averages("era5_land__dewpoint_temperature_2m"),
                 **all_averages("era5_land__relative_humidity_computed"),
-                **all_averages("era5_land__c_wind_degree_computed"),
+                **all_averages("era5_land__wind_degree_computed"),
                 **all_averages("era5_land__u_component_of_wind_10m"),
                 **all_averages("era5_land__v_component_of_wind_10m"),
                 **all_averages("era5_land__total_precipitation_sum"),
@@ -133,6 +133,7 @@ def _main(
                 **all_averages("omi_no2__no2"),
                 day_of_year=pl.col("date").dt.ordinal_day(),
                 cos_day_of_year=(pl.col("day_of_year") * 2 * math.pi / 365.0).cos(),
+                month_of_year=pl.col("date").dt.month(),
                 monsoon_season=monsoon_season,
             )
             .filter(
