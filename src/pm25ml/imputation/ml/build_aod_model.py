@@ -294,7 +294,7 @@ def find_hyper_params(
         },
         refit="rmse",
         cv=list(inner_cv),
-        verbose=1,
+        verbose=2,
         return_train_score=True,
     )
 
