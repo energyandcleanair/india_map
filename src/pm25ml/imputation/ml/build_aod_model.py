@@ -4,7 +4,7 @@ import math
 import os
 import tempfile
 from pathlib import Path
-from typing import Callable, cast
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -12,8 +12,7 @@ import polars as pl
 from arrow import Arrow
 from google.cloud.storage import Client as GCSClient
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import GroupKFold, RandomizedSearchCV
-from sklearn.utils import shuffle
+from sklearn.model_selection import GroupKFold
 from xgboost import XGBRegressor
 
 from pm25ml.logging import logger
@@ -101,12 +100,16 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     logger.info("Creating outer cross-validation folds")
     outer_cv = make_folds(df_sampled, n_folds=10)
 
-    # 3. Finding optimal hyperparameters (inner CV)
-    logger.info("Finding optimal hyperparameters (inner CV)")
-    best_params_xgb, hyper_tuning_metrics = find_hyper_params(
-        df_sampled,
-        outer_cv[0],
-    )
+    params_xgb = {
+        "eta": [0.1],
+        "gamma": [0.8],
+        "max_depth": [20],
+        "min_child_weight": [1],
+        "subsample": [0.8],
+        "lambda": [100],
+        "n_estimators": [1000],
+        "booster": ["gbtree"],
+    }
 
     # cross checked, these best parameters from the code are the same as in the paper
 
@@ -115,7 +118,7 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     model, training_diagnostics = train_model(
         df_sampled,
         outer_cv,
-        best_params_xgb,
+        params_xgb,
     )
 
     del df_sampled
@@ -224,113 +227,6 @@ def make_folds(df_sampled: pd.DataFrame, n_folds: int) -> list[tuple[np.ndarray,
     # split returns the indices of the training and testing sets
     outer_cv = gkf.split(predictors, target, groups=predictors["grid__id_50km"])
     return list(outer_cv)
-
-
-def find_hyper_params(
-    df_sampled: pd.DataFrame,
-    selected_outer_cv: tuple[np.ndarray, np.ndarray],
-) -> tuple[dict, dict]:
-    """
-    Find the optimal hyperparameters for the model.
-
-    This function performs hyperparameter tuning using RandomizedSearchCV
-    on the XGBRegressor model. It uses data from 1 one of the outer
-    cross validation folds.
-
-    The paper states that for AOD imputation, the XGBoost model was used.
-    Therefore ingoring the part with LightGBM in the original code.
-
-    Args:
-        df_sampled (pd.DataFrame): Dataframe with sampled data for training.
-        selected_outer_cv (tuple): A tuple containing the indices of the
-            training and validation sets for the selected outer fold.
-        tree_method (str): The tree method to use for XGBRegressor.
-
-    """
-    # Get the training set for the selected outer fold
-    # selected_outer_cv is a tuple of arrays, where the first array contains
-    # the indices for the training set and the second array contains the indices
-    # for the validation set for the selected outer fold
-    inner_train = df_sampled.loc[selected_outer_cv[0]]
-
-    # Shuffle the training set to ensure randomness. Could use a random_state
-    # for reproducibility, but this not done in the original code.
-    inner_train = cast("pd.DataFrame", shuffle(inner_train)).reset_index(drop=True)
-
-    # Separate the target variable 'aod' from the features
-    target_inner = inner_train[[AOD_COLUMN]]
-    predictors_inner = inner_train.drop(columns=[AOD_COLUMN])
-
-    # Create the inner cross-validation folds using GroupKFold
-    gkf = GroupKFold(n_splits=5)
-    inner_cv = gkf.split(predictors_inner, target_inner, groups=predictors_inner["grid__id_50km"])
-
-    n_parallel_searches = 3
-
-    # Use RandomizedSearchCV to tune hyperparameters for xgbRegressor
-    pipe_xgb = XGBRegressor(
-        tree_method="hist",
-        n_jobs=MAX_PARALLEL_TASKS / n_parallel_searches,
-    )
-
-    params_xgb = {
-        "eta": [0.1],
-        "gamma": [0.8],
-        "max_depth": [20],
-        "min_child_weight": [1],
-        "subsample": [0.8],
-        "lambda": [100],
-        "n_estimators": [1000],
-        "booster": ["gbtree"],
-    }
-
-    xgb_search = RandomizedSearchCV(
-        pipe_xgb,
-        params_xgb,
-        n_jobs=n_parallel_searches,
-        scoring={
-            "r_squared": "r2",
-            "rmse": "neg_root_mean_squared_error",
-        },
-        refit="rmse",
-        cv=list(inner_cv),
-        verbose=2,
-        return_train_score=True,
-    )
-
-    xgb_search.fit(
-        predictors_inner.drop(columns=INDEX_COLUMNS),
-        target_inner.to_numpy().ravel(),
-    )
-
-    # Get the best hyperparameters
-    best_params_xgb = xgb_search.best_params_
-    logger.info(f"XGB best parameters: {best_params_xgb}")
-
-    # Get the performance metrics for the best hyperparameters
-    results = xgb_search.cv_results_
-
-    # find the index of the best parameters in the results
-    for i, x in enumerate(results["params"]):
-        if x == best_params_xgb:
-            index = i
-            break
-    else:
-        msg = "best_params_xgb not found in results"
-        raise ValueError(msg)
-
-    val_r2 = results["mean_test_r_squared"][index]
-    train_r2 = results["mean_train_r_squared"][index]
-    val_rmse = results["mean_test_rmse"][index]
-    train_rmse = results["mean_train_rmse"][index]
-
-    # Return the best hyperparameters and performance metrics
-    return best_params_xgb, {
-        "val_r2": val_r2,
-        "train_r2": train_r2,
-        "val_rmse": val_rmse,
-        "train_rmse": train_rmse,
-    }
 
 
 def train_model(
