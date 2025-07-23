@@ -83,9 +83,11 @@ AOD_COLUMN = "modis_aod__Optical_Depth_055"
 
 CACHE_DIR = Path(".cache")
 
-MAX_PARALLEL_TASKS = int(os.getenv("MAX_PARALLEL_TASKS", "8"))
+MAX_PARALLEL_TASKS = int(os.getenv("MAX_PARALLEL_TASKS", str(os.cpu_count() or 1)))
 
 MODEL_STORAGE_BUCKET = "crea-pm25ml-models"
+
+USE_GPU = os.getenv("USE_GPU", "false").lower() == "true"
 
 
 def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) -> None:
@@ -279,10 +281,26 @@ def train_model(
         predictors_trn, predictors_val = predictors.iloc[trn_idx], predictors.iloc[val_idx]
         target_trn, target_val = target.iloc[trn_idx], target.iloc[val_idx]
 
+        compute_args = (
+            {
+                "n_jobs": MAX_PARALLEL_TASKS,
+                "tree_method": "hist",
+            }
+            if not USE_GPU
+            else {
+                "n_jobs": MAX_PARALLEL_TASKS,
+                "tree_method": "hist",
+                "device": "cuda",
+            }
+        )
+
         # Train the model using given hyperparameters
         # Note, that it would be possible to give evaluation metric(s) here, but in
         # then the metric would also be used for early stopping, which we don't want in this case.
-        model_xgb = XGBRegressor(**best_params_xgb, n_jobs=MAX_PARALLEL_TASKS, tree_method="hist")
+        model_xgb = XGBRegressor(
+            **best_params_xgb,
+            **compute_args,
+        )
         model_xgb.fit(predictors_trn, target_trn.to_numpy().ravel())
 
         # Get the importances of features (for logging and analysis)
