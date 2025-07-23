@@ -101,14 +101,14 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     outer_cv = make_folds(df_sampled, n_folds=10)
 
     params_xgb = {
-        "eta": [0.1],
-        "gamma": [0.8],
-        "max_depth": [20],
-        "min_child_weight": [1],
-        "subsample": [0.8],
-        "lambda": [100],
-        "n_estimators": [1000],
-        "booster": ["gbtree"],
+        "eta": 0.1,
+        "gamma": 0.8,
+        "max_depth": 20,
+        "min_child_weight": 1,
+        "subsample": 0.8,
+        "lambda": 100,
+        "n_estimators": 1000,
+        "booster": "gbtree",
     }
 
     # cross checked, these best parameters from the code are the same as in the paper
