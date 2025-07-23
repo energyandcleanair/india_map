@@ -1,35 +1,3 @@
-# Stage 1: Build package with Poetry. This needs both main and dev dependencies so,
-# while we can build the project from this, we don't want to include all the
-# dependencies from this stage.
-FROM python:3.12-slim AS builder
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV POETRY_HOME="/opt/poetry"
-ENV POETRY_CACHE_DIR="/opt/poetry-cache"
-ENV POETRY_VENV_IN_PROJECT=1
-ENV POETRY_NO_INTERACTION=1
-ENV POETRY_VERSION=1.8.3
-
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
-WORKDIR /app
-
-COPY pyproject.toml poetry.lock ./
-# Don't create venv since we're using the container as the environment
-RUN poetry config virtualenvs.create false
-RUN poetry install --only=main,dev --no-root
-
-COPY src/pm25ml/ ./pm25ml/
-COPY README.md ./
-RUN poetry build
-
-
-
 # Stage 2: Install dependencies and built package to a virtual environment. This
 # means we only have the main dependencies installed at this stage and the package
 # itself.
@@ -46,17 +14,17 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 
 WORKDIR /app
 
-COPY --from=builder /app/pyproject.toml ./
-COPY --from=builder /app/poetry.lock ./
-
 RUN poetry config virtualenvs.create true && \
-    poetry config virtualenvs.in-project true && \
-    poetry install --only=main --no-root
+    poetry config virtualenvs.in-project true
 
-COPY --from=builder /app/dist/ ./dist/
-RUN poetry run pip install dist/*.whl
+COPY pyproject.toml poetry.lock ./
 
+RUN poetry install --only=main --no-root
 
+COPY src/pm25ml/ ./pm25ml/
+COPY README.md ./
+
+RUN poetry build && poetry run pip install --no-deps dist/*.whl
 
 # Stage 3: Minimal runtime image
 FROM python:3.12-slim AS runtime
