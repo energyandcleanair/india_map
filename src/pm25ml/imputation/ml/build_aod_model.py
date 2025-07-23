@@ -6,13 +6,12 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
-import numpy as np
 import pandas as pd
 import polars as pl
 from arrow import Arrow
 from google.cloud.storage import Client as GCSClient
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupKFold, cross_validate
 from xgboost import XGBRegressor
 
 from pm25ml.logging import logger
@@ -100,28 +99,7 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     # outer_cv is a list where each item contains a tuple with indices
     # of training and validation sets for each fold
     logger.info("Creating outer cross-validation folds")
-    outer_cv = make_folds(df_sampled, n_folds=10)
-
-    params_xgb = {
-        "eta": 0.1,
-        "gamma": 0.8,
-        "max_depth": 20,
-        "min_child_weight": 1,
-        "subsample": 0.8,
-        "lambda": 100,
-        "n_estimators": 1000,
-        "booster": "gbtree",
-    }
-
-    # cross checked, these best parameters from the code are the same as in the paper
-
-    # 4. Training imputation model (fit XGBRegressor, compute training metrics)
-    logger.info("Training imputation model with XGBRegressor")
-    model, training_diagnostics = train_model(
-        df_sampled,
-        outer_cv,
-        params_xgb,
-    )
+    model = cross_validate_with_stratification(df_sampled)
 
     del df_sampled
 
@@ -138,6 +116,61 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     # Create a temporary directory to save diagnostics
     logger.info("Saving model and diagnostics")
     write_model_to_gcs(model)
+
+
+def cross_validate_with_stratification(df_sampled: pd.DataFrame) -> XGBRegressor:
+    """
+    Perform cross-validation with stratification on the sampled data.
+
+    Args:
+        df_sampled (pd.DataFrame): Sampled data for training.
+
+    Returns:
+        XGBRegressor: The trained XGBRegressor model.
+
+    """
+    target = df_sampled[[AOD_COLUMN]]
+    predictors = df_sampled.drop(columns=[AOD_COLUMN, "grid_id", "date", "grid__id_50km"])
+    grouper = df_sampled["grid__id_50km"]
+
+    params_xgb = {
+        "eta": 0.1,
+        "gamma": 0.8,
+        "max_depth": 20,
+        "min_child_weight": 1,
+        "subsample": 0.8,
+        "lambda": 100,
+        "n_estimators": 1000,
+        "booster": "gbtree",
+    }
+
+    n_splits = 10
+    cpus_per_model = int(MAX_PARALLEL_TASKS / n_splits)
+
+    model = XGBRegressor(
+        **params_xgb,
+        n_jobs=cpus_per_model,
+        tree_method="hist" if not USE_GPU else "gpu_hist",
+    )
+
+    selector = GroupKFold(n_splits=n_splits)
+
+    scores = cross_validate(
+        model,
+        predictors,
+        target,
+        cv=selector,
+        groups=grouper,
+        scoring=["neg_root_mean_squared_error", "r2"],
+        n_jobs=n_splits,
+        return_train_score=True,
+    )
+
+    scores_as_df = pd.DataFrame(scores)
+    logger.info(f"Cross-validation scores:\n{scores_as_df}")
+    scores_agg = scores_as_df.aggregate(["mean", "std", "min", "max"])
+    logger.info(f"Cross-validation scores aggregated:\n{scores_agg}")
+    return model
 
 
 def load_training_data() -> pd.DataFrame:
@@ -202,162 +235,6 @@ def load_test_data() -> pd.DataFrame:
     return to_cache
 
 
-def make_folds(df_sampled: pd.DataFrame, n_folds: int) -> list[tuple[np.ndarray, np.ndarray]]:
-    """
-    Make the folds for inner and outer cross-validation.
-
-    Cross-validation is used to ensure that the model is trained and evaluated
-    on different data, for intro see https://scikit-learn.org/stable/modules/cross_validation.html
-    Here, df_sampled should already be the training data set, with the test set
-    being set apart before. This function creates the cross-validation folds
-    and returns the indexes for the training and validation sets for each fold.
-
-    Using GroupKFold to ensure that the same grid__id_50km is not in both
-    training and testing sets.
-
-    https://scikit-learn.org/stable/modules/cross_validation.html#group-k-fold
-    https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupKFold.html#sklearn.model_selection.GroupKFold.split
-
-    """
-    target = df_sampled[[AOD_COLUMN]]
-    predictors = df_sampled.drop(columns=[AOD_COLUMN])
-
-    # NOTE because using the default shuffle=False, not possible to give the random_state
-    # is the result reproducible?
-    gkf = GroupKFold(n_splits=n_folds)
-
-    # split returns the indices of the training and testing sets
-    outer_cv = gkf.split(predictors, target, groups=predictors["grid__id_50km"])
-    return list(outer_cv)
-
-
-def train_model(
-    df_sampled: pd.DataFrame,
-    outer_cv: list[tuple[np.ndarray, np.ndarray]],
-    best_params_xgb: dict,
-) -> tuple[XGBRegressor, dict]:
-    """
-    Train the imputation model using XGBRegressor.
-
-    This function trains the XGBRegressor model using the sampled data
-    and the outer cross-validation folds. It computes the training and
-    validation scores and extracts feature importances for each fold.
-    Unlike in the original code, the full predicted test and validation
-    data are not stored (variable train_dfs and eval_dfs in original code).
-
-    Args:
-        df_sampled (pd.DataFrame): Dataframe with sampled data for training.
-        outer_cv (list): List of tuples with indices for training and testing sets.
-        best_params_xgb (dict): Dictionary with hyperparameters for XGBRegressor.
-        tree_method (str): Method for tree construction in XGBRegressor, default
-            is 'gpu_hist' (following the original code). If no GPU available, use 'hist'.
-
-    """
-    # For training and testing metrics, create dataframes to store the results
-    trn_metrics = pd.DataFrame(
-        index=range(len(outer_cv)),
-        columns=["train_r2", "train_rmse", "cv_r2", "cv_rmse"],
-    )
-    # To collect feature importance from each fold, create list of dataframes
-    # (to be merged at the end, more efficient than appending to a df in each iteration)
-    df_feat_imp = []
-
-    # Generate the target variable and features
-    # y is the column to be predicted, X is the rest of the data
-    target = df_sampled[[AOD_COLUMN]]
-    predictors = df_sampled.drop(columns=[AOD_COLUMN, *INDEX_COLUMNS])
-
-    if len(outer_cv) == 0:
-        msg = "No outer cross-validation folds found. Check the input data."
-        raise ValueError(msg)
-
-    # Initialize model_xgb to ensure it is always defined
-    model_xgb = None
-
-    # Loop through the outer cross-validation folds
-    # For each fold, train the model and evaluate it on the validation set
-    for n_fold, (trn_idx, val_idx) in enumerate(outer_cv):
-        logger.info(f"Training fold {n_fold + 1} of {len(outer_cv)}")
-        predictors_trn, predictors_val = predictors.iloc[trn_idx], predictors.iloc[val_idx]
-        target_trn, target_val = target.iloc[trn_idx], target.iloc[val_idx]
-
-        compute_args = (
-            {
-                "n_jobs": MAX_PARALLEL_TASKS,
-                "tree_method": "hist",
-            }
-            if not USE_GPU
-            else {
-                "n_jobs": MAX_PARALLEL_TASKS,
-                "tree_method": "hist",
-                "device": "cuda",
-            }
-        )
-
-        # Train the model using given hyperparameters
-        # Note, that it would be possible to give evaluation metric(s) here, but in
-        # then the metric would also be used for early stopping, which we don't want in this case.
-        model_xgb = XGBRegressor(
-            **best_params_xgb,
-            **compute_args,
-        )
-        model_xgb.fit(predictors_trn, target_trn.to_numpy().ravel())
-
-        # Get the importances of features (for logging and analysis)
-        importance_df = pd.DataFrame(
-            {
-                "feature": predictors_trn.columns,
-                "importance": model_xgb.feature_importances_,
-                "fold": n_fold,
-            },
-        ).sort_values(by=["importance"], ascending=False)
-        df_feat_imp.append(importance_df)
-
-        # Predict on the training set and compute training metrics
-        trn_y_pred = model_xgb.predict(predictors_trn)
-
-        trn_metrics.loc[n_fold, "train_r2"] = r2_score(target_trn, trn_y_pred)
-        trn_metrics.loc[n_fold, "train_rmse"] = math.sqrt(
-            mean_squared_error(target_trn, trn_y_pred),
-        )
-
-        # Predict on the validation set and compute validation metrics
-        y_pred = model_xgb.predict(predictors_val.values)
-
-        trn_metrics.loc[n_fold, "cv_r2"] = r2_score(target_val, y_pred)
-        trn_metrics.loc[n_fold, "cv_rmse"] = math.sqrt(mean_squared_error(target_val, y_pred))
-
-    if model_xgb is None:
-        msg = "Model is not trained yet. Check the input data and hyperparameters."
-        raise ValueError(msg)
-
-    # The final score of the cross validated model are the means of the scores
-    # from all folds.
-
-    train_metrics_summary = trn_metrics.aggregate(
-        {
-            "train_r2": ["mean", "std", "min", "max"],
-            "train_rmse": ["mean", "std", "min", "max"],
-            "cv_r2": ["mean", "std", "min", "max"],
-            "cv_rmse": ["mean", "std", "min", "max"],
-        },
-    )
-
-    # Diagnostics output: feature importances
-    # (merge lists of df's to a single df)
-    combined_feat_imp = pd.concat(df_feat_imp, ignore_index=True)
-
-    logger.info(f"Training metrics:\n {trn_metrics}")
-    logger.info(f"Training metrics summary:\n{train_metrics_summary}")
-    logger.info(f"Feature importances:\n{combined_feat_imp}")
-
-    return model_xgb, {
-        "train_metrics_summary": train_metrics_summary,
-        "trn_metrics": trn_metrics,
-        "feature_importance": combined_feat_imp,
-    }
-
-
 def evaluate_model(model: XGBRegressor, df_rest: pd.DataFrame) -> dict:
     """
     Evaluate the model on the rest of the data.
@@ -406,7 +283,7 @@ def write_model_to_gcs(model: XGBRegressor) -> None:
 
 
 if __name__ == "__main__":
-    if os.environ.get("TINY_SAMPLE") == "true":
+    if os.environ.get("TINY_SAMPLE", "false").lower() == "true":
 
         def _sampler(x: pd.DataFrame) -> pd.DataFrame:
             return (
