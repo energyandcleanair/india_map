@@ -98,8 +98,13 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     # 2. Create folds
     # outer_cv is a list where each item contains a tuple with indices
     # of training and validation sets for each fold
-    logger.info("Creating outer cross-validation folds")
-    model = cross_validate_with_stratification(df_sampled)
+    logger.info("Cross validate model")
+    model = build_model_def()
+    cv_results = cross_validate_with_stratification(model, df_sampled)
+    log_cv_results(cv_results)
+
+    logger.info("Training model on the sampled data")
+    trained_model = train_model(model, df_sampled)
 
     del df_sampled
 
@@ -108,31 +113,31 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
 
     # 5. Evaluate model on the test data
     logger.info("Evaluating model on the test data")
-    test_metrics = evaluate_model(model, df_test)
+    test_metrics = evaluate_model(trained_model, df_test)
 
     logger.info(f"Test metrics: {test_metrics}")
 
     # 6. Save the model and diagnostics
     # Create a temporary directory to save diagnostics
     logger.info("Saving model and diagnostics")
-    write_model_to_gcs(model)
+    write_model_to_gcs(trained_model)
 
 
-def cross_validate_with_stratification(df_sampled: pd.DataFrame) -> XGBRegressor:
-    """
-    Perform cross-validation with stratification on the sampled data.
+def log_cv_results(cv_results: pd.DataFrame) -> None:
+    """Log the cross-validation results."""
+    cv_results = cv_results.rename(
+        columns={
+            "test_neg_root_mean_squared_error": "test_rmse",
+            "train_neg_root_mean_squared_error": "train_rmse",
+        },
+    )
+    logger.info(f"Cross-validation scores:\n{cv_results.to_string()}")
+    cv_results_agg = cv_results.aggregate(["mean", "std", "min", "max"])
+    logger.info(f"Cross-validation scores aggregated:\n{cv_results_agg.to_string()}")
 
-    Args:
-        df_sampled (pd.DataFrame): Sampled data for training.
 
-    Returns:
-        XGBRegressor: The trained XGBRegressor model.
-
-    """
-    target = df_sampled[[AOD_COLUMN]]
-    predictors = df_sampled.drop(columns=[AOD_COLUMN, "grid_id", "date", "grid__id_50km"])
-    grouper = df_sampled["grid__id_50km"]
-
+def build_model_def() -> XGBRegressor:
+    """Build the XGBRegressor model with predefined parameters."""
     params_xgb = {
         "eta": 0.1,
         "gamma": 0.8,
@@ -143,15 +148,56 @@ def cross_validate_with_stratification(df_sampled: pd.DataFrame) -> XGBRegressor
         "n_estimators": 1000,
         "booster": "gbtree",
     }
+    return XGBRegressor(
+        **params_xgb,
+        tree_method="hist",
+    )
+
+
+def train_model(model: XGBRegressor, df_sampled: pd.DataFrame) -> XGBRegressor:
+    """
+    Train the XGBRegressor model on the sampled data.
+
+    Args:
+        model (XGBRegressor): The XGBRegressor model to be trained.
+        df_sampled (pd.DataFrame): Sampled data for training.
+
+    Returns:
+        XGBRegressor: The trained XGBRegressor model.
+
+    """
+    target = df_sampled[AOD_COLUMN]
+    predictors = df_sampled.drop(columns=[AOD_COLUMN, *INDEX_COLUMNS])
+
+    model.set_params(n_jobs=int(MAX_PARALLEL_TASKS))
+    model.fit(predictors, target)
+
+    return model
+
+
+def cross_validate_with_stratification(
+    model: XGBRegressor,
+    df_sampled: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Perform cross-validation with stratification on the sampled data.
+
+    Args:
+        model (XGBRegressor): The XGBRegressor model to be trained.
+        df_sampled (pd.DataFrame): Sampled data for training.
+
+    Returns:
+        XGBRegressor: The trained XGBRegressor model.
+
+    """
+    target = df_sampled[[AOD_COLUMN]]
+    predictors = df_sampled.drop(columns=[AOD_COLUMN, *INDEX_COLUMNS])
+    grouper = df_sampled["grid__id_50km"]
 
     n_splits = 10
     cpus_per_model = int(MAX_PARALLEL_TASKS / n_splits)
 
-    model = XGBRegressor(
-        **params_xgb,
-        n_jobs=cpus_per_model,
-        tree_method="hist" if not USE_GPU else "gpu_hist",
-    )
+    model.set_params(n_jobs=cpus_per_model)
 
     selector = GroupKFold(n_splits=n_splits)
 
@@ -166,11 +212,7 @@ def cross_validate_with_stratification(df_sampled: pd.DataFrame) -> XGBRegressor
         return_train_score=True,
     )
 
-    scores_as_df = pd.DataFrame(scores)
-    logger.info(f"Cross-validation scores:\n{scores_as_df}")
-    scores_agg = scores_as_df.aggregate(["mean", "std", "min", "max"])
-    logger.info(f"Cross-validation scores aggregated:\n{scores_agg}")
-    return model
+    return pd.DataFrame(scores)
 
 
 def load_training_data() -> pd.DataFrame:
