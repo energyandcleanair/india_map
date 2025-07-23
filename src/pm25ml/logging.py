@@ -18,7 +18,7 @@ def _in_cloud_run_job() -> bool:
 
 def _in_cloud_batch_job() -> bool:
     return bool(
-        os.getenv("BATCH_TASK_INDEX"),
+        os.getenv("BATCH_TASK_INDEX") or os.getenv("RUNNING_IN_CLOUD_BATCH"),
     )
 
 
