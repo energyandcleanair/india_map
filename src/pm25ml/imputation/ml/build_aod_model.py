@@ -92,14 +92,17 @@ MODEL_STORAGE_BUCKET = "crea-pm25ml-models"
 def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) -> None:
     """Run imputation ML model for AOD."""
     # 1. Sampling
+    logger.info("Loading and sampling training data for AOD imputation")
     df_sampled = extra_sampler(load_training_data())
 
     # 2. Create folds
     # outer_cv is a list where each item contains a tuple with indices
     # of training and validation sets for each fold
+    logger.info("Creating outer cross-validation folds")
     outer_cv = make_folds(df_sampled, n_folds=10)
 
     # 3. Finding optimal hyperparameters (inner CV)
+    logger.info("Finding optimal hyperparameters (inner CV)")
     best_params_xgb, hyper_tuning_metrics = find_hyper_params(
         df_sampled,
         outer_cv[0],
@@ -108,6 +111,7 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     # cross checked, these best parameters from the code are the same as in the paper
 
     # 4. Training imputation model (fit XGBRegressor, compute training metrics)
+    logger.info("Training imputation model with XGBRegressor")
     model, training_diagnostics = train_model(
         df_sampled,
         outer_cv,
@@ -116,15 +120,18 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
 
     del df_sampled
 
+    logger.info("Loading test data for evaluation")
     df_test = extra_sampler(load_test_data())
 
     # 5. Evaluate model on the test data
+    logger.info("Evaluating model on the test data")
     test_metrics = evaluate_model(model, df_test)
 
     logger.info(f"Test metrics: {test_metrics}")
 
     # 6. Save the model and diagnostics
     # Create a temporary directory to save diagnostics
+    logger.info("Saving model and diagnostics")
     write_model_to_gcs(model)
 
 
@@ -370,6 +377,7 @@ def train_model(
     # Loop through the outer cross-validation folds
     # For each fold, train the model and evaluate it on the validation set
     for n_fold, (trn_idx, val_idx) in enumerate(outer_cv):
+        logger.info(f"Training fold {n_fold + 1} of {len(outer_cv)}")
         predictors_trn, predictors_val = predictors.iloc[trn_idx], predictors.iloc[val_idx]
         target_trn, target_val = target.iloc[trn_idx], target.iloc[val_idx]
 
