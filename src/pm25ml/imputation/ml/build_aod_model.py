@@ -22,6 +22,7 @@ AOD_INPUT_COLS = [
     "date",
     "merra_aot__aot",
     "merra_co_top__co",
+    "merra_co__co",
     "era5_land__v_component_of_wind_10m",
     "era5_land__u_component_of_wind_10m",
     "era5_land__total_precipitation_sum",
@@ -48,6 +49,7 @@ AOD_INPUT_COLS = [
     "era5_land__relative_humidity_computed",
     "merra_aot__aot__mean_r7d",
     "merra_co_top__co__mean_r7d",
+    "merra_co__co__mean_r7d",
     "omi_no2__no2__mean_r7d",
     "era5_land__v_component_of_wind_10m__mean_r7d",
     "era5_land__u_component_of_wind_10m__mean_r7d",
@@ -59,6 +61,7 @@ AOD_INPUT_COLS = [
     "era5_land__dewpoint_temperature_2m__mean_r7d",
     "merra_aot__aot__mean_year",
     "merra_co_top__co__mean_year",
+    "merra_co__co__mean_year",
     "omi_no2__no2__mean_year",
     "era5_land__v_component_of_wind_10m__mean_year",
     "era5_land__u_component_of_wind_10m__mean_year",
@@ -70,6 +73,7 @@ AOD_INPUT_COLS = [
     "era5_land__c_wind_degree_computed__mean_year",
     "era5_land__relative_humidity_computed__mean_year",
     "merra_co_top__co__mean_all",
+    "merra_co__co__mean_all",
 ]
 
 INDEX_COLUMNS = [
