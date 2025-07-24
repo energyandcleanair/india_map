@@ -44,6 +44,3 @@ COPY ./assets/ ./assets/
 # Set the user to the non-root user, this ensures that the app can't write to the earlier
 # stages' files but can read them.
 USER appuser
-
-# Entrypoint runs the main data download script
-CMD ["python", "-m", "pm25ml.run.main"]
