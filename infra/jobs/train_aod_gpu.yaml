@@ -1,0 +1,34 @@
+allocationPolicy:
+  serviceAccount:
+    email: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
+  instances:
+    - policy:
+        machineType: n1-standard-16
+        provisioningModel: SPOT        # pre-emptible
+        accelerators:
+          - type: nvidia-tesla-t4
+            count: 1
+        bootDisk:
+          image: batch-debian
+      installGpuDrivers: true
+      
+taskGroups:
+  - taskCount: 1
+    taskSpec:
+      runnables:
+        - container:
+            imageUri: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
+            commands:
+              - python
+              - -m
+              - pm25ml.imputation.ml.build_aod_model
+          environment:
+            variables:
+              MAX_PARALLEL_TASKS: "16"
+              RUNNING_IN_CLOUD_BATCH: "true"
+              USE_GPU: "true"
+      computeResource:
+        memoryMib: 30720               # 30 GiB
+        cpuMilli: 16000                 # 16 vCPU
+logsPolicy:
+  destination: CLOUD_LOGGING

@@ -1,0 +1,27 @@
+allocationPolicy:
+  serviceAccount:
+    email: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
+  instances:
+    - policy:
+        machineType: c2d-highcpu-112
+        provisioningModel: SPOT
+      
+taskGroups:
+  - taskCount: 1
+    taskSpec:
+      runnables:
+        - container:
+            imageUri: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
+            commands:
+              - python
+              - -m
+              - pm25ml.imputation.ml.build_aod_model
+          environment:
+            variables:
+              MAX_PARALLEL_TASKS: "112"
+              RUNNING_IN_CLOUD_BATCH: "true"
+      computeResource:
+        memoryMib: 196608 # 192 GiB
+        cpuMilli: 112000 # 112 vCPU
+logsPolicy:
+  destination: CLOUD_LOGGING
