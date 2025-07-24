@@ -3,6 +3,7 @@
 import math
 import os
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -93,11 +94,17 @@ MODEL_STORAGE_BUCKET = "crea-pm25ml-models"
 USE_GPU = os.getenv("USE_GPU", "false").lower() == "true"
 
 
-def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) -> None:
+@dataclass
+class _LoaderConfig:
+    cache_name: str
+    extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame]
+
+
+def main(loader_config: _LoaderConfig) -> None:
     """Run imputation ML model for AOD."""
     # 1. Sampling
     logger.info("Loading and sampling training data for AOD imputation")
-    df_sampled = extra_sampler(load_training_data())
+    df_sampled = load_training_data(loader_config)
 
     # 2. Create folds
     # outer_cv is a list where each item contains a tuple with indices
@@ -113,7 +120,7 @@ def main(extra_sampler: Callable[[pd.DataFrame], pd.DataFrame] = lambda x: x) ->
     del df_sampled
 
     logger.info("Loading test data for evaluation")
-    df_test = extra_sampler(load_test_data())
+    df_test = load_test_data(loader_config)
 
     # 5. Evaluate model on the test data
     logger.info("Evaluating model on the test data")
@@ -219,9 +226,9 @@ def cross_validate_with_stratification(
     return pd.DataFrame(scores)
 
 
-def load_training_data() -> pd.DataFrame:
+def load_training_data(loader_config: _LoaderConfig) -> pd.DataFrame:
     """Load the sampled data for AOD imputation from GCS."""
-    cache_file = "aod_sampled.parquet"
+    cache_file = f"aod_sampled-{loader_config.cache_name}.parquet"
 
     if Path(CACHE_DIR, cache_file).exists():
         return pd.read_parquet(Path(CACHE_DIR, cache_file))
@@ -233,7 +240,8 @@ def load_training_data() -> pd.DataFrame:
     )
 
     to_cache = (
-        results.filter(pl.col("split") == "training")
+        loader_config.extra_sampler(results)
+        .filter(pl.col("split") == "training")
         .with_columns(
             month_of_year=pl.col("date").dt.month(),
         )
@@ -250,9 +258,9 @@ def load_training_data() -> pd.DataFrame:
     return to_cache
 
 
-def load_test_data() -> pd.DataFrame:
+def load_test_data(loader_config: _LoaderConfig) -> pd.DataFrame:
     """Load the test data for AOD imputation from GCS."""
-    cache_file = "aod_test.parquet"
+    cache_file = f"aod_test-{loader_config.cache_name}.parquet"
 
     if Path(CACHE_DIR, cache_file).exists():
         return pd.read_parquet(Path(CACHE_DIR, cache_file))
@@ -264,7 +272,8 @@ def load_test_data() -> pd.DataFrame:
     )
 
     to_cache = (
-        results.filter(pl.col("split") == "test")
+        loader_config.extra_sampler(results)
+        .filter(pl.col("split") == "test")
         .with_columns(
             month_of_year=pl.col("date").dt.month(),
         )
@@ -329,22 +338,16 @@ def write_model_to_gcs(model: XGBRegressor) -> None:
 
 
 if __name__ == "__main__":
+    loader_config = _LoaderConfig(
+        cache_name="full",
+        extra_sampler=lambda x: x,
+    )
     if os.environ.get("TINY_SAMPLE", "false").lower() == "true":
-
-        def _sampler(x: pd.DataFrame) -> pd.DataFrame:
-            return (
-                x[
-                    (x["date"] >= pd.Timestamp("2023-01-01"))
-                    & (x["date"] < pd.Timestamp("2023-02-01"))
-                ]
-                .iloc[::100, :]
-                .reset_index(drop=True)
-            )
-    else:
-
-        def _sampler(x: pd.DataFrame) -> pd.DataFrame:
-            return x
+        loader_config = _LoaderConfig(
+            cache_name="tiny",
+            extra_sampler=lambda x: x.filter(pl.col("month") == "2023-01").gather_every(100),
+        )
 
     main(
-        extra_sampler=_sampler,
+        loader_config=loader_config,
     )
