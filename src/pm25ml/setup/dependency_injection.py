@@ -28,11 +28,14 @@ from pm25ml.combiners.archive.combine_planner import CombinePlanner
 from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.recombiner.recombiner import Recombiner
+from pm25ml.feature_generation.generate import FeatureGenerator
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
+from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
+from pm25ml.setup.samplers import ImputationStep, define_samplers
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -215,6 +218,20 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         temporal_config=temporal_config,
     )
 
+    feature_generator = providers.Singleton(
+        FeatureGenerator,
+        combined_storage=combined_storage,
+        recombiner=spatial_interpolation_recombiner,
+        temporal_config=temporal_config,
+    )
+
+    imputation_samplers = providers.Singleton(
+        define_samplers,
+        combined_storage=combined_storage,
+        temporal_config=temporal_config,
+        imputation_steps=config.imputation_steps,
+    )
+
 
 def init_dependencies_from_env() -> Pm25mlContainer:
     """
@@ -238,6 +255,35 @@ def init_dependencies_from_env() -> Pm25mlContainer:
 
     container.config.spatial_computation_value_column_regex.from_env(
         "SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX",
+    )
+
+    container.config.imputation_steps.from_value(
+        [
+            # AOD
+            ImputationStep(
+                imputation_sampler_definition=ImputationSamplerDefinition(
+                    value_column="modis_aod__Optical_Depth_055",
+                    model_name="aod",
+                    percentage_sample=0.03,
+                ),
+            ),
+            # Tropomi NO2
+            ImputationStep(
+                imputation_sampler_definition=ImputationSamplerDefinition(
+                    value_column="s5p_no2__tropospheric_NO2_column_number_density",
+                    model_name="no2",
+                    percentage_sample=0.02,
+                ),
+            ),
+            # Tropomi CO
+            ImputationStep(
+                imputation_sampler_definition=ImputationSamplerDefinition(
+                    value_column="s5p_co__CO_column_number_density",
+                    model_name="co",
+                    percentage_sample=0.02,
+                ),
+            ),
+        ],
     )
 
     container.init_resources()

@@ -5,7 +5,15 @@ main:
         args:
           name: namespaces/vital-form-455413-p8/jobs/pm25ml
           location: europe-west1
+          body:
+            overrides:
+              containerOverrides:
+                - args:
+                    - python
+                    - -m
+                    - pm25ml.run.fetch_and_combine
         result: run_job_result
+          
 
     - generate_features:
         call: googleapis.batch.v1.projects.locations.jobs.create
@@ -29,7 +37,7 @@ main:
                         commands:
                           - python
                           - -m
-                          - pm25ml.feature_generation.generate
+                          - pm25ml.run.generate_features
                       environment:
                         variables:
                           GCP_PROJECT: vital-form-455413-p8
@@ -49,7 +57,7 @@ main:
               destination: CLOUD_LOGGING
         result: batch_job_result
 
-    - sample_aod:
+    - sample:
         call: googleapis.run.v1.namespaces.jobs.run
         args:
           name: namespaces/vital-form-455413-p8/jobs/pm25ml
@@ -60,5 +68,5 @@ main:
                 - args:
                     - python
                     - -m
-                    - pm25ml.sample.aod
+                    - pm25ml.run.sample_for_imputation
         result: run_job_result

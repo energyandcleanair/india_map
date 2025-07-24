@@ -34,7 +34,12 @@ class CombinedStorage:
         self.filesystem = filesystem
         self.destination_bucket = destination_bucket
 
-    def write_to_destination(self, table: DataFrame, result_subpath: str | HivePath) -> None:
+    def write_to_destination(
+        self,
+        table: DataFrame,
+        result_subpath: str | HivePath,
+        file_name: str = "data.parquet",
+    ) -> None:
         """
         Write the processed DataFrame to the destination bucket.
 
@@ -42,7 +47,7 @@ class CombinedStorage:
         :param result_subpath: The subpath in the destination bucket where the
         table will be written.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/data.parquet"
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/{file_name}"
 
         with self.filesystem.open(parquet_file_path, "wb") as file:
             # Convert the DataFrame to Parquet format and write it to the file

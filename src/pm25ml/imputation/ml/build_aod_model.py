@@ -46,23 +46,21 @@ AOD_INPUT_COLS = [
     "monsoon_season",
     "grid__lon",
     "grid__lat",
-    "era5_land__c_wind_degree_computed",
+    "era5_land__wind_degree_computed",
     "era5_land__relative_humidity_computed",
     "merra_aot__aot__mean_r7d",
     "merra_co_top__co__mean_r7d",
-    "merra_co__co__mean_r7d",
     "omi_no2__no2__mean_r7d",
     "era5_land__v_component_of_wind_10m__mean_r7d",
     "era5_land__u_component_of_wind_10m__mean_r7d",
     "era5_land__total_precipitation_sum__mean_r7d",
     "era5_land__temperature_2m__mean_r7d",
-    "era5_land__c_wind_degree_computed__mean_r7d",
+    "era5_land__wind_degree_computed__mean_r7d",
     "era5_land__relative_humidity_computed__mean_r7d",
     "era5_land__surface_net_thermal_radiation_sum__mean_r7d",
     "era5_land__dewpoint_temperature_2m__mean_r7d",
     "merra_aot__aot__mean_year",
     "merra_co_top__co__mean_year",
-    "merra_co__co__mean_year",
     "omi_no2__no2__mean_year",
     "era5_land__v_component_of_wind_10m__mean_year",
     "era5_land__u_component_of_wind_10m__mean_year",
@@ -71,10 +69,9 @@ AOD_INPUT_COLS = [
     "era5_land__leaf_area_index_low_vegetation__mean_year",
     "era5_land__leaf_area_index_high_vegetation__mean_year",
     "era5_land__dewpoint_temperature_2m__mean_year",
-    "era5_land__c_wind_degree_computed__mean_year",
+    "era5_land__wind_degree_computed__mean_year",
     "era5_land__relative_humidity_computed__mean_year",
     "merra_co_top__co__mean_all",
-    "merra_co__co__mean_all",
 ]
 
 INDEX_COLUMNS = [
@@ -236,7 +233,7 @@ def load_training_data(loader_config: _LoaderConfig) -> pd.DataFrame:
     CACHE_DIR.mkdir(exist_ok=True, parents=True)
 
     results = pl.scan_parquet(
-        "gs://crea-pm25ml-combined/stage=sampled/model=aod/",
+        "gs://crea-pm25ml-combined/stage=sampled+aod/",
     )
 
     to_cache = (
@@ -268,7 +265,7 @@ def load_test_data(loader_config: _LoaderConfig) -> pd.DataFrame:
     CACHE_DIR.mkdir(exist_ok=True, parents=True)
 
     results = pl.scan_parquet(
-        "gs://crea-pm25ml-combined/stage=sampled/model=aod/",
+        "gs://crea-pm25ml-combined/stage=sampled+aod/",
     )
 
     to_cache = (
