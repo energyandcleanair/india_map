@@ -69,4 +69,4 @@ main:
                     - python
                     - -m
                     - pm25ml.run.sample_for_imputation
-        result: run_job_result
+      result: run_job_result
