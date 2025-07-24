@@ -9,9 +9,9 @@ main:
             overrides:
               containerOverrides:
                 - args:
-                  - python
-                  - -m
-                  - "pm25ml.run.fetch_and_combine"
+                    - python
+                    - -m
+                    - pm25ml.run.fetch_and_combine
         result: run_job_result
 
     - generate_features:
@@ -69,3 +69,45 @@ main:
                     - -m
                     - pm25ml.run.sample_for_imputation
         result: run_job_result
+
+    - train:
+        parallel:
+          for:
+            value: model
+            in:
+              - aod
+            steps:
+              - train_model:
+                  call: googleapis.batch.v1.projects.locations.jobs.create
+                  args:
+                    parent: projects/vital-form-455413-p8/locations/europe-west1
+                    jobId: ${"train-" + model + string(int(sys.now()))}
+                    body:
+                      allocationPolicy:
+                        serviceAccount:
+                          email: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
+                        instances:
+                          - policy:
+                              machineType: c2d-highcpu-112
+                              provisioningModel: SPOT
+                            
+                      taskGroups:
+                        - taskCount: 1
+                          taskSpec:
+                            runnables:
+                              - container:
+                                  imageUri: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
+                                  commands:
+                                    - python
+                                    - -m
+                                    - ${"pm25ml.imputation.ml.build_" + model + "_model"}
+                                environment:
+                                  variables:
+                                    MAX_PARALLEL_TASKS: "112"
+                                    RUNNING_IN_CLOUD_BATCH: "true"
+                            computeResource:
+                              memoryMib: 196608 # 192 GiB
+                              cpuMilli: 112000 # 112 vCPU
+                      logsPolicy:
+                        destination: CLOUD_LOGGING
+                  result: train_job_result

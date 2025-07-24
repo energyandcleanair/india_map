@@ -221,11 +221,22 @@ jobs:
         id: deploy-job-spec
         run: |
           gcloud run jobs replace infra/run.yaml
-      - name: Deploy workflow
+      - name: Deploy non-training workflow
         id: deploy-workflow
         run: |
           gcloud workflows deploy pm25ml-orchestrator \
             --source=infra/workflow.yaml \
+            --location=europe-west1 \
+            --service-account=${{ env.ORCHESTRATOR_SERVICE_ACCOUNT_NAME }} \
+            --call-log-level=LOG_ALL_CALLS \
+            --execution-history-level=execution-history-detailed \
+            --quiet
+
+      - name: Deploy training workflow
+        id: deploy-training-workflow
+        run: |
+          gcloud workflows deploy pm25ml-orchestrator-with-training \
+            --source=infra/workflow_with_training.yaml \
             --location=europe-west1 \
             --service-account=${{ env.ORCHESTRATOR_SERVICE_ACCOUNT_NAME }} \
             --call-log-level=LOG_ALL_CALLS \
