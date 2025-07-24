@@ -2,6 +2,8 @@ main:
   steps:
     - collect_data_and_combine:
         call: googleapis.run.v1.namespaces.jobs.run
+        connector_params:
+          timeout: 86400
         args:
           name: namespaces/vital-form-455413-p8/jobs/pm25ml
           location: europe-west1
@@ -16,6 +18,8 @@ main:
 
     - generate_features:
         call: googleapis.batch.v1.projects.locations.jobs.create
+        connector_params:
+          timeout: 10800
         args:
           parent: projects/vital-form-455413-p8/locations/europe-west1
           jobId: ${"pm25ml-feature-" + string(int(sys.now()))}
@@ -58,6 +62,8 @@ main:
 
     - sample:
         call: googleapis.run.v1.namespaces.jobs.run
+        connector_params:
+          timeout: 10800
         args:
           name: namespaces/vital-form-455413-p8/jobs/pm25ml
           location: europe-west1
