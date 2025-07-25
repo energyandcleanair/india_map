@@ -29,6 +29,8 @@ RUN poetry build && poetry run pip install --no-deps dist/*.whl
 # Stage 3: Minimal runtime image
 FROM python:3.12-slim AS runtime
 
+RUN apt-get update && apt-get install -y libgomp1 && rm -rf /var/lib/apt/lists/*
+
 # Security: create a non-root user to run the application
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
