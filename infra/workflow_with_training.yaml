@@ -1,5 +1,19 @@
 main:
   steps:
+    - init_env:
+        assign:
+          - common_env:
+              GCP_PROJECT: vital-form-455413-p8
+              INDIA_SHAPEFILE_ASSET: projects/vital-form-455413-p8
+              CSV_BUCKET_NAME: crea-ee-csv-buffer
+              INGEST_ARCHIVE_BUCKET_NAME: crea-pm25ml-ingest-archive
+              COMBINED_BUCKET_NAME: crea-pm25ml-combined
+              MODEL_STORAGE_BUCKET_NAME: crea-pm25ml-models
+              SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX: "^era5_land__.*$"
+              TQDM_DISABLE: "1"
+              START_MONTH: "2018-08-01"
+              END_MONTH: "2025-03-01"
+              RUNNING_IN_CLOUD_BATCH: "true"
     - collect_data_and_combine:
         call: googleapis.run.v1.namespaces.jobs.run
         args:
@@ -42,17 +56,7 @@ main:
                           - -m
                           - pm25ml.run.generate_features
                       environment:
-                        variables:
-                          GCP_PROJECT: vital-form-455413-p8
-                          INDIA_SHAPEFILE_ASSET: projects/vital-form-455413-p8
-                          CSV_BUCKET_NAME: crea-ee-csv-buffer
-                          INGEST_ARCHIVE_BUCKET_NAME: crea-pm25ml-ingest-archive
-                          COMBINED_BUCKET_NAME: crea-pm25ml-combined
-                          SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX: "^era5_land__.*$"
-                          TQDM_DISABLE: "1"
-                          START_MONTH: "2018-08-01"
-                          END_MONTH: "2025-03-01"
-                          RUNNING_IN_CLOUD_BATCH: "true"
+                        variables: ${common_env}
                   computeResource:
                     memoryMib: 32768               # 32 GiB
                     cpuMilli: 8000                 # 8 vCPU
@@ -110,9 +114,7 @@ main:
                                     - -m
                                     - ${"pm25ml.run.train_" + model + "_imputer"}
                                 environment:
-                                  variables:
-                                    MAX_PARALLEL_TASKS: "112"
-                                    RUNNING_IN_CLOUD_BATCH: "true"
+                                  variables: ${common_env}
                             computeResource:
                               memoryMib: 196608 # 192 GiB
                               cpuMilli: 112000 # 112 vCPU
