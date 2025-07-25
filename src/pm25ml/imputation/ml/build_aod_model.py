@@ -1,5 +1,6 @@
 """Builds an XGBoost AOD imputation model, and evaluates its performance."""
 
+import json
 import math
 import os
 import tempfile
@@ -128,7 +129,12 @@ def main(loader_config: _LoaderConfig) -> None:
     # 6. Save the model and diagnostics
     # Create a temporary directory to save diagnostics
     logger.info("Saving model and diagnostics")
-    write_model_to_gcs(trained_model)
+    write_model_to_storage(
+        model=trained_model,
+        loader_config=loader_config,
+        cv_results=cv_results,
+        test_metrics=test_metrics,
+    )
 
 
 def log_cv_results(cv_results: pd.DataFrame) -> None:
@@ -321,17 +327,44 @@ def evaluate_model(model: XGBRegressor, df_rest: pd.DataFrame) -> dict:
     return {"r2": r2, "rmse": rmse}
 
 
-def write_model_to_gcs(model: XGBRegressor) -> None:
-    """Save the trained model to Google Cloud Storage."""
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        save_path = Path(tmp_dir, "aod_imputation_model.json")
-        model.save_model(save_path)
+def write_model_to_storage(
+    model: XGBRegressor,
+    loader_config: _LoaderConfig,
+    cv_results: pd.DataFrame,
+    test_metrics: dict,
+) -> None:
+    """Save the trained model and evaluation metrics to Google Cloud Storage."""
+    date_ref = Arrow.now().format("YYYY-MM-DD_HH-mm-ss")
 
+    if loader_config.cache_name != "tiny":
         client = GCSClient()
         bucket = client.bucket(MODEL_STORAGE_BUCKET)
-        datetime = Arrow.now().isoformat()
-        blob = bucket.blob(f"aod_imputation_model_{datetime}.json")
-        blob.upload_from_filename(save_path)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_path = Path(tmp_dir, "aod_imputation_model.json")
+            model.save_model(save_path)
+            blob = bucket.blob(f"aod-imputation-model/{date_ref}/model.json")
+            blob.upload_from_filename(save_path)
+
+        bucket.blob(f"aod-imputation-model/{date_ref}/cv-metrics.csv").upload_from_string(
+            cv_results.to_csv(),
+            content_type="text/csv",
+        )
+
+        bucket.blob(f"aod-imputation-model/{date_ref}/validation-metrics.json").upload_from_string(
+            pd.Series(test_metrics).to_json(),
+            content_type="application/json",
+        )
+    else:
+        base_dir = Path("output", "models", "aod-imputation-model", date_ref)
+        base_dir.mkdir(parents=True, exist_ok=True)
+        save_path = base_dir / "model.json"
+        model.save_model(save_path)
+
+        cv_results.to_csv(base_dir / "cv-metrics.csv")
+        validation_metrics_path = base_dir / "validation-metrics.json"
+        with validation_metrics_path.open("w") as f:
+            json.dump(test_metrics, f)
 
 
 if __name__ == "__main__":

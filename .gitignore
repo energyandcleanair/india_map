@@ -2,6 +2,7 @@ __pycache__
 data/
 example_data/
 dist/
+output/
 
 .vscode
 
