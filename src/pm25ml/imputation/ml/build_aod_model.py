@@ -18,10 +18,7 @@ from xgboost import XGBRegressor
 
 from pm25ml.logging import logger
 
-AOD_INPUT_COLS = [
-    "grid_id",
-    "grid__id_50km",
-    "date",
+AOD_PREDICTOR_COLS = [
     "merra_aot__aot",
     "merra_co_top__co",
     "merra_co__co",
@@ -75,13 +72,10 @@ AOD_INPUT_COLS = [
     "merra_co_top__co__mean_all",
 ]
 
-INDEX_COLUMNS = [
-    "grid_id",
-    "grid__id_50km",
-    "date",
-]
+AOD_TARGET_COL = "modis_aod__Optical_Depth_055"
+AOD_GROUPER_COL = "grid__id_50km"
 
-AOD_COLUMN = "modis_aod__Optical_Depth_055"
+ALL_REQUIRED_COLS = {*AOD_PREDICTOR_COLS, AOD_TARGET_COL, AOD_GROUPER_COL}
 
 CACHE_DIR = Path(".cache")
 
@@ -180,8 +174,8 @@ def train_model(model: XGBRegressor, df_sampled: pd.DataFrame) -> XGBRegressor:
         XGBRegressor: The trained XGBRegressor model.
 
     """
-    target = df_sampled[AOD_COLUMN]
-    predictors = df_sampled.drop(columns=[AOD_COLUMN, *INDEX_COLUMNS])
+    target = df_sampled[AOD_TARGET_COL]
+    predictors = df_sampled[AOD_PREDICTOR_COLS]
 
     model.set_params(n_jobs=int(MAX_PARALLEL_TASKS))
     model.fit(predictors, target)
@@ -204,9 +198,9 @@ def cross_validate_with_stratification(
         XGBRegressor: The trained XGBRegressor model.
 
     """
-    target = df_sampled[[AOD_COLUMN]]
-    predictors = df_sampled.drop(columns=[AOD_COLUMN, *INDEX_COLUMNS])
-    grouper = df_sampled["grid__id_50km"]
+    target = df_sampled[AOD_TARGET_COL]
+    predictors = df_sampled[AOD_PREDICTOR_COLS]
+    grouper = df_sampled[AOD_GROUPER_COL]
 
     n_splits = 10
     cpus_per_model = int(MAX_PARALLEL_TASKS / n_splits)
@@ -248,10 +242,7 @@ def load_training_data(loader_config: _LoaderConfig) -> pd.DataFrame:
         .with_columns(
             month_of_year=pl.col("date").dt.month(),
         )
-        .select(
-            [*AOD_INPUT_COLS, "split"],
-        )
-        .drop("split")
+        .select(ALL_REQUIRED_COLS)
         .collect(engine="streaming")
         .to_pandas()
     )
@@ -280,10 +271,7 @@ def load_test_data(loader_config: _LoaderConfig) -> pd.DataFrame:
         .with_columns(
             month_of_year=pl.col("date").dt.month(),
         )
-        .select(
-            [*AOD_INPUT_COLS, "split"],
-        )
-        .drop("split")
+        .select(ALL_REQUIRED_COLS)
         .collect(engine="streaming")
         .to_pandas()
     )
@@ -313,7 +301,7 @@ def evaluate_model(model: XGBRegressor, df_rest: pd.DataFrame) -> dict:
         raise ValueError(msg)
 
     # Predict AOD values
-    pred = model.predict(df_rest.drop(columns=[AOD_COLUMN, *INDEX_COLUMNS]))
+    pred = model.predict(df_rest[AOD_PREDICTOR_COLS])
 
     # Check if prediction length matches the number of rows in rest_df
     if len(pred) != df_rest.shape[0]:
@@ -321,8 +309,8 @@ def evaluate_model(model: XGBRegressor, df_rest: pd.DataFrame) -> dict:
         raise ValueError(msg)
 
     # Calculate metrics for evaluation
-    r2 = r2_score(df_rest[AOD_COLUMN], pred)
-    rmse = math.sqrt(mean_squared_error(df_rest[AOD_COLUMN], pred))
+    r2 = r2_score(df_rest[AOD_TARGET_COL], pred)
+    rmse = math.sqrt(mean_squared_error(df_rest[AOD_TARGET_COL], pred))
 
     return {"r2": r2, "rmse": rmse}
 
