@@ -38,6 +38,7 @@ dependency-injector = "^4.48.1"
 multidict = ">=6.0.0,!=6.5.0"
 scikit-learn = "^1.7.1"
 xgboost = "^3.0.2"
+lightgbm = "^4.6.0"
 
 
 [tool.poetry.group.dev.dependencies]

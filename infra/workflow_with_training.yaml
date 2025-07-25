@@ -108,7 +108,7 @@ main:
                                   commands:
                                     - python
                                     - -m
-                                    - ${"pm25ml.imputation.ml.build_" + model + "_model"}
+                                    - ${"pm25ml.run.train_" + model + "_imputer"}
                                 environment:
                                   variables:
                                     MAX_PARALLEL_TASKS: "112"

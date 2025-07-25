@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import arrow
 import ee
 import google.auth
+import polars as pl
 import requests
 from dependency_injector import containers, providers
 from ee.featurecollection import FeatureCollection
+from fsspec.implementations.dirfs import DirFileSystem
 from gcsfs import GCSFileSystem
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
@@ -34,11 +37,16 @@ from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputati
 from pm25ml.logging import logger
 from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
+from pm25ml.setup.model_references import build_training_ref
 from pm25ml.setup.pipelines import define_pipelines
 from pm25ml.setup.samplers import ImputationStep, define_samplers
+from pm25ml.training.model_pipeline import ModelPipeline
+from pm25ml.training.model_storage import ModelStorage
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+    type BooleanSelector = Literal["true", "false"]
 
 LOCAL_GRID_ZIP_PATH = Path("./assets/grid_india_10km_shapefiles.zip")
 LOCAL_GRID_50KM_MAPPING_CSV_PATH = Path("./assets/grid_intersect_with_50km.csv")
@@ -121,6 +129,11 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     feature_planner = providers.Singleton(
         GriddedFeatureCollectionPlanner,
         grid=gee_india_grid_reference,
+    )
+
+    local_rooted_filesystem = providers.Singleton(
+        DirFileSystem,
+        path="output",
     )
 
     gcs_filesystem: providers.Provider[GCSFileSystem] = providers.Singleton(
@@ -232,6 +245,36 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         imputation_steps=config.imputation_steps,
     )
 
+    model_storage_backer = providers.Selector(
+        config.local_training,
+        true=local_rooted_filesystem,
+        false=gcs_filesystem,
+    )
+
+    extra_sampler = providers.Selector(
+        config.local_training,
+        true=providers.Singleton(
+            lambda x: x.filter(pl.col("month") == "2023-01").gather_every(100),
+        ),
+        false=providers.Singleton(lambda x: x),
+    )
+
+    model_store = providers.Singleton(
+        ModelStorage,
+        filesystem=model_storage_backer,
+        bucket_name=config.gcp.model_storage_bucket,
+    )
+
+    ml_model_trainers = providers.Dict(
+        aod=providers.Singleton(
+            ModelPipeline,
+            combined_storage=combined_storage,
+            data_ref=build_training_ref("aod", extra_sampler),
+            model_store=model_store,
+            n_jobs=config.max_parallel_tasks,
+        ),
+    )
+
 
 def init_dependencies_from_env() -> Pm25mlContainer:
     """
@@ -247,8 +290,25 @@ def init_dependencies_from_env() -> Pm25mlContainer:
     container.config.gcp.csv_bucket.from_env("CSV_BUCKET_NAME")
     container.config.gcp.archive_bucket.from_env("INGEST_ARCHIVE_BUCKET_NAME")
     container.config.gcp.combined_bucket.from_env("COMBINED_BUCKET_NAME")
+    container.config.gcp.model_storage_bucket.from_env(
+        "MODEL_STORAGE_BUCKET_NAME",
+    )
 
     container.config.gcp.gee.india_shapefile_asset.from_env("INDIA_SHAPEFILE_ASSET")
+
+    container.config.max_parallel_tasks.from_env(
+        "MAX_PARALLEL_TASKS",
+        as_=lambda x: int(x),
+        default=str(os.cpu_count() or 1),
+    )
+
+    container.config.local_training.from_value(
+        _parse_bool_env_var(
+            os.getenv("LOCAL_TRAINING") or os.getenv("TINY_SAMPLE") or "false",
+        ),
+    )
+
+    logger.info(f"Using local training: {container.config.local_training()}")
 
     container.config.start_month.from_env("START_MONTH", as_=lambda x: arrow.get(x, "YYYY-MM-DD"))
     container.config.end_month.from_env("END_MONTH", as_=lambda x: arrow.get(x, "YYYY-MM-DD"))
@@ -309,3 +369,8 @@ def init_dependencies_from_env() -> Pm25mlContainer:
     )
 
     return container
+
+
+def _parse_bool_env_var(value: str) -> BooleanSelector:
+    result = str(value).strip().lower() in ("1", "true", "yes", "on")
+    return "true" if result else "false"

@@ -5712,4 +5712,4 @@ test = ["coverage", "hypothesis", "mypy", "packaging", "pytest (<8.4)", "pytest-
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "a7ea2809a8c4dc0fc5abedd571c9dea49810da8834679bdeaf3b3e7d53d9a3db"
+content-hash = "997a9609a453dd5d5d211568464c3b4f538d159f92529b4f2ce54bd441108db8"

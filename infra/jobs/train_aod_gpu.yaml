@@ -21,7 +21,7 @@ taskGroups:
             commands:
               - python
               - -m
-              - pm25ml.imputation.ml.build_aod_model
+              - pm25ml.run.train_aod_imputer
           environment:
             variables:
               MAX_PARALLEL_TASKS: "16"
