@@ -23,6 +23,9 @@ We use poetry to manage the project. To install the dependencies needed run:
 poetry install --only main,dev
 ```
 
+We suggest that you also read the "Architecture" and "Implementation" of this
+document, too.
+
 ### Dependencies
 
 We use different poetry groups to manage the dependencies: `main` (default), `dev`, `experiment`,
@@ -71,9 +74,40 @@ configuration provided so that your code is checked before committing:
 1. Install `pre-commit`, if you haven't already
 2. [Install the git hook scripts](https://pre-commit.com/#3-install-the-git-hook-scripts)
 
+## Architecture
+
+We run this on Google Cloud and use Google Workflows to run the software. This
+allows us to run different components with different types of compute. We aim to
+only provision compute on-demand to avoid high compute costs.
+
+For the entrypoint for the workflows, see `infra/workflow*yaml`.
+
+The data is stored in Google Cloud with different buckets for:
+- Ingested data (which is versioned at the bucket level)
+- Combined, generated, and sampled data (unversioned latest): we don't version these to keep
+  data costs down.
+- Models (versioned within the bucket)
+
+### Collecting
+
+Daily data is collected at monthly intervals and must be stored using parquet with hive
+partitioning a key for each year month. This allows for iterative loading of new
+datasets and partial loading at different levels.
+
+### Processing
+
+Components should to only load a single month's data at a time to avoid a dependency
+of expensive compute for each layer.
+
+Components should be idempotent and should avoid doing work if it's not needed.
+For example, when combining data from multiple sources, if the original sources
+haven't changed, the component shouldn't recompute the data.
+
+However, if this isn't possible, larger compute can be provisioned.
+
 ## Implementation
 
-This shows the overall process flow for the application. More detail is provided on some of these
+This shows the overall process flow for this project. More detail is provided on these
 areas in the document below.
 
 ```mermaid
@@ -81,12 +115,16 @@ areas in the document below.
 flowchart TB
   collect_station_data["Collect station data"]
   collect_features["Collect and prepare features"]
-  impute_satellite["Impute satellite using ML"]
+  impute_satellite["Impute satellite using models"]
+  train_imputation_models["Train and evaluate imputation models"]
   train_pm25_model["Train PM2.5 model"]
   predict_pm25["Predict PM2.5"]
   recombine_datasets["Combine collected, imputed, and station data"]
 
+  train_imputation_models --> impute_satellite
+
   collect_features --> impute_satellite
+  collect_features --> train_imputation_models
 
   impute_satellite --> recombine_datasets
   
@@ -179,13 +217,13 @@ flowchart TB
 
   generate_features --> prepared_features
 
-  
-
 ```
 
-### Impute satellite using ML
+### Train and evaluate imputation models
 
-This shows the processing that happens at the satellite imputation stage.
+This shows the broad overall implementation of training each imputation model.
+
+We use a fixed set of hyperparameters based on the paper.
 
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
@@ -199,19 +237,56 @@ flowchart TB
   subgraph for_each["`
   **For each:** AOD, NO2, CO
   `"]
-    subgraph imputation["ML imputation"]
+    subgraph imputation["Training"]
       sample{{"Sample prepared"}}
+      cross_validate{{"Cross validate"}}
+      cv_metrics["Cross validation metrics"]
       train{{"Train model"}}
-      impute{{"Impute missing"}}
+      evaluate{{"Final validation"}}
+      model["Trained model"]
+      final_metrics["Final metrics"]
+      packaged_model["Packaged model"]
 
-      sample --> train
-      train --> impute
+      sample --> cross_validate
+      cross_validate --> train
+      cross_validate --> cv_metrics
+      train --> model
+      train --> evaluate
+      evaluate --> final_metrics
+
+      cv_metrics --> packaged_model
+      final_metrics --> packaged_model
+      model --> packaged_model
     end
   end
 
-  combined["Combined with imputed"]
+  prepared_features --> sample
 
-  prepared_features --> sample  
+```
+
+
+### Impute satellite using models
+
+This shows the processing that happens at the satellite imputation stage.
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+flowchart TB
+
+  prepared_features["`
+    **Prepared features**
+    From _Collect and prepare features_
+  `"]
+  subgraph for_each["`
+  **For each:** AOD, NO2, CO
+  `"]
+    packaged_model["Packaged model"]
+    impute{{"Impute using trained models"}}
+    packaged_model --> impute
+  end
+
+  combined["Combined with imputed data"]
+
   prepared_features --> impute
   prepared_features -->|extended| combined
   impute --> combined
