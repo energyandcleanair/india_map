@@ -3,4 +3,4 @@
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 
-type AvailableModelType = XGBRegressor | LGBMRegressor
+type Pm25mlCompatibleModel = XGBRegressor | LGBMRegressor

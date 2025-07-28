@@ -17,7 +17,7 @@ from pm25ml.training.model_storage import ModelStorage, ValidatedModel
 
 if TYPE_CHECKING:
     from pm25ml.combiners.combined_storage import CombinedStorage
-    from pm25ml.training.available_model_types import AvailableModelType
+    from pm25ml.training.compatible_model import Pm25mlCompatibleModel
 
 
 @dataclass
@@ -29,7 +29,7 @@ class ModelReference:
     target_col: str
     grouper_col: str
 
-    model_builder: Callable[[], AvailableModelType]
+    model_builder: Callable[[], Pm25mlCompatibleModel]
 
     extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame]
 
@@ -92,9 +92,9 @@ class ModelPipeline:
         # Create a temporary directory to save diagnostics
         logger.info("Saving model and diagnostics")
         self.model_store.save_model(
-            ValidatedModel(
-                model_name=self.data.source_stage,
-                model_run_ref=Arrow.now().format("YYYY-MM-DD+HH-mm-ss"),
+            model_name=self.data.source_stage,
+            model_run_ref=Arrow.now().format("YYYY-MM-DD+HH-mm-ss"),
+            model=ValidatedModel(
                 model=trained_model,
                 cv_results=cv_results,
                 test_metrics=test_metrics,
@@ -103,9 +103,9 @@ class ModelPipeline:
 
     def train_model_on_sample(
         self,
-        model: AvailableModelType,
+        model: Pm25mlCompatibleModel,
         df_sampled: pd.DataFrame,
-    ) -> AvailableModelType:
+    ) -> Pm25mlCompatibleModel:
         """
         Train the XGBRegressor model on the sampled data.
 
@@ -161,7 +161,7 @@ class ModelPipeline:
 
     def cross_validate_with_stratification(
         self,
-        model: AvailableModelType,
+        model: Pm25mlCompatibleModel,
         df_sampled: pd.DataFrame,
     ) -> pd.DataFrame:
         """
@@ -211,7 +211,7 @@ class ModelPipeline:
         cv_results_agg = cv_results.aggregate(["mean", "std", "min", "max"])
         logger.info(f"Cross-validation scores aggregated:\n{cv_results_agg.to_string()}")
 
-    def evaluate_model(self, model: AvailableModelType, df_rest: pd.DataFrame) -> dict:
+    def evaluate_model(self, model: Pm25mlCompatibleModel, df_rest: pd.DataFrame) -> dict:
         """
         Evaluate the model on the rest of the data.
 
