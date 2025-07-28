@@ -93,7 +93,7 @@ class ModelPipeline:
         logger.info("Saving model and diagnostics")
         self.model_store.save_model(
             model_name=self.data.source_stage,
-            model_run_ref=Arrow.now().format("YYYY-MM-DD+HH-mm-ss"),
+            model_run_ref=Arrow.now(),
             model=ValidatedModel(
                 model=trained_model,
                 cv_results=cv_results,

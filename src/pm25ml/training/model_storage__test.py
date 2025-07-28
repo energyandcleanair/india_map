@@ -1,4 +1,6 @@
 import warnings
+from arrow import Arrow
+import arrow
 import pytest
 import pandas as pd
 import json
@@ -42,35 +44,59 @@ def trained_lgbm_model(sample_data):
     return model
 
 
-def test_save_xgb_model(model_storage, trained_xgb_model):
+EXAMPLE_DATE = arrow.get("2023-10-01+12-00-00", "YYYY-MM-DD+HH-mm-ss")
+EXAMPLE_DATE_LATER = arrow.get("2023-10-02+12-00-00", "YYYY-MM-DD+HH-mm-ss")
+
+
+def test__save_model__xgb_model_with_validated_model__files_exist(model_storage, trained_xgb_model):
     validated_model = ValidatedModel(
         model=trained_xgb_model,
         cv_results=pd.DataFrame({"metric": [0.1, 0.2]}),
         test_metrics={"rmse": 0.15},
     )
 
-    model_storage.save_model("xgb_model", "run_1", validated_model)
+    model_storage.save_model("xgb_model", EXAMPLE_DATE, validated_model)
 
-    assert model_storage.filesystem.exists("test_bucket/xgb_model/run_1/model+XGBRegressor")
-    assert model_storage.filesystem.exists("test_bucket/xgb_model/run_1/cv_results.parquet")
-    assert model_storage.filesystem.exists("test_bucket/xgb_model/run_1/test_metrics.json")
+    expected_date_path = EXAMPLE_DATE.format("YYYY-MM-DD+HH-mm-ss")
+
+    assert model_storage.filesystem.exists(
+        f"test_bucket/xgb_model/{expected_date_path}/model+XGBRegressor"
+    )
+    assert model_storage.filesystem.exists(
+        f"test_bucket/xgb_model/{expected_date_path}/cv_results.parquet"
+    )
+    assert model_storage.filesystem.exists(
+        f"test_bucket/xgb_model/{expected_date_path}/test_metrics.json"
+    )
 
 
-def test_save_lgbm_model(model_storage, trained_lgbm_model):
+def test__save_model__lgbm_model_with_validated_model__files_exist(
+    model_storage, trained_lgbm_model
+):
     validated_model = ValidatedModel(
         model=trained_lgbm_model,
         cv_results=pd.DataFrame({"metric": [0.3, 0.4]}),
         test_metrics={"mae": 0.25},
     )
 
-    model_storage.save_model("lgbm_model", "run_2", validated_model)
+    model_storage.save_model("lgbm_model", EXAMPLE_DATE, validated_model)
 
-    assert model_storage.filesystem.exists("test_bucket/lgbm_model/run_2/model+LGBMRegressor")
-    assert model_storage.filesystem.exists("test_bucket/lgbm_model/run_2/cv_results.parquet")
-    assert model_storage.filesystem.exists("test_bucket/lgbm_model/run_2/test_metrics.json")
+    expected_date_path = EXAMPLE_DATE.format("YYYY-MM-DD+HH-mm-ss")
+
+    assert model_storage.filesystem.exists(
+        f"test_bucket/lgbm_model/{expected_date_path}/model+LGBMRegressor"
+    )
+    assert model_storage.filesystem.exists(
+        f"test_bucket/lgbm_model/{expected_date_path}/cv_results.parquet"
+    )
+    assert model_storage.filesystem.exists(
+        f"test_bucket/lgbm_model/{expected_date_path}/test_metrics.json"
+    )
 
 
-def test_save_statistics(model_storage, sample_data):
+def test__save_model__statistics_model_with_validated_model__files_and_content_correct(
+    model_storage, sample_data
+):
     X, y = sample_data
     model = XGBRegressor()
     model.fit(X, y)
@@ -81,27 +107,35 @@ def test_save_statistics(model_storage, sample_data):
         test_metrics={"r2": 0.85},
     )
 
-    model_storage.save_model("stats_model", "run_3", validated_model)
+    model_storage.save_model("stats_model", EXAMPLE_DATE, validated_model)
 
-    with model_storage.filesystem.open("test_bucket/stats_model/run_3/cv_results.parquet") as f:
+    expected_date_path = EXAMPLE_DATE.format("YYYY-MM-DD+HH-mm-ss")
+
+    with model_storage.filesystem.open(
+        f"test_bucket/stats_model/{expected_date_path}/cv_results.parquet"
+    ) as f:
         cv_results = pd.read_csv(f)
         assert "metric" in cv_results.columns
 
-    with model_storage.filesystem.open("test_bucket/stats_model/run_3/test_metrics.json") as f:
+    with model_storage.filesystem.open(
+        f"test_bucket/stats_model/{expected_date_path}/test_metrics.json"
+    ) as f:
         test_metrics = json.load(f)
         assert test_metrics["r2"] == 0.85
 
 
-def test_load_xgb_model(model_storage, trained_xgb_model):
+def test__load_model__xgb_model_saved_and_loaded__model_and_predictions_match(
+    model_storage, trained_xgb_model
+):
     validated_model = ValidatedModel(
         model=trained_xgb_model,
         cv_results=pd.DataFrame({"metric": [0.1, 0.2]}),
         test_metrics={"rmse": 0.15},
     )
 
-    model_storage.save_model("xgb_model", "run_1", validated_model)
+    model_storage.save_model("xgb_model", EXAMPLE_DATE, validated_model)
 
-    loaded_model_wrapper = model_storage.load_model("xgb_model", "run_1")
+    loaded_model_wrapper = model_storage.load_model("xgb_model", EXAMPLE_DATE)
 
     loaded_model = loaded_model_wrapper.model
     assert isinstance(loaded_model, XGBRegressor)
@@ -109,19 +143,47 @@ def test_load_xgb_model(model_storage, trained_xgb_model):
     assert loaded_model.predict([[1, 2]]) == trained_xgb_model.predict([[1, 2]])
 
 
-def test_load_lgbm_model(model_storage, trained_lgbm_model):
+def test__load_model__lgbm_model_saved_and_loaded__model_and_predictions_match(
+    model_storage, trained_lgbm_model
+):
     validated_model = ValidatedModel(
         model=trained_lgbm_model,
         cv_results=pd.DataFrame({"metric": [0.3, 0.4]}),
         test_metrics={"mae": 0.25},
     )
 
-    model_storage.save_model("lgbm_model", "run_2", validated_model)
+    model_storage.save_model("lgbm_model", EXAMPLE_DATE, validated_model)
 
-    loaded_model = model_storage.load_model("lgbm_model", "run_2")
+    loaded_model = model_storage.load_model("lgbm_model", EXAMPLE_DATE)
 
     assert isinstance(loaded_model.model, Booster)
     assert loaded_model.model.dump_model() == trained_lgbm_model.booster_.dump_model()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         assert loaded_model.model.predict([[1, 2]]) == trained_lgbm_model.predict([[1, 2]])
+
+
+def test__load_latest_model__xgb_model_with_multiple_runs__latest_model_loaded(
+    model_storage, trained_xgb_model
+):
+    validated_model_1 = ValidatedModel(
+        model=trained_xgb_model,
+        cv_results=pd.DataFrame({"metric": [0.1, 0.2]}),
+        test_metrics={"rmse": 0.15},
+    )
+
+    validated_model_2 = ValidatedModel(
+        model=trained_xgb_model,
+        cv_results=pd.DataFrame({"metric": [0.3, 0.4]}),
+        test_metrics={"rmse": 0.10},
+    )
+
+    model_storage.save_model("xgb_model", EXAMPLE_DATE, validated_model_1)
+    model_storage.save_model("xgb_model", EXAMPLE_DATE_LATER, validated_model_2)
+
+    loaded_model_wrapper = model_storage.load_latest_model("xgb_model")
+
+    loaded_model = loaded_model_wrapper.model
+    assert isinstance(loaded_model, XGBRegressor)
+    assert loaded_model.get_booster().get_dump() == trained_xgb_model.get_booster().get_dump()
+    assert loaded_model_wrapper.test_metrics["rmse"] == 0.10

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import lightgbm
 import pandas as pd
+from arrow import Arrow
 from fsspec import AbstractFileSystem
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
@@ -57,7 +58,7 @@ class LoadedValidatedModel(ModelStats):
     model: Predictor
 
 
-type ModelRef = str
+type ModelRef = Arrow
 
 
 class ModelStorage:
@@ -81,14 +82,14 @@ class ModelStorage:
 
         Args:
             model_name (str): The name of the model to save.
-            model_run_ref (ModelRef): A reference for the model run, typically a timestamp.
+            model_run_ref (Arrow): A reference for the model run.
             model (ValidatedModel): The validated model to save.
 
         """
         base_path = Path(
             self.bucket_name,
             model_name,
-            model_run_ref,
+            model_run_ref.format("YYYY-MM-DD+HH-mm-ss"),
         )
 
         self.filesystem.mkdir(str(base_path), create_parents=True, exist_ok=True)
@@ -137,6 +138,9 @@ class ModelStorage:
             ValidatedModel: The loaded validated model.
 
         """
+        return self._load_from_str_ref(model_name, model_run_ref.format("YYYY-MM-DD+HH-mm-ss"))
+
+    def _load_from_str_ref(self, model_name: str, model_run_ref: str) -> LoadedValidatedModel:
         base_path = Path(
             self.bucket_name,
             model_name,
@@ -188,3 +192,31 @@ class ModelStorage:
             cv_results=cv_results,
             test_metrics=test_metrics,
         )
+
+    def load_latest_model(self, model_name: str) -> LoadedValidatedModel:
+        """
+        Load the latest validated model for a given model name.
+
+        Args:
+            model_name (str): The name of the model to load.
+
+        Returns:
+            LoadedValidatedModel: The loaded validated model.
+
+        """
+        base_path = Path(self.bucket_name, model_name)
+
+        # Find the latest model run reference
+        model_run_refs: list[str] = [
+            path
+            for path in cast("list[str]", self.filesystem.glob(str(base_path / "*")))
+            if self.filesystem.isdir(path)
+        ]
+        if not model_run_refs:
+            msg = f"No model runs found for model: {model_name}"
+            raise FileNotFoundError(msg)
+
+        latest_run_ref: str = max(model_run_refs)
+
+        # Delegate to the existing load_model method
+        return self._load_from_str_ref(model_name, latest_run_ref)
