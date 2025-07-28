@@ -17,14 +17,14 @@ from pm25ml.training.model_storage import ModelStorage, ValidatedModel
 
 if TYPE_CHECKING:
     from pm25ml.combiners.combined_storage import CombinedStorage
-    from pm25ml.training.compatible_model import Pm25mlCompatibleModel
+    from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
 
 
 @dataclass
 class ModelReference:
     """Data definition for the model training."""
 
-    source_stage: str
+    source_stage: ModelName
     predictor_cols: list[str]
     target_col: str
     grouper_col: str
@@ -32,6 +32,25 @@ class ModelReference:
     model_builder: Callable[[], Pm25mlCompatibleModel]
 
     extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame]
+
+    def __post_init__(self) -> None:
+        """Validate the model reference."""
+        if self.target_col in self.predictor_cols:
+            msg = (
+                f"Target column '{self.target_col}' cannot be in predictor columns: "
+                f"{self.predictor_cols}"
+            )
+            raise ValueError(
+                msg,
+            )
+        if self.grouper_col in self.predictor_cols:
+            msg = (
+                f"Grouper column '{self.grouper_col}' cannot be in predictor columns: "
+                f"{self.predictor_cols}"
+            )
+            raise ValueError(
+                msg,
+            )
 
     @property
     def all_cols(self) -> set[str]:

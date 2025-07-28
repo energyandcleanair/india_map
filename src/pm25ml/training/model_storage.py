@@ -13,7 +13,7 @@ from fsspec import AbstractFileSystem
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 
-from pm25ml.training.compatible_model import Pm25mlCompatibleModel
+from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
 
 if TYPE_CHECKING:
     from io import BufferedWriter
@@ -58,7 +58,7 @@ class LoadedValidatedModel(ModelStats):
     model: Predictor
 
 
-type ModelRef = Arrow
+type ModelRunRef = Arrow
 
 
 class ModelStorage:
@@ -76,7 +76,12 @@ class ModelStorage:
         self.filesystem = filesystem
         self.bucket_name = bucket_name
 
-    def save_model(self, model_name: str, model_run_ref: ModelRef, model: ValidatedModel) -> None:
+    def save_model(
+        self,
+        model_name: ModelName,
+        model_run_ref: ModelRunRef,
+        model: ValidatedModel,
+    ) -> None:
         """
         Save the validated model to the storage.
 
@@ -126,7 +131,7 @@ class ModelStorage:
                 msg = "Unsupported model type for saving."
                 raise TypeError(msg)
 
-    def load_model(self, model_name: str, model_run_ref: ModelRef) -> LoadedValidatedModel:
+    def load_model(self, model_name: ModelName, model_run_ref: ModelRunRef) -> LoadedValidatedModel:
         """
         Load a validated model from the storage.
 
@@ -140,7 +145,35 @@ class ModelStorage:
         """
         return self._load_from_str_ref(model_name, model_run_ref.format("YYYY-MM-DD+HH-mm-ss"))
 
-    def _load_from_str_ref(self, model_name: str, model_run_ref: str) -> LoadedValidatedModel:
+    def load_latest_model(self, model_name: ModelName) -> LoadedValidatedModel:
+        """
+        Load the latest validated model for a given model name.
+
+        Args:
+            model_name (str): The name of the model to load.
+
+        Returns:
+            LoadedValidatedModel: The loaded validated model.
+
+        """
+        base_path = Path(self.bucket_name, model_name)
+
+        # Find the latest model run reference
+        model_run_refs: list[str] = [
+            Path(path).name
+            for path in cast("list[str]", self.filesystem.glob(str(base_path / "*")))
+            if self.filesystem.isdir(path)
+        ]
+        if not model_run_refs:
+            msg = f"No model runs found for model: {model_name}"
+            raise FileNotFoundError(msg)
+
+        latest_run_ref: str = max(model_run_refs)
+
+        # Delegate to the existing load_model method
+        return self._load_from_str_ref(model_name, latest_run_ref)
+
+    def _load_from_str_ref(self, model_name: ModelName, model_run_ref: str) -> LoadedValidatedModel:
         base_path = Path(
             self.bucket_name,
             model_name,
@@ -192,31 +225,3 @@ class ModelStorage:
             cv_results=cv_results,
             test_metrics=test_metrics,
         )
-
-    def load_latest_model(self, model_name: str) -> LoadedValidatedModel:
-        """
-        Load the latest validated model for a given model name.
-
-        Args:
-            model_name (str): The name of the model to load.
-
-        Returns:
-            LoadedValidatedModel: The loaded validated model.
-
-        """
-        base_path = Path(self.bucket_name, model_name)
-
-        # Find the latest model run reference
-        model_run_refs: list[str] = [
-            path
-            for path in cast("list[str]", self.filesystem.glob(str(base_path / "*")))
-            if self.filesystem.isdir(path)
-        ]
-        if not model_run_refs:
-            msg = f"No model runs found for model: {model_name}"
-            raise FileNotFoundError(msg)
-
-        latest_run_ref: str = max(model_run_refs)
-
-        # Delegate to the existing load_model method
-        return self._load_from_str_ref(model_name, latest_run_ref)

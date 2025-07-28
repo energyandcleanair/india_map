@@ -37,9 +37,9 @@ from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputati
 from pm25ml.logging import logger
 from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
-from pm25ml.setup.model_references import build_training_ref
 from pm25ml.setup.pipelines import define_pipelines
 from pm25ml.setup.samplers import ImputationStep, define_samplers
+from pm25ml.setup.training import build_training_ref
 from pm25ml.training.model_pipeline import ModelPipeline
 from pm25ml.training.model_storage import ModelStorage
 

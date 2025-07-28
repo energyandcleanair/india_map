@@ -31,7 +31,6 @@ def build_training_ref(
                 "era5_land__leaf_area_index_low_vegetation",
                 "era5_land__leaf_area_index_high_vegetation",
                 "era5_land__dewpoint_temperature_2m",
-                "modis_aod__Optical_Depth_055",
                 "srtm_elevation__elevation",
                 "modis_land_cover__water",
                 "modis_land_cover__shrub",
