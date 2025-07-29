@@ -86,6 +86,8 @@ main:
             value: model
             in:
               - aod
+              - co
+              - no2
             steps:
               - train_model:
                   call: googleapis.batch.v1.projects.locations.jobs.create

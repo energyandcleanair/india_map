@@ -273,6 +273,20 @@ class Pm25mlContainer(containers.DeclarativeContainer):
             model_store=model_store,
             n_jobs=config.max_parallel_tasks,
         ),
+        no2=providers.Singleton(
+            ModelPipeline,
+            combined_storage=combined_storage,
+            data_ref=build_training_ref("no2", extra_sampler),
+            model_store=model_store,
+            n_jobs=config.max_parallel_tasks,
+        ),
+        co=providers.Singleton(
+            ModelPipeline,
+            combined_storage=combined_storage,
+            data_ref=build_training_ref("co", extra_sampler),
+            model_store=model_store,
+            n_jobs=config.max_parallel_tasks,
+        ),
     )
 
 

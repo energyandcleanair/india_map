@@ -11,9 +11,9 @@ from pm25ml.training.types import ModelName
 def _main(
     model_trainers: dict[ModelName, ModelPipeline] = Provide[Pm25mlContainer.ml_model_trainers],
 ) -> None:
-    aod_trainer = model_trainers["aod"]
+    co_trainer = model_trainers["co"]
 
-    aod_trainer.train_model()
+    co_trainer.train_model()
 
 
 if __name__ == "__main__":
