@@ -3,6 +3,7 @@
 import json
 import tempfile
 from dataclasses import dataclass
+from gzip import GzipFile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
@@ -16,7 +17,7 @@ from xgboost import XGBRegressor
 from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
 
 if TYPE_CHECKING:
-    from io import BufferedWriter
+    from io import BufferedReader, BufferedWriter
 
 
 @dataclass
@@ -99,9 +100,12 @@ class ModelStorage:
 
         self.filesystem.mkdir(str(base_path), create_parents=True, exist_ok=True)
 
-        model_path = str(base_path / f"model+{model.type}")
-        with cast("BufferedWriter", self.filesystem.open(model_path, "wb")) as f:
-            f.write(self._serialised_to_bytes(model.model))
+        model_path = str(base_path / f"model+{model.type}.gz")
+        with (
+            cast("BufferedWriter", self.filesystem.open(model_path, "wb")) as f,
+            GzipFile(fileobj=f, mode="wb") as gz_f,
+        ):
+            gz_f.write(self._serialised_to_bytes(model.model))
 
         cv_results_path = str(base_path / "cv_results.parquet")
         with self.filesystem.open(cv_results_path, "wb") as f:
@@ -186,10 +190,13 @@ class ModelStorage:
             raise FileNotFoundError(model_type_not_found_msg)
 
         # Ensure `model_type` is defined and accessible
-        model_type = model_type_path.split("+")[-1]
+        model_type = model_type_path.split("+")[-1].replace(".gz", "")
 
-        with self.filesystem.open(model_type_path, "rb") as f:
-            model_bytes = cast("bytes", f.read())
+        with (
+            cast("BufferedReader", self.filesystem.open(model_type_path, "rb")) as f,
+            GzipFile(fileobj=f, mode="rb") as gz_f,
+        ):
+            model_bytes = cast("bytes", gz_f.read())
 
         predictor: Predictor
 

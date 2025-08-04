@@ -60,7 +60,7 @@ def test__save_model__xgb_model_with_validated_model__files_exist(model_storage,
     expected_date_path = EXAMPLE_DATE.format("YYYY-MM-DD+HH-mm-ss")
 
     assert model_storage.filesystem.exists(
-        f"test_bucket/xgb_model/{expected_date_path}/model+XGBRegressor"
+        f"test_bucket/xgb_model/{expected_date_path}/model+XGBRegressor.gz"
     )
     assert model_storage.filesystem.exists(
         f"test_bucket/xgb_model/{expected_date_path}/cv_results.parquet"
@@ -84,7 +84,7 @@ def test__save_model__lgbm_model_with_validated_model__files_exist(
     expected_date_path = EXAMPLE_DATE.format("YYYY-MM-DD+HH-mm-ss")
 
     assert model_storage.filesystem.exists(
-        f"test_bucket/lgbm_model/{expected_date_path}/model+LGBMRegressor"
+        f"test_bucket/lgbm_model/{expected_date_path}/model+LGBMRegressor.gz"
     )
     assert model_storage.filesystem.exists(
         f"test_bucket/lgbm_model/{expected_date_path}/cv_results.parquet"
