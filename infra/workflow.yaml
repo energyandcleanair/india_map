@@ -1,4 +1,5 @@
 main:
+  params: [args]
   steps:
     - init_env:
         assign:
@@ -25,9 +26,9 @@ main:
             overrides:
               containerOverrides:
                 - args:
-                  - python
-                  - -m
-                  - "pm25ml.run.fetch_and_combine"
+                    - python
+                    - -m
+                    - pm25ml.run.fetch_and_combine
         result: run_job_result
 
     - generate_features:
@@ -56,11 +57,11 @@ main:
                           - -m
                           - pm25ml.run.generate_features
                       environment:
-                        variables:
-                          ${common_env}
+                        variables: ${common_env}
                   computeResource:
                     memoryMib: 32768               # 32 GiB
                     cpuMilli: 8000                 # 8 vCPU
+                  maxRetryCount: 3
             logsPolicy:
               destination: CLOUD_LOGGING
         result: batch_job_result
@@ -80,3 +81,54 @@ main:
                     - -m
                     - pm25ml.run.sample_for_imputation
         result: run_job_result
+
+    - check_if_training:
+        switch:
+          - condition: ${default(map.get(args, "do_training"), true) }
+            next: train
+        next: end
+
+    - train:
+        parallel:
+          for:
+            value: model
+            in:
+              - aod
+              - co
+              - no2
+            steps:
+              - train_model:
+                  call: googleapis.batch.v1.projects.locations.jobs.create
+                  args:
+                    parent: projects/vital-form-455413-p8/locations/europe-west1
+                    jobId: ${"train-" + model + string(int(sys.now()))}
+                    connector_params:
+                      timeout: 10800
+                    body:
+                      allocationPolicy:
+                        serviceAccount:
+                          email: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
+                        instances:
+                          - policy:
+                              machineType: c2d-highcpu-112
+                              provisioningModel: SPOT
+                            
+                      taskGroups:
+                        - taskCount: 1
+                          taskSpec:
+                            runnables:
+                              - container:
+                                  imageUri: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
+                                  commands:
+                                    - python
+                                    - -m
+                                    - ${"pm25ml.run.train_" + model + "_imputer"}
+                                environment:
+                                  variables: ${common_env}
+                            computeResource:
+                              memoryMib: 196608 # 192 GiB
+                              cpuMilli: 112000 # 112 vCPU
+                            maxRetryCount: 3
+                      logsPolicy:
+                        destination: CLOUD_LOGGING
+                  result: train_job_result
