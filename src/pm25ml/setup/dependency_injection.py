@@ -39,6 +39,7 @@ from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
 from pm25ml.setup.samplers import ImputationStep, define_samplers
+from pm25ml.setup.stages import SPATIALLY_IMPUTED_COMBINED
 from pm25ml.setup.training import build_training_ref
 from pm25ml.training.model_pipeline import ModelPipeline
 from pm25ml.training.model_storage import ModelStorage
@@ -227,7 +228,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     spatial_interpolation_recombiner = providers.Singleton(
         Recombiner,
         combined_storage=combined_storage,
-        new_stage_name="combined_with_spatial_interpolation",
+        new_stage_name=SPATIALLY_IMPUTED_COMBINED,
         temporal_config=temporal_config,
     )
 

@@ -5,6 +5,7 @@ from polars import DataFrame
 import polars as pl
 from polars.testing import assert_frame_equal
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.feature_generation.generate import GENERATED_FEATURES_STAGE
 from pm25ml.sample.imputation_sampler import (
     SpatialTemporalImputationSampler,
     ImputationSamplerDefinition,
@@ -59,7 +60,7 @@ def test__imputation_sampler__process_month__correct_sampling(
                 "col_1": [10.0, None, 30.0, 40.0, None, 60.0],
             }
         ),
-        "stage=generated_features/month=2023-01",
+        f"stage={GENERATED_FEATURES_STAGE}/month=2023-01",
         file_name="0.parquet",
     )
 
@@ -113,7 +114,7 @@ def test__imputation_sampler__process_month_multiple_grids__correct_sampling(
                 "col_1": [None, 20.0, 30.0, 40.0, None, 60.0, 70.0, 80.0, None],
             }
         ),
-        "stage=generated_features/month=2023-01",
+        f"stage={GENERATED_FEATURES_STAGE}/month=2023-01",
         file_name="0.parquet",
     )
 
@@ -176,7 +177,7 @@ def test__imputation_sampler__process_month_multiple_months(
                 "col_1": [10.0, None, 30.0, 40.0, None, 60.0],
             }
         ),
-        "stage=generated_features/month=2023-01",
+        f"stage={GENERATED_FEATURES_STAGE}/month=2023-01",
         file_name="0.parquet",
     )
     combined_storage.write_to_destination(
@@ -195,7 +196,7 @@ def test__imputation_sampler__process_month_multiple_months(
                 "col_1": [10.0, None, 30.0, 40.0, None, 60.0],
             }
         ),
-        "stage=generated_features/month=2023-02",
+        f"stage={GENERATED_FEATURES_STAGE}/month=2023-02",
         file_name="0.parquet",
     )
 
