@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 class ModelReference:
     """Data definition for the model training."""
 
-    source_stage: ModelName
+    model_name: ModelName
     predictor_cols: list[str]
     target_col: str
     grouper_col: str
@@ -32,6 +32,9 @@ class ModelReference:
     model_builder: Callable[[], Pm25mlCompatibleModel]
 
     extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame]
+
+    min_r2_score: float
+    max_r2_score: float
 
     def __post_init__(self) -> None:
         """Validate the model reference."""
@@ -82,7 +85,7 @@ class ModelPipeline:
     def train_model(self) -> None:
         """Run imputation ML model."""
         # 1. Sampling
-        logger.info(f"Loading and sampling training data for {self.data.source_stage} imputation")
+        logger.info(f"Loading and sampling training data for {self.data.model_name} imputation")
         df_sampled = self.load_training_data()
 
         # 2. Create folds
@@ -111,7 +114,7 @@ class ModelPipeline:
         # Create a temporary directory to save diagnostics
         logger.info("Saving model and diagnostics")
         self.model_store.save_model(
-            model_name=self.data.source_stage,
+            model_name=self.data.model_name,
             model_run_ref=Arrow.now(),
             model=ValidatedModel(
                 model=trained_model,
@@ -147,7 +150,7 @@ class ModelPipeline:
     def load_training_data(self) -> pd.DataFrame:
         """Load the sampled data imputation from GCS."""
         results = self.combined_storage.scan_stage(
-            stage=f"sampled+{self.data.source_stage}",
+            stage=f"sampled+{self.data.model_name}",
         )
 
         return (
@@ -164,7 +167,7 @@ class ModelPipeline:
     def load_test_data(self) -> pd.DataFrame:
         """Load the test data for imputation from GCS."""
         results = self.combined_storage.scan_stage(
-            stage=f"sampled+{self.data.source_stage}",
+            stage=f"sampled+{self.data.model_name}",
         )
 
         return (

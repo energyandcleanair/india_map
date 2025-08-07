@@ -6,7 +6,7 @@ from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.archive.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager, MonthlyValidationError
-from pm25ml.collectors.export_pipeline import PipelineConfig
+from pm25ml.collectors.export_pipeline import PipelineConfig, ValueColumnType
 from pm25ml.hive_path import HivePath
 
 from morefs.memory import MemFS
@@ -84,7 +84,7 @@ def mock_missing_rows_archived_wide_combiner(
 def mock_pipeline_config():
     return PipelineConfig(
         id_columns={"date", "grid_id"},
-        value_column_type_map={"value1"},
+        value_column_type_map={"value1": ValueColumnType.FLOAT},
         result_subpath="country=india/dataset=test_dataset/month=2023-01",
         expected_rows=33074 * 31,
     )

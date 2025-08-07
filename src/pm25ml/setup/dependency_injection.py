@@ -10,8 +10,6 @@ from typing import TYPE_CHECKING, Literal
 import arrow
 import ee
 import google.auth
-import polars as pl
-import requests
 from dependency_injector import containers, providers
 from ee.featurecollection import FeatureCollection
 from fsspec.implementations.dirfs import DirFileSystem
@@ -32,6 +30,10 @@ from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.feature_generation.generate import FeatureGenerator
+from pm25ml.imputation.from_model.regression_model_imputer_controller import (
+    IMPUTED_COMBINED_STAGE_NAME,
+    RegressionModelImputationController,
+)
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
@@ -40,7 +42,7 @@ from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
 from pm25ml.setup.samplers import ImputationStep, define_samplers
 from pm25ml.setup.stages import SPATIALLY_IMPUTED_COMBINED
-from pm25ml.setup.training import build_training_ref
+from pm25ml.setup.training import build_model_ref
 from pm25ml.training.model_pipeline import ModelPipeline
 from pm25ml.training.model_storage import ModelStorage
 
@@ -51,6 +53,13 @@ if TYPE_CHECKING:
 
 LOCAL_GRID_ZIP_PATH = Path("./assets/grid_india_10km_shapefiles.zip")
 LOCAL_GRID_50KM_MAPPING_CSV_PATH = Path("./assets/grid_intersect_with_50km.csv")
+
+NO_OP = lambda x: x  # noqa: E731
+
+
+def _boolean_selector_to_bool(selector: BooleanSelector) -> bool:
+    """Convert a BooleanSelector to a boolean."""
+    return selector == "true"
 
 
 @contextmanager
@@ -246,48 +255,60 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         imputation_steps=config.imputation_steps,
     )
 
-    model_storage_backer = providers.Selector(
-        config.local_training,
-        true=local_rooted_filesystem,
-        false=gcs_filesystem,
-    )
-
     extra_sampler = providers.Selector(
-        config.local_training,
-        true=providers.Singleton(
-            lambda x: x.filter(pl.col("month") == "2023-01").gather_every(100),
+        config.take_mini_training_sample_selector,
+        true=providers.Object(
+            lambda x: x.gather_every(100),
         ),
-        false=providers.Singleton(lambda x: x),
+        false=providers.Object(NO_OP),
     )
 
     model_store = providers.Singleton(
         ModelStorage,
-        filesystem=model_storage_backer,
+        filesystem=gcs_filesystem,
         bucket_name=config.gcp.model_storage_bucket,
     )
 
-    ml_model_trainers = providers.Dict(
-        aod=providers.Singleton(
-            ModelPipeline,
+    ml_model_def_factory = providers.Factory(
+        build_model_ref,
+        extra_sampler=extra_sampler,
+        take_mini_training_sample=config.take_mini_training_sample_bool,
+    )
+
+    ml_model_defs = providers.Dict(
+        {
+            "aod": providers.Callable(ml_model_def_factory, ref="aod"),
+            "no2": providers.Callable(ml_model_def_factory, ref="no2"),
+            "co": providers.Callable(ml_model_def_factory, ref="co"),
+        },
+    )
+
+    ml_model_trainer_factory = providers.Factory(
+        lambda *, model_reference, combined_storage, model_store, n_jobs: ModelPipeline(
             combined_storage=combined_storage,
-            data_ref=build_training_ref("aod", extra_sampler),
+            data_ref=model_reference,
             model_store=model_store,
-            n_jobs=config.max_parallel_tasks,
+            n_jobs=n_jobs,
         ),
-        no2=providers.Singleton(
-            ModelPipeline,
-            combined_storage=combined_storage,
-            data_ref=build_training_ref("no2", extra_sampler),
-            model_store=model_store,
-            n_jobs=config.max_parallel_tasks,
-        ),
-        co=providers.Singleton(
-            ModelPipeline,
-            combined_storage=combined_storage,
-            data_ref=build_training_ref("co", extra_sampler),
-            model_store=model_store,
-            n_jobs=config.max_parallel_tasks,
-        ),
+        combined_storage=combined_storage,
+        model_store=model_store,
+        n_jobs=config.max_parallel_tasks,
+    )
+
+    imputer_recombiner = providers.Singleton(
+        Recombiner,
+        combined_storage=combined_storage,
+        new_stage_name=IMPUTED_COMBINED_STAGE_NAME,
+        temporal_config=temporal_config,
+    )
+
+    regression_model_imputer_controller = providers.Factory(
+        RegressionModelImputationController,
+        model_store=model_store,
+        temporal_config=temporal_config,
+        combined_storage=combined_storage,
+        model_refs=ml_model_defs,
+        recombiner=imputer_recombiner,
     )
 
 
@@ -317,13 +338,18 @@ def init_dependencies_from_env() -> Pm25mlContainer:
         default=str(os.cpu_count() or 1),
     )
 
-    container.config.local_training.from_value(
+    container.config.take_mini_training_sample_selector.from_value(
         _parse_bool_env_var(
-            os.getenv("LOCAL_TRAINING") or os.getenv("TINY_SAMPLE") or "false",
+            os.getenv("TAKE_MINI_TRAINING_SAMPLE") or "false",
+        ),
+    )
+    container.config.take_mini_training_sample_bool.from_value(
+        _boolean_selector_to_bool(
+            container.config.take_mini_training_sample_selector(),
         ),
     )
 
-    logger.info(f"Using local training: {container.config.local_training()}")
+    logger.info(f"Using local training: {container.config.take_mini_training_sample_selector()}")
 
     container.config.start_month.from_env("START_MONTH", as_=lambda x: arrow.get(x, "YYYY-MM-DD"))
     container.config.end_month.from_env("END_MONTH", as_=lambda x: arrow.get(x, "YYYY-MM-DD"))
@@ -362,26 +388,6 @@ def init_dependencies_from_env() -> Pm25mlContainer:
     )
 
     container.init_resources()
-
-    def try_getting_user_info() -> str | None:
-        try:
-            return requests.get(
-                "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
-                headers={"Metadata-Flavor": "Google"},
-                timeout=5,
-            ).text
-        except requests.RequestException as e:
-            logger.debug(f"Failed to get user info: {e}")
-            return None
-
-    logger.debug(
-        f"Google Cloud account from metadata server: {try_getting_user_info()}",
-    )
-    creds, _ = google.auth.default()
-    service_account_email = getattr(creds, "service_account_email", None)
-    logger.debug(
-        f"Google Cloud account from auth: {service_account_email}",
-    )
 
     return container
 
