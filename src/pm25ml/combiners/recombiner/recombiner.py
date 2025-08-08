@@ -8,7 +8,7 @@ import polars as pl
 from arrow import Arrow
 
 from pm25ml.combiners.combined_storage import CombinedStorage
-from pm25ml.hive_path import HivePath
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.logging import logger
 from pm25ml.setup.date_params import TemporalConfig
 
@@ -29,7 +29,7 @@ class Recombiner:
         *,
         combined_storage: CombinedStorage,
         temporal_config: TemporalConfig,
-        new_stage_name: str,
+        output_data_artifact: DataArtifactRef,
     ) -> None:
         """
         Initialize the Recombiner with a storage for combined datasets.
@@ -38,12 +38,12 @@ class Recombiner:
         :param new_stage_name: The name of the new stage for the combined dataset.
         """
         self.combined_storage = combined_storage
-        self.new_stage_name = new_stage_name
+        self.output_data_artifact = output_data_artifact
         self.months = temporal_config.months
 
     def recombine(
         self,
-        stages: Collection[str],
+        stages: Collection[DataArtifactRef],
         *,
         overwrite_columns: bool = False,
     ) -> None:
@@ -72,7 +72,7 @@ class Recombiner:
 
     def _filter_months_to_update(
         self,
-        stages: Collection[str],
+        stages: Collection[DataArtifactRef],
     ) -> Collection[Arrow]:
         with ThreadPoolExecutor() as executor:
             results = executor.map(
@@ -83,7 +83,7 @@ class Recombiner:
 
     def _validate_all(
         self,
-        stages: Collection[str],
+        stages: Collection[DataArtifactRef],
         months: Collection[Arrow],
     ) -> None:
         with ThreadPoolExecutor() as executor:
@@ -96,14 +96,14 @@ class Recombiner:
 
     def _process_in_parallel(
         self,
-        stages: Collection[str],
+        stages: Collection[DataArtifactRef],
         months: Collection[Arrow],
         *,
         overwrite_columns: bool = False,
     ) -> None:
         def process_month(month: Arrow) -> None:
             logger.debug(
-                f"Recombining {stages} to {self.new_stage_name} "
+                f"Recombining {stages} to {self.output_data_artifact.stage} "
                 f"for month {month.format('YYYY-MM')}",
             )
             stage_dfs = self._read_dfs_to_merge(stages, month)
@@ -114,23 +114,21 @@ class Recombiner:
             # Write the combined DataFrame to storage
             self.combined_storage.write_to_destination(
                 combined_df,
-                HivePath.from_args(
-                    stage=self.new_stage_name,
-                    month=month.format("YYYY-MM"),
-                ),
+                self.output_data_artifact.for_month(month.format("YYYY-MM")),
             )
 
         with ThreadPoolExecutor(8) as executor:
             result = executor.map(process_month, months)
             deque(result)
 
-    def _read_dfs_to_merge(self, stages: Collection[str], month: Arrow) -> list[pl.DataFrame]:
+    def _read_dfs_to_merge(
+        self,
+        stages: Collection[DataArtifactRef],
+        month: Arrow,
+    ) -> list[pl.DataFrame]:
         return [
             self.combined_storage.read_dataframe(
-                HivePath.from_args(
-                    stage=stage,
-                    month=month.format("YYYY-MM"),
-                ),
+                stage.for_month(month.format("YYYY-MM")),
             )
             for stage in stages
         ]
@@ -172,13 +170,14 @@ class Recombiner:
             )
         return combined_df
 
-    def _needs_recombining(self, month: Arrow, stages: Collection[str]) -> bool:
+    def _needs_recombining(self, month: Arrow, stages: Collection[DataArtifactRef]) -> bool:
         logger.debug(
             f"Checking if data for month {month.format('YYYY-MM')} needs to be recombined.",
         )
-        result_subpath = f"stage={self.new_stage_name}/month={month.format('YYYY-MM')}"
 
-        if not self.combined_storage.does_dataset_exist(result_subpath):
+        if not self.combined_storage.does_dataset_exist(
+            self.output_data_artifact.for_month(month.format("YYYY-MM")),
+        ):
             return True
 
         try:
@@ -193,29 +192,30 @@ class Recombiner:
 
         return False
 
-    def _validate_combined(self, month: Arrow, stages: Collection[str]) -> None:
+    def _validate_combined(self, month: Arrow, stages: Collection[DataArtifactRef]) -> None:
         month_short = month.format("YYYY-MM")
 
         # Collect expected columns from all stages
         expected_columns = set()
         for stage in stages:
             metadata = self.combined_storage.read_dataframe_metadata(
-                HivePath.from_args(stage=stage, month=month_short),
+                stage.for_month(month_short),
             )
             expected_columns.update(metadata.schema.names)
 
+        first_stage = next(iter(stages))
         expected_rows = self.combined_storage.read_dataframe_metadata(
-            HivePath.from_args(stage=next(iter(stages)), month=month_short),
+            first_stage.for_month(month_short),
         ).num_rows
 
         # Read metadata of the combined dataset
         combined_metadata = self.combined_storage.read_dataframe_metadata(
-            HivePath.from_args(stage=self.new_stage_name, month=month_short),
+            self.output_data_artifact.for_month(month_short),
         )
         actual_columns = set(combined_metadata.schema.names)
 
         logger.debug(
-            f"Validating recombined {self.new_stage_name} for month {month_short}: "
+            f"Validating recombined {self.output_data_artifact.stage} for month {month_short}: "
             f"expecting {expected_rows} rows and {len(expected_columns)} columns.",
         )
 

@@ -11,6 +11,7 @@ from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from morefs.memory import MemFS
 
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.hive_path import HivePath
 
 DESTINATION_BUCKET = "test_bucket"
@@ -288,6 +289,9 @@ def test__combine__no_files__raises_error(
     combiner = ArchiveWideCombiner(
         archive_storage=archive_storage__no_files,
         combined_storage=combined_storage,
+        output_artifact=DataArtifactRef(
+            stage="combined_monthly",
+        ),
     )
 
     processors = []  # No processors provided, so no data to combine
@@ -310,6 +314,9 @@ def test__combine__with_all_matching_types_and_extra_correct_result__successfull
     combiner = ArchiveWideCombiner(
         archive_storage=archive_storage__with_all_matching_types_and_extra,
         combined_storage=combined_storage,
+        output_artifact=DataArtifactRef(
+            stage="combined_monthly",
+        ),
     )
 
     combine_def = CombinePlan(
@@ -351,6 +358,9 @@ def test__combine__with_odd_number__successfully_merges(
     combiner = ArchiveWideCombiner(
         archive_storage=archive_storage__with_odd_number_of_datasets,
         combined_storage=combined_storage,
+        output_artifact=DataArtifactRef(
+            stage="combined_monthly",
+        ),
     )
 
     combined_def = CombinePlan(
@@ -392,6 +402,9 @@ def test__combine__no_matching_merge__empty_dataset(
     combiner = ArchiveWideCombiner(
         archive_storage=archive_storage__no_matching_merge,
         combined_storage=combined_storage,
+        output_artifact=DataArtifactRef(
+            stage="combined_monthly",
+        ),
     )
 
     combined_def = CombinePlan(
@@ -427,6 +440,9 @@ def test__combine__with_date_and_time_for_one__successfully_merges(
     combiner = ArchiveWideCombiner(
         archive_storage=archive_storage__with_date_and_time_for_one,
         combined_storage=combined_storage,
+        output_artifact=DataArtifactRef(
+            stage="combined_monthly",
+        ),
     )
     combined_def = CombinePlan(
         month=get("2023-01"),
@@ -461,6 +477,9 @@ def test__combine__renaming_columns__successfully_renames(
     combiner = ArchiveWideCombiner(
         archive_storage=archive_storage__with_all_matching_types_and_extra,
         combined_storage=combined_storage,
+        output_artifact=DataArtifactRef(
+            stage="combined_monthly",
+        ),
     )
 
     combined_def = CombinePlan(
@@ -497,6 +516,9 @@ def test__combine__without_dataset_key__raises_error(
     combiner = ArchiveWideCombiner(
         archive_storage=archive_storage__without_dataset_key,
         combined_storage=combined_storage,
+        output_artifact=DataArtifactRef(
+            stage="combined_monthly",
+        ),
     )
 
     combined_def = CombinePlan(

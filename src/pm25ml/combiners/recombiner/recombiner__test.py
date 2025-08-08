@@ -3,11 +3,18 @@ from unittest.mock import MagicMock, ANY
 from arrow import Arrow
 import polars as pl
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.hive_path import HivePath
 from morefs.memory import MemFS
 
 from pm25ml.setup.date_params import TemporalConfig
+
+OUTPUT_DATA_ARTIFACT = DataArtifactRef(stage="recombined_stage")
+INPUT_STAGE_1_NAME = "stage1"
+INPUT_STAGE_2_NAME = "stage2"
+INPUT_STAGE_1_ARTIFACT = DataArtifactRef(stage=INPUT_STAGE_1_NAME)
+INPUT_STAGE_2_ARTIFACT = DataArtifactRef(stage=INPUT_STAGE_2_NAME)
 
 
 @pytest.fixture
@@ -27,7 +34,7 @@ def recombiner(in_memory_combined_storage):
     return Recombiner(
         combined_storage=in_memory_combined_storage,
         temporal_config=temporal_config,
-        new_stage_name="recombined_stage",
+        output_data_artifact=OUTPUT_DATA_ARTIFACT,
     )
 
 
@@ -133,7 +140,7 @@ def mock_combined_storage_with_overlapping_columns(in_memory_combined_storage):
 
 @pytest.mark.usefixtures("mock_combined_storage_with_data")
 def test__recombine__valid_input__combines_data(recombiner, in_memory_combined_storage):
-    recombiner.recombine(["stage1", "stage2"], overwrite_columns=True)
+    recombiner.recombine([INPUT_STAGE_1_ARTIFACT, INPUT_STAGE_2_ARTIFACT], overwrite_columns=True)
 
     # Validate January 2023
     result_jan = in_memory_combined_storage.read_dataframe(
@@ -155,7 +162,9 @@ def test__recombine__valid_input__combines_data(recombiner, in_memory_combined_s
 @pytest.mark.usefixtures("mock_combined_storage_with_overlapping_columns")
 def test__recombine__shared_columns_no_overwrite__raises_error(recombiner):
     with pytest.raises(ValueError, match="Shared columns detected"):
-        recombiner.recombine(["stage1", "stage2"], overwrite_columns=False)
+        recombiner.recombine(
+            [INPUT_STAGE_1_ARTIFACT, INPUT_STAGE_2_ARTIFACT], overwrite_columns=False
+        )
 
 
 @pytest.mark.usefixtures("mock_combined_storage_with_data")
@@ -172,7 +181,10 @@ def test__recombine__existing_dataset_correct_columns__only_updates_one_month(
                 "value2": [100, 200, 300],
             }
         ),
-        "stage=recombined_stage/month=2023-01",
+        HivePath.from_args(
+            stage="recombined_stage",
+            month="2023-01",
+        ),
     )
 
     # Mock the write_to_destination method to track calls
@@ -181,7 +193,7 @@ def test__recombine__existing_dataset_correct_columns__only_updates_one_month(
     )
 
     # Run recombine
-    recombiner.recombine(["stage1", "stage2"], overwrite_columns=False)
+    recombiner.recombine([INPUT_STAGE_1_ARTIFACT, INPUT_STAGE_2_ARTIFACT], overwrite_columns=False)
 
     # Validate that the dataset remains unchanged
     result = in_memory_combined_storage.read_dataframe(

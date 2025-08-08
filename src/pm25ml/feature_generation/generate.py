@@ -5,7 +5,7 @@ import math
 import polars as pl
 
 from pm25ml.combiners.combined_storage import CombinedStorage
-from pm25ml.combiners.recombiner.recombiner import Recombiner
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.logging import logger
 from pm25ml.setup.date_params import TemporalConfig
 
@@ -14,8 +14,6 @@ MAGNUS_APPROXIMATION_A = 17.625
 MAGNUS_APPROXIMATION_B = 234.04
 MONSOON_SEASON_MONTHS = [6, 7, 8, 9]  # June to September
 
-GENERATED_FEATURES_STAGE = "generated_features"
-
 
 class FeatureGenerator:
     """Class to generate features for PM2.5 data."""
@@ -23,17 +21,19 @@ class FeatureGenerator:
     def __init__(
         self,
         combined_storage: CombinedStorage,
-        recombiner: Recombiner,
         temporal_config: TemporalConfig,
+        input_data_artifact: DataArtifactRef,
+        output_data_artifact: DataArtifactRef,
     ) -> None:
         """Initialize the FeatureGenerator."""
         self.combined_storage = combined_storage
-        self.recombiner = recombiner
         self.temporal_config = temporal_config
+        self.input_data_artifact = input_data_artifact
+        self.output_data_artifact = output_data_artifact
 
     def generate(self) -> None:
         """Generate features for PM2.5 data."""
-        lf = self.combined_storage.scan_stage(self.recombiner.new_stage_name)
+        lf = self.combined_storage.scan_stage(self.input_data_artifact.stage)
         for year in self.temporal_config.years:
             logger.info(f"Generating features for year: {year}")
 
@@ -147,5 +147,5 @@ class FeatureGenerator:
 
             self.combined_storage.sink_stage(
                 lf_for_year,
-                GENERATED_FEATURES_STAGE,
+                self.output_data_artifact.stage,
             )

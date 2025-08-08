@@ -11,6 +11,8 @@ from polars import DataFrame
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from fsspec import AbstractFileSystem
     from pyarrow.parquet import FileMetaData
 
@@ -38,7 +40,6 @@ class CombinedStorage:
         self,
         table: DataFrame,
         result_subpath: str | HivePath,
-        file_name: str = "data.parquet",
     ) -> None:
         """
         Write the processed DataFrame to the destination bucket.
@@ -47,7 +48,7 @@ class CombinedStorage:
         :param result_subpath: The subpath in the destination bucket where the
         table will be written.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/{file_name}"
+        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/data.parquet"
 
         with self.filesystem.open(parquet_file_path, "wb") as file:
             # Convert the DataFrame to Parquet format and write it to the file
@@ -57,7 +58,6 @@ class CombinedStorage:
     def read_dataframe(
         self,
         result_subpath: str | HivePath,
-        file_name: str = "data.parquet",
     ) -> DataFrame:
         """
         Read the processed DataFrame from the destination bucket.
@@ -66,7 +66,7 @@ class CombinedStorage:
         DataFrame is stored. Can be a string or a HivePath.
         :return: The polars DataFrame read from the Parquet file.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath!s}/{file_name}"
+        parquet_file_path = self._find_file_path(result_subpath)
 
         with self.filesystem.open(parquet_file_path) as file:
             return pl.read_parquet(cast("IO[bytes]", file))
@@ -82,7 +82,7 @@ class CombinedStorage:
         metadata DataFrame is stored.
         :return: The polars DataFrame containing metadata.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
+        parquet_file_path = self._find_file_path(result_subpath)
 
         parquet_file = pq.ParquetFile(parquet_file_path, filesystem=self.filesystem)
         return parquet_file.metadata
@@ -98,8 +98,34 @@ class CombinedStorage:
         DataFrame is stored.
         :return: True if the dataset exists, False otherwise.
         """
-        parquet_file_path = f"{self.destination_bucket}/{result_subpath}/data.parquet"
-        return self.filesystem.exists(parquet_file_path)
+        try:
+            self._find_file_path(result_subpath)
+        except FileNotFoundError:
+            return False
+        return True
+
+    def _find_file_path(
+        self,
+        result_subpath: str | HivePath,
+    ) -> Path:
+        """
+        Find the file path without knowing the file name prefix.
+
+        :param result_subpath: The subpath in the destination bucket where the DataFrame is stored.
+        :return: The file path of the first file found in the subpath.
+        :raises ValueError: If there are multiple files found.
+        """
+        files = cast(
+            "list[Path]",
+            self.filesystem.glob(f"{self.destination_bucket}/{result_subpath!s}/*.parquet"),
+        )
+        if not files:
+            msg = "No files found."
+            raise FileNotFoundError(msg)
+        if len(files) > 1:
+            msg = "Multiple files found."
+            raise ValueError(msg)
+        return files[0]
 
     def scan_stage(
         self,

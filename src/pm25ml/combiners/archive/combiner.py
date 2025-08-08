@@ -8,7 +8,7 @@ from polars import DataFrame, Float32
 from pm25ml.collectors.archive_storage import IngestArchiveStorage, IngestDataAsset
 from pm25ml.combiners.archive.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
-from pm25ml.hive_path import HivePath
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.logging import logger
 
 INDEX_COLUMNS = ["grid_id", "date"]
@@ -17,12 +17,11 @@ INDEX_COLUMNS = ["grid_id", "date"]
 class ArchiveWideCombiner:
     """Combines data from multiple sources in the archive into a single file."""
 
-    STAGE_NAME = "combined_monthly"
-
     def __init__(
         self,
         archive_storage: IngestArchiveStorage,
         combined_storage: CombinedStorage,
+        output_artifact: DataArtifactRef,
     ) -> None:
         """
         Initialize the ArchiveWideCombiner with the archive storage.
@@ -32,6 +31,7 @@ class ArchiveWideCombiner:
         """
         self.archive_storage = archive_storage
         self.combined_storage = combined_storage
+        self.output_artifact = output_artifact
 
     def combine(self, combine_def: CombinePlan) -> None:
         """
@@ -86,10 +86,7 @@ class ArchiveWideCombiner:
         )
         self.combined_storage.write_to_destination(
             table=normalised_values_table,
-            result_subpath=HivePath.from_args(
-                stage=self.STAGE_NAME,
-                month=month,
-            ),
+            result_subpath=self.output_artifact.for_month(month),
         )
 
     def _normalise_value_columns(self, combined_table: DataFrame) -> DataFrame:

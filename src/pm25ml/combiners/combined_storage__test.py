@@ -101,6 +101,46 @@ def test__read_dataframe__hivepath_input__returns_dataframe(
     assert_frame_equal(dataframe, example_table)
 
 
+def test__read_dataframe__file_named_0_parquet__returns_dataframe(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = CombinedStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Write the table to a file named 0.parquet
+    result_path = os.path.join(DESTINATION_BUCKET, "result_path", "0.parquet")
+    with in_memory_filesystem.open(result_path, "wb") as file:
+        example_table.write_parquet(file)
+
+    # Read the DataFrame
+    dataframe = storage.read_dataframe("result_path")
+
+    # Validate the DataFrame
+    assert_frame_equal(dataframe, example_table)
+
+
+def test__read_dataframe__file_named_data_parquet__returns_dataframe(
+    in_memory_filesystem, example_table
+) -> None:
+    storage = CombinedStorage(
+        filesystem=in_memory_filesystem,
+        destination_bucket=DESTINATION_BUCKET,
+    )
+
+    # Write the table to a file named data.parquet
+    result_path = os.path.join(DESTINATION_BUCKET, "result_path", "data.parquet")
+    with in_memory_filesystem.open(result_path, "wb") as file:
+        example_table.write_parquet(file)
+
+    # Read the DataFrame
+    dataframe = storage.read_dataframe("result_path")
+
+    # Validate the DataFrame
+    assert_frame_equal(dataframe, example_table)
+
+
 def test__scan_stage__valid_stage__returns_lazyframe(in_memory_filesystem, example_table) -> None:
     with patch(
         "polars.scan_parquet",
@@ -162,7 +202,9 @@ def test__does_dataset_exist__hivepath_input__returns_true(
     )
 
     # Use a HivePath format
-    hive_path = f"gs://{DESTINATION_BUCKET}/result_path/"
+    hive_path = HivePath.from_args(
+        stage="result_path",
+    )
 
     # Initially, the dataset should not exist
     assert not storage.does_dataset_exist(hive_path)

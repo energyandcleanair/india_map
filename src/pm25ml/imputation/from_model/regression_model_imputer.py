@@ -6,14 +6,13 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
-from pm25ml.feature_generation.generate import GENERATED_FEATURES_STAGE
-from pm25ml.hive_path import HivePath
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
     from numpy import ndarray
 
     from pm25ml.combiners.combined_storage import CombinedStorage
+    from pm25ml.combiners.data_artifact import DataArtifactRef
     from pm25ml.setup.date_params import TemporalConfig
     from pm25ml.training.model_pipeline import ModelReference
     from pm25ml.training.model_storage import LoadedValidatedModel
@@ -22,23 +21,22 @@ if TYPE_CHECKING:
 class RegressionModelImputer:
     """Imputes missing data using a regression model."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         model_ref: ModelReference,
         model: LoadedValidatedModel,
         temporal_config: TemporalConfig,
         combined_storage: CombinedStorage,
+        input_data_artifact: DataArtifactRef,
+        output_data_artifact: DataArtifactRef,
     ) -> None:
         """Initialize the RegressionModelImputer."""
         self.model_ref = model_ref
         self.model = model
         self.temporal_config = temporal_config
         self.combined_storage = combined_storage
-
-    @property
-    def stage_name(self) -> str:
-        """Return the stage name for the imputed data."""
-        return f"imputed+{self.model_ref.model_name}"
+        self.input_data_artifact = input_data_artifact
+        self.output_data_artifact = output_data_artifact
 
     def impute(self) -> None:
         """Impute missing data and imputation relevant stats to the DataFrame."""
@@ -61,11 +59,7 @@ class RegressionModelImputer:
 
             logger.debug(f"Loading data for month: {month_id}")
             data_for_month = self.combined_storage.read_dataframe(
-                result_subpath=HivePath.from_args(
-                    stage=GENERATED_FEATURES_STAGE,
-                    month=month_id,
-                ),
-                file_name="0.parquet",
+                self.input_data_artifact.for_month(month_id),
             )
 
             logger.debug(f"Starting prediction for month: {month_id}.")
@@ -103,10 +97,7 @@ class RegressionModelImputer:
                         "grid_id",
                     ],
                 ),
-                result_subpath=HivePath.from_args(
-                    stage=self.stage_name,
-                    month=month_id,
-                ),
+                result_subpath=self.output_data_artifact.for_month(month_id),
             )
 
     def _check_model_quality(self, *, average_cv_score: float) -> None:

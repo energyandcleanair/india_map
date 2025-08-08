@@ -7,11 +7,16 @@ from pm25ml.combiners.archive.combine_planner import CombinePlan
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager, MonthlyValidationError
 from pm25ml.collectors.export_pipeline import PipelineConfig, ValueColumnType
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.hive_path import HivePath
 
 from morefs.memory import MemFS
 
 TEST_MONTHS = [Arrow(2023, 1, 1), Arrow(2023, 2, 1)]
+
+
+ARBITRARY_OUTPUT_ARTIFACT_OUTPUT_NAME = "output_stage"
+ARBITRARY_OUTPUT_ARTIFACT = DataArtifactRef(stage=ARBITRARY_OUTPUT_ARTIFACT_OUTPUT_NAME)
 
 
 @pytest.fixture
@@ -27,7 +32,7 @@ def mock_archived_wide_combiner():
     wide_combiner = MagicMock(
         spec=ArchiveWideCombiner,
     )
-    wide_combiner.STAGE_NAME = ArchiveWideCombiner.STAGE_NAME
+    wide_combiner.output_artifact = ARBITRARY_OUTPUT_ARTIFACT
     return wide_combiner
 
 
@@ -49,7 +54,7 @@ def mock_succeeding_archived_wide_combiner(in_memory_combined_storage, mock_arch
     mock_archived_wide_combiner.combine.side_effect = (
         lambda desc: in_memory_combined_storage.write_to_destination(
             create_valid_dataframe_for_month(desc.month_id, desc.expected_rows),
-            result_subpath=f"stage=combined_monthly/month={desc.month_id}",
+            result_subpath=f"stage={ARBITRARY_OUTPUT_ARTIFACT_OUTPUT_NAME}/month={desc.month_id}",
         )
     )
 
@@ -63,7 +68,7 @@ def mock_missing_columns_archived_wide_combiner(
             create_valid_dataframe_for_month(desc.month_id, desc.expected_rows).drop(
                 "test_dataset_yearly__value_year"
             ),
-            result_subpath=f"stage=combined_monthly/month={desc.month_id}",
+            result_subpath=f"stage={ARBITRARY_OUTPUT_ARTIFACT_OUTPUT_NAME}/month={desc.month_id}",
         )
     )
 
@@ -75,7 +80,7 @@ def mock_missing_rows_archived_wide_combiner(
     mock_archived_wide_combiner.combine.side_effect = (
         lambda desc: in_memory_combined_storage.write_to_destination(
             create_valid_dataframe_for_month(desc.month_id, desc.expected_rows - 1),
-            result_subpath=f"stage=combined_monthly/month={desc.month_id}",
+            result_subpath=f"stage={ARBITRARY_OUTPUT_ARTIFACT_OUTPUT_NAME}/month={desc.month_id}",
         )
     )
 
@@ -168,11 +173,11 @@ def mock_combined_storage_with_both_months(
 ):
     in_memory_combined_storage.write_to_destination(
         mock_successful_result_dataframe_2023_01,
-        result_subpath="stage=combined_monthly/month=2023-01",
+        result_subpath=f"stage={ARBITRARY_OUTPUT_ARTIFACT_OUTPUT_NAME}/month=2023-01",
     )
     in_memory_combined_storage.write_to_destination(
         mock_successful_result_dataframe_2023_02,
-        result_subpath="stage=combined_monthly/month=2023-02",
+        result_subpath=f"stage={ARBITRARY_OUTPUT_ARTIFACT_OUTPUT_NAME}/month=2023-02",
     )
 
 

@@ -50,8 +50,8 @@ def _main(  # noqa: PLR0913
     logger.info("Recombining combined data with spatial interpolation")
     spatial_interpolation_recombiner.recombine(
         stages=[
-            monthly_combiner.archived_wide_combiner.STAGE_NAME,
-            spatial_imputation_manager.STAGE_NAME,
+            monthly_combiner.archived_wide_combiner.output_artifact,
+            spatial_imputation_manager.output_data_artifact,
         ],
         overwrite_columns=True,
     )

@@ -2,7 +2,7 @@ import pytest
 import polars as pl
 import numpy as np
 from unittest.mock import MagicMock, Mock
-from pm25ml.feature_generation.generate import GENERATED_FEATURES_STAGE
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.imputation.from_model.regression_model_imputer import RegressionModelImputer
 from pm25ml.training.model_pipeline import ModelReference
 from pm25ml.training.model_storage import LoadedValidatedModel
@@ -12,6 +12,10 @@ from morefs.memory import MemFS
 from polars.testing import assert_frame_equal
 
 ARBITRARY_MODEL_NAME = "aod"
+
+ARBRITARY_INPUT_ARTIFACT = DataArtifactRef(stage="input_stage")
+
+OUTPUT_ARTIFACT_STAGE = DataArtifactRef(stage=f"imputed+{ARBITRARY_MODEL_NAME}")
 
 
 @pytest.fixture
@@ -55,7 +59,7 @@ def combined_storage_with_data(tmp_path):
 
     # Prepare the required files using CombinedStorage's write_to_destination
     for month in ["2023-01", "2023-02"]:
-        result_subpath = f"stage={GENERATED_FEATURES_STAGE}/month={month}"
+        result_subpath = ARBRITARY_INPUT_ARTIFACT.for_month(month)
         storage.write_to_destination(
             table=pl.DataFrame(
                 {
@@ -75,25 +79,9 @@ def combined_storage_with_data(tmp_path):
                 }
             ),
             result_subpath=result_subpath,
-            file_name="0.parquet",
         )
 
     return storage
-
-
-@pytest.fixture
-def regression_model_imputer(
-    mock_model_reference,
-    mock_loaded_validated_model,
-    mock_temporal_config,
-    combined_storage_with_data,
-):
-    return RegressionModelImputer(
-        model_ref=mock_model_reference,
-        model=mock_loaded_validated_model,
-        temporal_config=mock_temporal_config,
-        combined_storage=combined_storage_with_data,
-    )
 
 
 @pytest.fixture
@@ -108,34 +96,40 @@ def regression_model_imputer_with_data(
         model=mock_loaded_validated_model,
         temporal_config=mock_temporal_config,
         combined_storage=combined_storage_with_data,
+        input_data_artifact=ARBRITARY_INPUT_ARTIFACT,
+        output_data_artifact=OUTPUT_ARTIFACT_STAGE,
     )
 
 
-def test__impute__raises_error_on_low_score(regression_model_imputer, mock_model_reference):
+def test__impute__raises_error_on_low_score(
+    regression_model_imputer_with_data, mock_model_reference
+):
     # Adjust the model's R2 score range to trigger validation logic
     mock_model_reference.min_r2_score = 0.9
     mock_model_reference.max_r2_score = 1.0
 
     # Expect an error due to low average CV score
     with pytest.raises(ValueError, match="too low"):
-        regression_model_imputer.impute()
+        regression_model_imputer_with_data.impute()
 
 
-def test__impute__raises_error_on_high_score(regression_model_imputer, mock_model_reference):
+def test__impute__raises_error_on_high_score(
+    regression_model_imputer_with_data, mock_model_reference
+):
     # Adjust the range to trigger high score validation
     mock_model_reference.min_r2_score = 0.7
     mock_model_reference.max_r2_score = 0.8
 
     # Expect an error due to high average CV score
     with pytest.raises(ValueError, match="unusually high"):
-        regression_model_imputer.impute()
+        regression_model_imputer_with_data.impute()
 
 
-def test__impute__passes_on_valid_score(regression_model_imputer, mock_model_reference):
+def test__impute__passes_on_valid_score(regression_model_imputer_with_data, mock_model_reference):
     # Set a valid range and ensure no exceptions are raised
     mock_model_reference.min_r2_score = 0.7
     mock_model_reference.max_r2_score = 0.9
-    regression_model_imputer.impute()
+    regression_model_imputer_with_data.impute()
 
 
 def test__impute__writes_results_correctly_with_data(regression_model_imputer_with_data):
@@ -187,7 +181,7 @@ def test__impute__writes_results_correctly_with_data(regression_model_imputer_wi
     }
 
     for month, expected_df in expected_results.items():
-        result_subpath = f"stage=imputed+{ARBITRARY_MODEL_NAME}/month={month}"
+        result_subpath = OUTPUT_ARTIFACT_STAGE.for_month(month)
         result_df = combined_storage.read_dataframe(
             result_subpath=result_subpath,
         )

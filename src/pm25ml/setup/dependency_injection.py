@@ -12,7 +12,6 @@ import ee
 import google.auth
 from dependency_injector import containers, providers
 from ee.featurecollection import FeatureCollection
-from fsspec.implementations.dirfs import DirFileSystem
 from gcsfs import GCSFileSystem
 
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
@@ -28,10 +27,10 @@ from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager
 from pm25ml.combiners.archive.combine_planner import CombinePlanner
 from pm25ml.combiners.archive.combiner import ArchiveWideCombiner
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.feature_generation.generate import FeatureGenerator
 from pm25ml.imputation.from_model.regression_model_imputer_controller import (
-    IMPUTED_COMBINED_STAGE_NAME,
     RegressionModelImputationController,
 )
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
@@ -41,7 +40,6 @@ from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
 from pm25ml.setup.samplers import ImputationStep, define_samplers
-from pm25ml.setup.stages import SPATIALLY_IMPUTED_COMBINED
 from pm25ml.setup.training import build_model_ref
 from pm25ml.training.model_pipeline import ModelPipeline
 from pm25ml.training.model_storage import ModelStorage
@@ -111,6 +109,45 @@ def _load_in_memory_grid() -> Grid:
     )
 
 
+class DataArtifactProvider(containers.DeclarativeContainer):
+    """
+    Provides DataArtifact references for various stages of the PM2.5 ML project.
+
+    This container defines the stages used in the project, allowing for easy access
+    and management of data artifacts throughout the pipeline.
+    """
+
+    combined_stage = providers.Singleton(
+        DataArtifactRef,
+        stage="combined_monthly",
+    )
+
+    spatially_imputed_era5_stage = providers.Singleton(
+        DataArtifactRef,
+        stage="era5_spatially_imputed",
+    )
+
+    spatially_imputed_stage = providers.Singleton(
+        DataArtifactRef,
+        stage="combined_with_spatial_interpolation",
+    )
+
+    generated_features_stage = providers.Singleton(
+        DataArtifactRef,
+        stage="generated_features",
+    )
+
+    ml_imputer_sampled_super_stage = providers.Singleton(
+        DataArtifactRef,
+        stage="sampled",
+    )
+
+    ml_imputed_super_stage = providers.Singleton(
+        DataArtifactRef,
+        stage="imputed",
+    )
+
+
 class Pm25mlContainer(containers.DeclarativeContainer):
     """
     Dependency Injection container for the PM2.5 ML project.
@@ -119,6 +156,10 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     """
 
     config = providers.Configuration(strict=True)
+
+    data_artifacts_container = providers.Container(
+        DataArtifactProvider,
+    )
 
     temporal_config = providers.Singleton(
         TemporalConfig,
@@ -139,11 +180,6 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     feature_planner = providers.Singleton(
         GriddedFeatureCollectionPlanner,
         grid=gee_india_grid_reference,
-    )
-
-    local_rooted_filesystem = providers.Singleton(
-        DirFileSystem,
-        path="output",
     )
 
     gcs_filesystem: providers.Provider[GCSFileSystem] = providers.Singleton(
@@ -193,6 +229,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         ArchiveWideCombiner,
         archive_storage=archive_storage,
         combined_storage=combined_storage,
+        output_artifact=data_artifacts_container.combined_stage.provided,
     )
 
     monthly_combiner = providers.Singleton(
@@ -232,20 +269,23 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         combined_storage=combined_storage,
         spatial_imputer=daily_spatial_interpolator,
         temporal_config=temporal_config,
+        input_data_artifact=data_artifacts_container.combined_stage.provided,
+        output_data_artifact=data_artifacts_container.spatially_imputed_era5_stage.provided,
     )
 
     spatial_interpolation_recombiner = providers.Singleton(
         Recombiner,
         combined_storage=combined_storage,
-        new_stage_name=SPATIALLY_IMPUTED_COMBINED,
         temporal_config=temporal_config,
+        output_data_artifact=data_artifacts_container.spatially_imputed_stage.provided,
     )
 
     feature_generator = providers.Singleton(
         FeatureGenerator,
         combined_storage=combined_storage,
-        recombiner=spatial_interpolation_recombiner,
         temporal_config=temporal_config,
+        input_data_artifact=data_artifacts_container.spatially_imputed_stage.provided,
+        output_data_artifact=data_artifacts_container.generated_features_stage.provided,
     )
 
     imputation_samplers = providers.Singleton(
@@ -253,12 +293,14 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         combined_storage=combined_storage,
         temporal_config=temporal_config,
         imputation_steps=config.imputation_steps,
+        input_data_artifact=data_artifacts_container.generated_features_stage.provided,
+        output_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
     )
 
     extra_sampler = providers.Selector(
         config.take_mini_training_sample_selector,
         true=providers.Object(
-            lambda x: x.gather_every(100),
+            lambda x: x.gather_every(500),
         ),
         false=providers.Object(NO_OP),
     )
@@ -284,22 +326,31 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     )
 
     ml_model_trainer_factory = providers.Factory(
-        lambda *, model_reference, combined_storage, model_store, n_jobs: ModelPipeline(
+        lambda *,
+        model_reference,
+        combined_storage,
+        model_store,
+        n_jobs,
+        input_data_artifact: ModelPipeline(
             combined_storage=combined_storage,
             data_ref=model_reference,
             model_store=model_store,
             n_jobs=n_jobs,
+            input_data_artifact=input_data_artifact.for_sub_artifact(
+                model_reference.model_name,
+            ),
         ),
         combined_storage=combined_storage,
         model_store=model_store,
         n_jobs=config.max_parallel_tasks,
+        input_data_artifact=data_artifacts_container.ml_imputer_sampled_super_stage.provided,
     )
 
     imputer_recombiner = providers.Singleton(
         Recombiner,
         combined_storage=combined_storage,
-        new_stage_name=IMPUTED_COMBINED_STAGE_NAME,
         temporal_config=temporal_config,
+        output_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
     )
 
     regression_model_imputer_controller = providers.Factory(
@@ -309,6 +360,8 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         combined_storage=combined_storage,
         model_refs=ml_model_defs,
         recombiner=imputer_recombiner,
+        input_data_artifact=data_artifacts_container.generated_features_stage.provided,
+        output_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
     )
 
 

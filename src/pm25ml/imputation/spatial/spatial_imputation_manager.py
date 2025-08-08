@@ -9,6 +9,7 @@ from arrow import Arrow
 
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES
 from pm25ml.combiners.combined_storage import CombinedStorage
+from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.logging import logger
 from pm25ml.setup.date_params import TemporalConfig
@@ -21,13 +22,13 @@ class SpatialImputationValidationError(Exception):
 class SpatialImputationManager:
     """Manage the spatial imputation of data using a specified imputer."""
 
-    STAGE_NAME = "era5_spatially_imputed"
-
     def __init__(
         self,
         combined_storage: CombinedStorage,
         spatial_imputer: DailySpatialInterpolator,
         temporal_config: TemporalConfig,
+        input_data_artifact: DataArtifactRef,
+        output_data_artifact: DataArtifactRef,
     ) -> None:
         """
         Initialize the SpatialImputationManager.
@@ -40,6 +41,8 @@ class SpatialImputationManager:
         self.spatial_imputer = spatial_imputer
         self.months = temporal_config.months
         self.months_as_ids = [month.format("YYYY-MM") for month in self.months]
+        self.input_data_artifact = input_data_artifact
+        self.output_data_artifact = output_data_artifact
 
     def impute(self) -> None:
         """Perform spatial imputation for each month."""
@@ -108,7 +111,7 @@ class SpatialImputationManager:
 
             self.combined_storage.write_to_destination(
                 imputed_month,
-                f"stage={self.STAGE_NAME}/month={month}",
+                self.output_data_artifact.for_month(month.format("YYYY-MM")),
             )
 
         with ThreadPoolExecutor(8) as executor:
@@ -148,7 +151,7 @@ class SpatialImputationManager:
     def _needs_upload(self, month: str, expected_columns: Collection[str]) -> bool:
         logger.debug(f"Checking if spatial imputation month {month} needs upload")
         if not self.combined_storage.does_dataset_exist(
-            f"stage={self.STAGE_NAME}/month={month}",
+            self.output_data_artifact.for_month(month),
         ):
             logger.debug(f"Dataset for month {month} does not exist, needs upload.")
             return True
@@ -172,9 +175,8 @@ class SpatialImputationManager:
     ) -> None:
         expected_rows = self._days_in_month(month) * VALID_COUNTRIES["india"]
 
-        dataset_path = f"stage={self.STAGE_NAME}/month={month}"
         final_combined_metadata = self.combined_storage.read_dataframe_metadata(
-            result_subpath=dataset_path,
+            result_subpath=self.output_data_artifact.for_month(month),
         )
 
         actual_schema = final_combined_metadata.schema.to_arrow_schema()

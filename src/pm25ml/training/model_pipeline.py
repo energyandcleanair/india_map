@@ -17,6 +17,7 @@ from pm25ml.training.model_storage import ModelStorage, ValidatedModel
 
 if TYPE_CHECKING:
     from pm25ml.combiners.combined_storage import CombinedStorage
+    from pm25ml.combiners.data_artifact import DataArtifactRef
     from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
 
 
@@ -75,18 +76,21 @@ class ModelPipeline:
         data_ref: ModelReference,
         model_store: ModelStorage,
         n_jobs: int,
+        input_data_artifact: DataArtifactRef,
     ) -> None:
         """Initialize the ModelTrainer."""
         self.data = data_ref
         self.combined_storage = combined_storage
         self.model_store = model_store
         self.n_jobs = n_jobs
+        self.input_data_artifact = input_data_artifact
 
     def train_model(self) -> None:
         """Run imputation ML model."""
         # 1. Sampling
         logger.info(f"Loading and sampling training data for {self.data.model_name} imputation")
         df_sampled = self.load_training_data()
+        self._check_clean(df_sampled)
 
         # 2. Create folds
         # outer_cv is a list where each item contains a tuple with indices
@@ -103,6 +107,7 @@ class ModelPipeline:
 
         logger.info("Loading test data for evaluation")
         df_test = self.load_test_data()
+        self._check_clean(df_test)
 
         # 5. Evaluate model on the test data
         logger.info("Evaluating model on the test data")
@@ -150,7 +155,7 @@ class ModelPipeline:
     def load_training_data(self) -> pd.DataFrame:
         """Load the sampled data imputation from GCS."""
         results = self.combined_storage.scan_stage(
-            stage=f"sampled+{self.data.model_name}",
+            stage=self.input_data_artifact.stage,
         )
 
         return (
@@ -167,7 +172,7 @@ class ModelPipeline:
     def load_test_data(self) -> pd.DataFrame:
         """Load the test data for imputation from GCS."""
         results = self.combined_storage.scan_stage(
-            stage=f"sampled+{self.data.model_name}",
+            stage=self.input_data_artifact.stage,
         )
 
         return (
@@ -264,3 +269,14 @@ class ModelPipeline:
         rmse = math.sqrt(mean_squared_error(target, predicted))
 
         return {"r2": r2, "rmse": rmse}
+
+    def _check_clean(self, df: pd.DataFrame) -> None:
+        """Check if the DataFrame is clean."""
+        must_not_be_null_cols = self.data.predictor_cols
+
+        if df[must_not_be_null_cols].isna().any().any():
+            msg = (
+                f"DataFrame contains null values in columns: {must_not_be_null_cols}. "
+                "Please ensure that the data is clean before training stage."
+            )
+            raise ValueError(msg)

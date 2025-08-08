@@ -55,6 +55,12 @@ class HivePath:
             raise ValueError(msg)
         return self.metadata[key]
 
+    def with_args(self, **kwargs: str) -> "HivePath":
+        """Return a new HivePath with additional path info from the given keywords."""
+        current_metadata = self.metadata.copy()
+        current_metadata.update(kwargs)
+        return HivePath.from_args(**current_metadata)
+
     def __eq__(self, value: object) -> bool:
         """
         Check if the value is equal to this HivePath instance.
