@@ -2,7 +2,7 @@ from polars import Float64, Int64, String
 from pathlib import Path
 
 import pytest
-from pm25ml.collectors.grid_loader import load_grid_from_zip, Grid
+from pm25ml.collectors.grid_loader import load_grid_from_files, Grid
 
 from shapely.wkt import loads as load_wkt
 from shapely.geometry import Polygon
@@ -45,11 +45,13 @@ def test__load_grid_from_zip__valid_shapefile_zip__grid_loaded():
     # Arrange
     path_to_shapefile_zip = Path("./assets/grid_india_10km_shapefiles.zip")
     path_to_csv_50km = Path("./assets/grid_intersect_with_50km.csv")
+    path_to_region_parquet = Path("./assets/grid_region.parquet")
 
     # Act
-    grid = load_grid_from_zip(
+    grid = load_grid_from_files(
         path_to_shapefile_zip=path_to_shapefile_zip,
         path_to_50km_csv=path_to_csv_50km,
+        path_to_region_parquet=path_to_region_parquet,
     )
 
     assert isinstance(grid, Grid)
@@ -66,6 +68,9 @@ def test__load_grid_from_zip__valid_shapefile_zip__grid_loaded():
     assert grid.df["lat"].dtype == Float64
     assert "grid_id" in grid.df.columns
     assert grid.df["grid_id"].dtype == Int64
+    # Region column should exist and be an int
+    assert "k_region" in grid.df.columns
+    assert grid.df["k_region"].dtype == Int64
 
     # Make sure that all of the lat and lon values are within expected ranges
     lon_min = grid.df["lon"].min()
@@ -157,3 +162,9 @@ def test__load_grid_from_zip__valid_shapefile_zip__grid_loaded():
     assert abs(actual_converted_centroid.y - EXPECTED_CENTROID_Y) < MAX_ERROR_SIZE, (
         "Original polygon centroid latitude does not match"
     )
+
+    # Region column also present in original df and matches expected for sample
+    assert "k_region" in df_original.columns
+    sample_region = df_original.filter(df_original["grid_id"] == SAMPLE_GRID_ID)["k_region"].item()
+    assert isinstance(sample_region, (int,))
+    assert sample_region == 2

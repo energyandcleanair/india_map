@@ -20,7 +20,7 @@ from pm25ml.collectors.collector import RawDataCollector
 from pm25ml.collectors.gee.feature_planner import GriddedFeatureCollectionPlanner
 from pm25ml.collectors.gee.gee_export_pipeline import GeePipelineConstructor
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
-from pm25ml.collectors.grid_loader import Grid, load_grid_from_zip
+from pm25ml.collectors.grid_loader import Grid, load_grid_from_files
 from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
 from pm25ml.collectors.pm25.data_source import CreaMeasurementsApiDataSource
 from pm25ml.collectors.pm25.pm25_pipeline import Pm25MeasurementsPipelineConstructor
@@ -54,6 +54,7 @@ if TYPE_CHECKING:
 
 LOCAL_GRID_ZIP_PATH = Path("./assets/grid_india_10km_shapefiles.zip")
 LOCAL_GRID_50KM_MAPPING_CSV_PATH = Path("./assets/grid_intersect_with_50km.csv")
+LOCAL_GRID_REGION_PARQUET_PATH = Path("./assets/grid_region.parquet")
 
 NO_OP = lambda x: x  # noqa: E731
 
@@ -106,9 +107,10 @@ def _load_india_grid_reference_asset(india_shapefile_asset: str) -> FeatureColle
 
 def _load_in_memory_grid() -> Grid:
     logger.debug("Loading in-memory grid from local zip file: %s", LOCAL_GRID_ZIP_PATH)
-    return load_grid_from_zip(
+    return load_grid_from_files(
         path_to_shapefile_zip=LOCAL_GRID_ZIP_PATH,
         path_to_50km_csv=LOCAL_GRID_50KM_MAPPING_CSV_PATH,
+        path_to_region_parquet=LOCAL_GRID_REGION_PARQUET_PATH,
     )
 
 

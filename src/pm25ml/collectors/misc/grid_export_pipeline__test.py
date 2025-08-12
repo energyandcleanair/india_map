@@ -24,6 +24,7 @@ def mock_grid():
             {
                 "grid_id": ["01", "02", "03", "04"],
                 "id_50km": [1001, 1002, 1003, 1004],
+                "k_region": [1, 1, 2, 3],
                 "lon": [0.5, 1.5, 2.5, 3.5],
                 "lat": [2.5, 3.5, 4.5, 5.5],
                 "extra_col": [10, 20, 30, 40],
@@ -48,6 +49,7 @@ def test__GridExportPipeline__get_config_metadata__returns_correct_metadata(
     assert metadata.id_columns == {"grid_id"}
     assert metadata.value_column_type_map == {
         "id_50km": ValueColumnType.INT,
+        "k_region": ValueColumnType.INT,
         "lon": ValueColumnType.FLOAT,
         "lat": ValueColumnType.FLOAT,
     }
@@ -70,6 +72,7 @@ def test__GridExportPipeline__upload__writes_correct_data(mock_grid, mock_archiv
         {
             "grid_id": ["01", "02", "03", "04"],
             "id_50km": [1001, 1002, 1003, 1004],
+            "k_region": [1, 1, 2, 3],
             "lon": [0.5, 1.5, 2.5, 3.5],
             "lat": [2.5, 3.5, 4.5, 5.5],
         }

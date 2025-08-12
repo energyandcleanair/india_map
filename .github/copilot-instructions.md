@@ -22,7 +22,17 @@ This project includes all of the code to:
  - Polars for computed data
  - xarray for raw data
 
+## Banned technologies
+
+ - GDAL
+
 ## Naming conventions
 
  - Test files are named: `<module_name>__test.py` or `<module_name>__it.py`
  - Test functions are named: `test__<thing_under_test>__<situation_under_test>__<expected_outcome>`
+ 
+## Running commands
+
+When running commands, you'll need to run them within the poetry virtual env, for example:
+ - `poetry run python script.py`
+ - `poetry run pytest -q ...`

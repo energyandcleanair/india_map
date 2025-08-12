@@ -41,6 +41,7 @@ class GridExportPipeline(ExportPipeline):
             id_columns={"grid_id"},
             value_column_type_map={
                 "id_50km": ValueColumnType.INT,
+                "k_region": ValueColumnType.INT,
                 "lon": ValueColumnType.FLOAT,
                 "lat": ValueColumnType.FLOAT,
             },
@@ -53,6 +54,7 @@ class GridExportPipeline(ExportPipeline):
             [
                 self.grid.GRID_ID_COL,
                 self.grid.GRID_ID_50KM_COL,
+                self.grid.REGION_COL,
                 self.grid.LON_COL,
                 self.grid.LAT_COL,
             ],

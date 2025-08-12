@@ -16,6 +16,7 @@ from shapely.ops import transform
 from shapely.wkt import loads as load_wkt
 
 from pm25ml.collectors.ned.coord_types import Lat, Lon
+from pm25ml.logging import logger
 
 if TYPE_CHECKING:
     from shapely.geometry.base import BaseGeometry
@@ -31,6 +32,7 @@ class Grid:
     GEOM_COL = "geometry_wkt"
     LAT_COL = "lat"
     LON_COL = "lon"
+    REGION_COL = "k_region"
     GRID_ID_COL = "grid_id"
     GRID_ID_50KM_COL = "id_50km"
 
@@ -40,6 +42,7 @@ class Grid:
         GEOM_COL,
         LAT_COL,
         LON_COL,
+        REGION_COL,
     }
 
     ORIGINAL_COLUMNS: ClassVar[set[str]] = {
@@ -48,6 +51,7 @@ class Grid:
         ORIGINAL_GEOM_COL,
         ORIGINAL_X,
         ORIGINAL_Y,
+        REGION_COL,
     }
 
     BOUNDS_BORDER: float = 1.0
@@ -106,79 +110,22 @@ class Grid:
         return self.df.shape[0]
 
 
-# The shapefile zip contains the grid for the NED dataset.
-# It has a directory structure like this:
-# - grid_india_10km/
-#   - grid_india_10km.shp
-#   - grid_india_10km.shx
-#   - grid_india_10km.dbf
-#   - grid_india_10km.prj
-def load_grid_from_zip(
+def load_grid_from_files(
     *,
     path_to_shapefile_zip: Path,
     path_to_50km_csv: Path,
+    path_to_region_parquet: Path,
 ) -> Grid:
     """Load the grid from a file."""
     # Extract ZIP to temp directory
-    with tempfile.TemporaryDirectory() as tmpdir:
-        with zipfile.ZipFile(path_to_shapefile_zip, "r") as zip_ref:
-            zip_ref.extractall(tmpdir)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        logger.debug("Extracting and reading grid from shapefile")
+        grid_df = _load_from_zip(
+            tmp_dir,
+            path_to_shapefile_zip,
+        )
 
-        tmpdir_path = Path(tmpdir)
-
-        # Find .shp and .prj files recursively
-        shp_path = next(tmpdir_path.rglob("*.shp"), None)
-        prj_path = next(tmpdir_path.rglob("*.prj"), None)
-
-        if not shp_path:
-            msg = "Shapefile (.shp) not found in the ZIP archive."
-            raise ValueError(msg)
-
-        if not prj_path:
-            msg = "Projection file (.prj) not found in the ZIP archive."
-            raise ValueError(msg)
-
-        # Load CRS
-        with prj_path.open() as f:
-            wkt = f.read()
-        input_crs = CRS.from_wkt(wkt)
-
-        output_crs = CRS.from_epsg(4326)
-        transformer = Transformer.from_crs(input_crs, output_crs, always_xy=True)
-
-        def reproject_geom(geom: BaseGeometry) -> BaseGeometry:
-            return transform(transformer.transform, geom)
-
-        # Read shapefile
-        reader = shapefile.Reader(str(shp_path))
-        fields = [f[0] for f in reader.fields[1:]]  # skip deletion flag
-
-        records = []
-        for sr in reader.shapeRecords():
-            attrs = dict(zip(fields, sr.record))
-            # Convert grid_id to int if present
-            if "grid_id" not in attrs:
-                msg = "grid_id not found in shapefile attributes."
-                raise ValueError(msg)
-
-            attrs[Grid.GRID_ID_COL] = int(attrs["grid_id"])
-            geom = shape(sr.shape.__geo_interface__)
-            geom_reproj = reproject_geom(geom)
-            attrs[Grid.GEOM_COL] = geom_reproj.wkt
-
-            # Extract centroid coordinates for lon and lat
-            centroid = geom_reproj.centroid
-            attrs[Grid.LON_COL] = centroid.x
-            attrs[Grid.LAT_COL] = centroid.y
-
-            # Extract original centroid
-            original_centroid = geom.centroid
-            attrs[Grid.ORIGINAL_GEOM_COL] = geom.wkt
-            attrs[Grid.ORIGINAL_X] = original_centroid.x
-            attrs[Grid.ORIGINAL_Y] = original_centroid.y
-
-            records.append(attrs)
-
+        logger.debug("Loading 50km grid IDs from CSV")
         grid_id_to_50km_grids = pl.read_csv(
             path_to_50km_csv,
             has_header=True,
@@ -187,10 +134,18 @@ def load_grid_from_zip(
             pl.col("grid_id_50km").alias(Grid.GRID_ID_50KM_COL),
         )
 
+        logger.debug("Loading grid regions from Parquet")
+        grid_id_to_regions = pl.read_parquet(
+            path_to_region_parquet,
+        ).select(
+            pl.col("grid_id").alias(Grid.GRID_ID_COL),
+            pl.col("k_region").alias(Grid.REGION_COL),
+        )
+
+        logger.debug("Joining grid data with 50km grid IDs and regions")
         # Load into polars
         return Grid(
-            DataFrame(records)
-            .with_columns(
+            grid_df.with_columns(
                 [
                     pl.col(Grid.ORIGINAL_X).round(0).cast(float),
                     pl.col(Grid.ORIGINAL_Y).round(0).cast(float),
@@ -201,5 +156,83 @@ def load_grid_from_zip(
                 on=Grid.GRID_ID_COL,
                 how="left",
                 coalesce=True,
+            )
+            .join(
+                grid_id_to_regions,
+                on=Grid.GRID_ID_COL,
+                how="left",
+                coalesce=True,
             ),
         )
+
+
+def _load_from_zip(
+    tmp_dir: str,
+    path_to_shapefile_zip: Path,
+) -> DataFrame:
+    # The shapefile zip contains the grid for the NED dataset.
+    # It has a directory structure like this:
+    # - grid_india_10km/
+    #   - grid_india_10km.shp
+    #   - grid_india_10km.shx
+    #   - grid_india_10km.dbf
+    #   - grid_india_10km.prj
+    with zipfile.ZipFile(path_to_shapefile_zip, "r") as zip_ref:
+        zip_ref.extractall(tmp_dir)
+
+    tmpdir_path = Path(tmp_dir)
+
+    # Find .shp and .prj files recursively
+    shp_path = next(tmpdir_path.rglob("*.shp"), None)
+    prj_path = next(tmpdir_path.rglob("*.prj"), None)
+
+    if not shp_path:
+        msg = "Shapefile (.shp) not found in the ZIP archive."
+        raise ValueError(msg)
+
+    if not prj_path:
+        msg = "Projection file (.prj) not found in the ZIP archive."
+        raise ValueError(msg)
+
+    # Load CRS
+    with prj_path.open() as f:
+        wkt = f.read()
+    input_crs = CRS.from_wkt(wkt)
+
+    output_crs = CRS.from_epsg(4326)
+    transformer = Transformer.from_crs(input_crs, output_crs, always_xy=True)
+
+    def reproject_geom(geom: BaseGeometry) -> BaseGeometry:
+        return transform(transformer.transform, geom)
+
+    # Read shapefile
+    reader = shapefile.Reader(str(shp_path))
+    fields = [f[0] for f in reader.fields[1:]]  # skip deletion flag
+
+    records = []
+    for sr in reader.shapeRecords():
+        attrs = dict(zip(fields, sr.record))
+        # Convert grid_id to int if present
+        if "grid_id" not in attrs:
+            msg = "grid_id not found in shapefile attributes."
+            raise ValueError(msg)
+
+        attrs[Grid.GRID_ID_COL] = int(attrs["grid_id"])
+        geom = shape(sr.shape.__geo_interface__)
+        geom_reproj = reproject_geom(geom)
+        attrs[Grid.GEOM_COL] = geom_reproj.wkt
+
+        # Extract centroid coordinates for lon and lat
+        centroid = geom_reproj.centroid
+        attrs[Grid.LON_COL] = centroid.x
+        attrs[Grid.LAT_COL] = centroid.y
+
+        # Extract original centroid
+        original_centroid = geom.centroid
+        attrs[Grid.ORIGINAL_GEOM_COL] = geom.wkt
+        attrs[Grid.ORIGINAL_X] = original_centroid.x
+        attrs[Grid.ORIGINAL_Y] = original_centroid.y
+
+        records.append(attrs)
+
+    return DataFrame(records)
