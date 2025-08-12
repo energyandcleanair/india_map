@@ -18,6 +18,11 @@ class TemporalConfig:
     """
 
     @property
+    def end_date_exclusive(self) -> Arrow:
+        """Returns the end date of the pipeline, exclusive of whole month."""
+        return self.end_date.shift(months=1)
+
+    @property
     def years(self) -> list[int]:
         """Returns a list of years covered by the pipeline."""
         return list(range(self.start_date.year, self.end_date.year + 1))

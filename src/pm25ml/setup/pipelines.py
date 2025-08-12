@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from pm25ml.collectors.gee.gee_export_pipeline import GeePipelineConstructor
     from pm25ml.collectors.grid_loader import Grid
     from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
+    from pm25ml.collectors.pm25.pm25_pipeline import Pm25MeasurementsPipelineConstructor
     from pm25ml.setup.date_params import TemporalConfig
 
 
@@ -33,6 +34,7 @@ def define_pipelines(  # noqa: PLR0913
     *,
     gee_pipeline_constructor: GeePipelineConstructor,
     ned_pipeline_constructor: NedPipelineConstructor,
+    pm25_pipeline_constructor: Pm25MeasurementsPipelineConstructor,
     in_memory_grid: Grid,
     archive_storage: IngestArchiveStorage,
     feature_planner: GriddedFeatureCollectionPlanner,
@@ -203,6 +205,10 @@ def define_pipelines(  # noqa: PLR0913
                 dataset_reader=Omno2dReader(),
                 dataset_retriever=RawEarthAccessDataRetriever(),
                 result_subpath=f"country=india/dataset=omi_no2/month={month_short}",
+            ),
+            pm25_pipeline_constructor.construct(
+                result_subpath=f"country=india/dataset=pm25/month={month_short}",
+                month=month_start,
             ),
         ]
 

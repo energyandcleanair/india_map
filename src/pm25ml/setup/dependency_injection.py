@@ -22,6 +22,8 @@ from pm25ml.collectors.gee.gee_export_pipeline import GeePipelineConstructor
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
 from pm25ml.collectors.grid_loader import Grid, load_grid_from_zip
 from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
+from pm25ml.collectors.pm25.data_source import CreaMeasurementsApiDataSource
+from pm25ml.collectors.pm25.pm25_pipeline import Pm25MeasurementsPipelineConstructor
 from pm25ml.collectors.validate_configuration import VALID_COUNTRIES
 from pm25ml.combiners.archive.combine_manager import MonthlyCombinerManager
 from pm25ml.combiners.archive.combine_planner import CombinePlanner
@@ -39,6 +41,7 @@ from pm25ml.logging import logger
 from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
+from pm25ml.setup.pm25_filters import define_filters
 from pm25ml.setup.samplers import ImputationStep, define_samplers
 from pm25ml.setup.training import build_model_ref
 from pm25ml.training.model_pipeline import ModelPipeline
@@ -219,6 +222,23 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         grid=in_memory_grid,
     )
 
+    pm25_data_source = providers.Singleton(
+        CreaMeasurementsApiDataSource,
+        temporal_config=temporal_config,
+    )
+
+    pm25_filters = providers.Singleton(
+        define_filters,
+    )
+
+    pm25_pipeline_constructor = providers.Singleton(
+        Pm25MeasurementsPipelineConstructor,
+        in_memory_grid=in_memory_grid,
+        crea_ds=pm25_data_source,
+        archive_storage=archive_storage,
+        filters=pm25_filters,
+    )
+
     combined_storage = providers.Singleton(
         CombinedStorage,
         filesystem=gcs_filesystem,
@@ -247,6 +267,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         define_pipelines,
         gee_pipeline_constructor=gee_pipeline_constructor,
         ned_pipeline_constructor=ned_pipeline_constructor,
+        pm25_pipeline_constructor=pm25_pipeline_constructor,
         in_memory_grid=in_memory_grid,
         archive_storage=archive_storage,
         feature_planner=feature_planner,
