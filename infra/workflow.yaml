@@ -17,7 +17,7 @@ main:
               END_MONTH: "2025-03-01"
               RUNNING_IN_CLOUD_BATCH: "true"
           # Extract continue_from arg (string stage name); if empty, start at first step
-          - continue_from: ${ map.get(args, "continue_from", "collect_data_and_combine") }
+          - continue_from: ${ default(map.get(args, "continue_from"), "collect_data_and_combine") }
 
     # Single dispatcher: jump directly to requested starting step, else proceed from first
     - dispatch_continue_from:
