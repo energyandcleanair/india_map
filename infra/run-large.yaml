@@ -15,7 +15,7 @@ spec:
             - image: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
               resources:
                 limits:
-                  cpu: 16000m
+                  cpu: 8000m
                   memory: 32Gi
               env:
                 - name: GCP_PROJECT
