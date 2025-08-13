@@ -404,9 +404,17 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         column_name="pm25__pm25",
     )
 
+    extra_sampler_full = providers.Selector(
+        config.take_mini_training_sample_selector,
+        true=providers.Object(
+            lambda x: x.gather_every(10),
+        ),
+        false=providers.Object(NO_OP),
+    )
+
     full_model_ref = providers.Singleton(
         build_full_model_ref,
-        extra_sampler=extra_sampler,
+        extra_sampler=extra_sampler_full,
         take_mini_training_sample=config.take_mini_training_sample_bool,
     )
 
