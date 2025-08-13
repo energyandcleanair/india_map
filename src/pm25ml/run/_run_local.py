@@ -11,6 +11,7 @@ def _main() -> None:
     run_module("pm25ml.run.train_co_imputer", run_name="__main__")
     run_module("pm25ml.run.train_no2_imputer", run_name="__main__")
     run_module("pm25ml.run.impute", run_name="__main__")
+    run_module("pm25ml.run.prep_for_full_model", run_name="__main__")
 
 
 if __name__ == "__main__":

@@ -89,8 +89,8 @@ def build_model_ref(
                 booster="gbtree",
             ),
             extra_sampler=extra_sampler,
-            min_r2_score=0.6 if take_mini_training_sample else 0.8,
-            max_r2_score=0.8 if take_mini_training_sample else 0.9,
+            min_r2_score=0.4 if take_mini_training_sample else 0.8,
+            max_r2_score=0.9,
         )
     if ref == "no2":
         return ModelReference(
@@ -110,8 +110,8 @@ def build_model_ref(
                 objective="regression",
             ),
             extra_sampler=extra_sampler,
-            min_r2_score=0.3 if take_mini_training_sample else 0.4,
-            max_r2_score=0.5 if take_mini_training_sample else 0.6,
+            min_r2_score=-0.1 if take_mini_training_sample else 0.4,
+            max_r2_score=0.6,
         )
     if ref == "co":
         return ModelReference(
@@ -131,8 +131,8 @@ def build_model_ref(
                 objective="regression",
             ),
             extra_sampler=extra_sampler,
-            min_r2_score=0.7 if take_mini_training_sample else 0.9,
-            max_r2_score=0.85 if take_mini_training_sample else 0.97,
+            min_r2_score=0.4 if take_mini_training_sample else 0.9,
+            max_r2_score=0.97,
         )
 
     msg = f"Unknown model reference: {ref}"

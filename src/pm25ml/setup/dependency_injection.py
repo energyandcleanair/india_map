@@ -38,6 +38,7 @@ from pm25ml.imputation.from_model.regression_model_imputer_controller import (
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
+from pm25ml.sample.full_model_sampler import FullModelSampler
 from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
@@ -150,6 +151,11 @@ class DataArtifactProvider(containers.DeclarativeContainer):
     ml_imputed_super_stage = providers.Singleton(
         DataArtifactRef,
         stage="imputed",
+    )
+
+    ml_full_model_sample_stage = providers.Singleton(
+        DataArtifactRef,
+        stage="full_model_sample",
     )
 
 
@@ -385,6 +391,15 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         recombiner=imputer_recombiner,
         input_data_artifact=data_artifacts_container.generated_features_stage.provided,
         output_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
+    )
+
+    full_model_sampler = providers.Singleton(
+        FullModelSampler,
+        combined_storage=combined_storage,
+        temporal_config=temporal_config,
+        input_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
+        output_data_artifact=data_artifacts_container.ml_full_model_sample_stage.provided,
+        column_name="pm25__pm25",
     )
 
 
