@@ -220,4 +220,3 @@ main:
                     - -m
                     - pm25ml.run.train_full_model
         result: run_job_result
-  - end: {}
