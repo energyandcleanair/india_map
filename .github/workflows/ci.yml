@@ -221,6 +221,7 @@ jobs:
         id: deploy-job-spec
         run: |
           gcloud run jobs replace infra/run.yaml
+          gcloud run jobs replace infra/run-large.yaml
       - name: Deploy workflow
         id: deploy-workflow
         run: |

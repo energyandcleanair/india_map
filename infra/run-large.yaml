@@ -1,0 +1,53 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: pm25ml-large
+  labels:
+    cloud.googleapis.com/location: europe-west1
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          containers:
+            - image: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
+              resources:
+                limits:
+                  cpu: 16000m
+                  memory: 32Gi
+              env:
+                - name: GCP_PROJECT
+                  value: vital-form-455413-p8
+                - name: INDIA_SHAPEFILE_ASSET
+                  value: projects/vital-form-455413-p8/assets/grid_india_10km_shapefile
+                - name: CSV_BUCKET_NAME
+                  value: crea-ee-csv-buffer
+                - name: INGEST_ARCHIVE_BUCKET_NAME
+                  value: crea-pm25ml-ingest-archive
+                - name: COMBINED_BUCKET_NAME
+                  value: crea-pm25ml-combined
+                - name: MODEL_STORAGE_BUCKET_NAME
+                  value: crea-pm25ml-models
+                - name: SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX
+                  value: "^era5_land__.*$"
+                - name: TQDM_DISABLE
+                  value: "1"
+                - name: START_MONTH
+                  value: "2018-08-01"
+                - name: END_MONTH
+                  value: "2025-03-01"
+                - name: EARTHDATA_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: EARTHDATA_USERNAME
+                      key: latest
+                - name: EARTHDATA_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: EARTHDATA_PASSWORD
+                      key: latest
+          maxRetries: 0
+          timeoutSeconds: "86400"
+          serviceAccountName: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
