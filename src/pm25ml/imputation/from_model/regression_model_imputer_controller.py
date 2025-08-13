@@ -48,8 +48,10 @@ class RegressionModelImputationController:
         for model_name, model_ref in self.model_refs.items():
             logger.info(f"Imputing for model: {model_name}")
 
+            logger.debug(f"Loading model reference: {model_ref}")
             latest_model = self.model_store.load_latest_model(model_name)
 
+            logger.debug(f"Selecting data for model: {model_ref}")
             sub_artifact = self.output_data_artifact.for_sub_artifact(model_name)
 
             regression_model_imputer = RegressionModelImputer(
@@ -61,6 +63,7 @@ class RegressionModelImputationController:
                 output_data_artifact=sub_artifact,
             )
 
+            logger.debug(f"Imputing for model: {model_name}")
             regression_model_imputer.impute()
             to_add_stage_names.append(sub_artifact)
 
