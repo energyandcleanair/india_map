@@ -4,7 +4,7 @@ import numpy as np
 from unittest.mock import MagicMock, Mock
 from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.imputation.from_model.regression_model_imputer import RegressionModelImputer
-from pm25ml.training.model_pipeline import ModelReference
+from pm25ml.training.imputation_model_pipeline import ImputationModelReference
 from pm25ml.training.model_storage import LoadedValidatedModel
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.combiners.combined_storage import CombinedStorage
@@ -20,7 +20,7 @@ OUTPUT_ARTIFACT_STAGE = DataArtifactRef(stage=f"imputed+{ARBITRARY_MODEL_NAME}")
 
 @pytest.fixture
 def mock_model_reference():
-    return ModelReference(
+    return ImputationModelReference(
         model_name=ARBITRARY_MODEL_NAME,  # Use a valid model_name literal
         predictor_cols=["feature1", "feature2"],
         target_col="target_col",

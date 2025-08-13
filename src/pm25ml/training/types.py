@@ -7,4 +7,4 @@ from xgboost import XGBRegressor
 
 type Pm25mlCompatibleModel = XGBRegressor | LGBMRegressor
 
-type ModelName = Literal["aod", "no2", "co"]
+type ModelName = Literal["aod", "no2", "co", "full_pm25"]

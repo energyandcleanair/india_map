@@ -2,7 +2,10 @@
 
 from typing import Protocol
 
-from pm25ml.training.model_pipeline import ModelPipeline, ModelReference
+from pm25ml.training.imputation_model_pipeline import (
+    ImputationModelPipeline,
+    ImputationModelReference,
+)
 
 
 class ModelTrainerFactory(Protocol):
@@ -14,7 +17,7 @@ class ModelTrainerFactory(Protocol):
 
     def __call__(
         self,
-        model_reference: ModelReference,
-    ) -> ModelPipeline:
+        model_reference: ImputationModelReference,
+    ) -> ImputationModelPipeline:
         """Create a ModelPipeline instance for the given model reference."""
         ...

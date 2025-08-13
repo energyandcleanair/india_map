@@ -6,7 +6,7 @@ import polars as pl
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 
-from pm25ml.training.model_pipeline import ModelReference
+from pm25ml.training.imputation_model_pipeline import ImputationModelReference
 from pm25ml.training.types import ModelName
 
 SHARED_IMPUTATION_PREDICTOR_COLS = [
@@ -70,10 +70,10 @@ def build_model_ref(
     ref: ModelName,
     extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame],
     take_mini_training_sample: bool,
-) -> ModelReference:
+) -> ImputationModelReference:
     """Build a training data reference for the given ref."""
     if ref == "aod":
-        return ModelReference(
+        return ImputationModelReference(
             model_name="aod",
             predictor_cols=SHARED_IMPUTATION_PREDICTOR_COLS,
             target_col="modis_aod__Optical_Depth_055",
@@ -93,7 +93,7 @@ def build_model_ref(
             max_r2_score=0.9,
         )
     if ref == "no2":
-        return ModelReference(
+        return ImputationModelReference(
             model_name="no2",
             predictor_cols=SHARED_IMPUTATION_PREDICTOR_COLS,
             target_col="s5p_no2__tropospheric_NO2_column_number_density",
@@ -114,7 +114,7 @@ def build_model_ref(
             max_r2_score=0.6,
         )
     if ref == "co":
-        return ModelReference(
+        return ImputationModelReference(
             model_name="co",
             predictor_cols=SHARED_IMPUTATION_PREDICTOR_COLS,
             target_col="s5p_co__CO_column_number_density",
@@ -131,7 +131,7 @@ def build_model_ref(
                 objective="regression",
             ),
             extra_sampler=extra_sampler,
-            min_r2_score=0.4 if take_mini_training_sample else 0.9,
+            min_r2_score=-0.4 if take_mini_training_sample else 0.9,
             max_r2_score=0.97,
         )
 

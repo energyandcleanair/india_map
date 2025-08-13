@@ -1,0 +1,90 @@
+"""Constructs the reference for the full PM2.5 model."""
+
+from collections.abc import Callable
+
+import polars as pl
+from xgboost import XGBRegressor
+
+from pm25ml.training.full_model_pipeline import FullModelReference
+
+
+def build_full_model_ref(
+    *,
+    extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame],
+    take_mini_training_sample: bool,
+) -> FullModelReference:
+    """Build the model reference for the full PM2.5 model."""
+    return FullModelReference(
+        grouper_col="grid__id_50km",
+        stratifier_col="grid__k_region",
+        predictor_cols=[
+            "merra_aot__aot",
+            "merra_aot__aot__mean_r7d",
+            "merra_co__co",
+            "merra_co__co__mean_r7d",
+            "omi_no2__no2__mean_r7d",
+            "era5_land__temperature_2m",
+            "era5_land__temperature_2m__mean_r7d",
+            "era5_land__dewpoint_temperature_2m",
+            "era5_land__dewpoint_temperature_2m__mean_r7d",
+            "era5_land__u_component_of_wind_10m",
+            "era5_land__u_component_of_wind_10m__mean_r7d",
+            "era5_land__v_component_of_wind_10m",
+            "era5_land__v_component_of_wind_10m__mean_r7d",
+            "era5_land__total_precipitation_sum",
+            "era5_land__total_precipitation_sum__mean_r7d",
+            "era5_land__surface_net_thermal_radiation_sum",
+            "era5_land__surface_net_thermal_radiation_sum__mean_r7d",
+            "era5_land__surface_pressure",
+            "era5_land__surface_pressure__mean_r7d",
+            "era5_land__relative_humidity_computed",
+            "era5_land__relative_humidity_computed__mean_r7d",
+            "era5_land__wind_degree_computed",
+            "era5_land__wind_degree_computed__mean_r7d",
+            "era5_land__leaf_area_index_low_vegetation",
+            "era5_land__leaf_area_index_low_vegetation__mean_r7d",
+            "era5_land__leaf_area_index_high_vegetation",
+            "era5_land__leaf_area_index_high_vegetation__mean_r7d",
+            "modis_land_cover__water",
+            "modis_land_cover__shrub",
+            "modis_land_cover__urban",
+            "modis_land_cover__forest",
+            "modis_land_cover__savanna",
+            "srtm_elevation__elevation",
+            "year",
+            "month_of_year",
+            "day_of_year",
+            "monsoon_season",
+            "grid__lat",
+            "grid__lon",
+            "s5p_no2__tropospheric_NO2_column_number_density__imputed_flag",
+            "s5p_no2__tropospheric_NO2_column_number_density__imputed",
+            "s5p_no2__tropospheric_NO2_column_number_density__imputed_r7d",
+            "s5p_no2__tropospheric_NO2_column_number_density__score",
+            "s5p_no2__tropospheric_NO2_column_number_density__share_imputed_across_all_grids",
+            "s5p_co__CO_column_number_density__imputed_flag",
+            "s5p_co__CO_column_number_density__imputed",
+            "s5p_co__CO_column_number_density__imputed_r7d",
+            "s5p_co__CO_column_number_density__score",
+            "s5p_co__CO_column_number_density__share_imputed_across_all_grids",
+            "modis_aod__Optical_Depth_055__imputed_flag",
+            "modis_aod__Optical_Depth_055__imputed",
+            "modis_aod__Optical_Depth_055__imputed_r7d",
+            "modis_aod__Optical_Depth_055__score",
+            "modis_aod__Optical_Depth_055__share_imputed_across_all_grids",
+        ],
+        target_col="pm25__pm25",
+        extra_sampler=extra_sampler,
+        model_builder=lambda: XGBRegressor(
+            max_depth=10,
+            learning_rate=0.1,
+            gamma=0.8,
+            subsample=0.8,
+            min_child_weight=0.8,
+            n_estimators=1500,
+            reg_lambda=1,
+            booster="gbtree",
+        ),
+        min_r2_score=0.1 if take_mini_training_sample else 0.4,
+        max_r2_score=0.9,
+    )

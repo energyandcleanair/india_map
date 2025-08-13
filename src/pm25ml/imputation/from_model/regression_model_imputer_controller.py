@@ -6,7 +6,7 @@ from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.imputation.from_model.regression_model_imputer import RegressionModelImputer
 from pm25ml.logging import logger
 from pm25ml.setup.date_params import TemporalConfig
-from pm25ml.training.model_pipeline import ModelReference
+from pm25ml.training.imputation_model_pipeline import ImputationModelReference
 from pm25ml.training.model_storage import ModelStorage
 from pm25ml.training.types import ModelName
 
@@ -23,7 +23,7 @@ class RegressionModelImputationController:
         model_store: ModelStorage,
         temporal_config: TemporalConfig,
         combined_storage: CombinedStorage,
-        model_refs: dict[ModelName, ModelReference],
+        model_refs: dict[ModelName, ImputationModelReference],
         recombiner: Recombiner,
         input_data_artifact: DataArtifactRef,
         output_data_artifact: DataArtifactRef,

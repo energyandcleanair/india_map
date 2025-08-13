@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pm25ml.combiners.combined_storage import CombinedStorage
     from pm25ml.combiners.data_artifact import DataArtifactRef
     from pm25ml.setup.date_params import TemporalConfig
-    from pm25ml.training.model_pipeline import ModelReference
+    from pm25ml.training.imputation_model_pipeline import ImputationModelReference
     from pm25ml.training.model_storage import LoadedValidatedModel
 
 
@@ -23,7 +23,7 @@ class RegressionModelImputer:
 
     def __init__(  # noqa: PLR0913
         self,
-        model_ref: ModelReference,
+        model_ref: ImputationModelReference,
         model: LoadedValidatedModel,
         temporal_config: TemporalConfig,
         combined_storage: CombinedStorage,

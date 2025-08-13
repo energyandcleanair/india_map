@@ -45,7 +45,9 @@ from pm25ml.setup.pipelines import define_pipelines
 from pm25ml.setup.pm25_filters import define_filters
 from pm25ml.setup.samplers import ImputationStep, define_samplers
 from pm25ml.setup.training import build_model_ref
-from pm25ml.training.model_pipeline import ModelPipeline
+from pm25ml.setup.training_full import build_full_model_ref
+from pm25ml.training.full_model_pipeline import FullModelPipeline
+from pm25ml.training.imputation_model_pipeline import ImputationModelPipeline
 from pm25ml.training.model_storage import ModelStorage
 
 if TYPE_CHECKING:
@@ -360,7 +362,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         combined_storage,
         model_store,
         n_jobs,
-        input_data_artifact: ModelPipeline(
+        input_data_artifact: ImputationModelPipeline(
             combined_storage=combined_storage,
             data_ref=model_reference,
             model_store=model_store,
@@ -400,6 +402,21 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         input_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
         output_data_artifact=data_artifacts_container.ml_full_model_sample_stage.provided,
         column_name="pm25__pm25",
+    )
+
+    full_model_ref = providers.Singleton(
+        build_full_model_ref,
+        extra_sampler=extra_sampler,
+        take_mini_training_sample=config.take_mini_training_sample_bool,
+    )
+
+    full_model_pipeline = providers.Singleton(
+        FullModelPipeline,
+        combined_storage=combined_storage,
+        data_ref=full_model_ref,
+        model_store=model_store,
+        n_jobs=config.max_parallel_tasks,
+        input_data_artifact=data_artifacts_container.ml_full_model_sample_stage.provided,
     )
 
 

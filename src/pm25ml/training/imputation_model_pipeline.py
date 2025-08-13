@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ModelReference:
+class ImputationModelReference:
     """Data definition for the model training."""
 
     model_name: ModelName
@@ -62,7 +62,7 @@ class ModelReference:
         return {self.target_col, self.grouper_col, *self.predictor_cols}
 
 
-class ModelPipeline:
+class ImputationModelPipeline:
     """
     Trains regression models for pm25ml.
 
@@ -73,7 +73,7 @@ class ModelPipeline:
         self,
         *,
         combined_storage: CombinedStorage,
-        data_ref: ModelReference,
+        data_ref: ImputationModelReference,
         model_store: ModelStorage,
         n_jobs: int,
         input_data_artifact: DataArtifactRef,

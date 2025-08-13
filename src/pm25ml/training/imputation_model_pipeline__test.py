@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock
-from pm25ml.training.model_pipeline import ModelReference
+from pm25ml.training.imputation_model_pipeline import ImputationModelReference
 from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
 
 
@@ -27,7 +27,7 @@ def test__model_reference__target_in_predictor_cols__raises_value_error(
     mock_model_name_fixture, mock_model_builder_fixture, dummy_extra_sampler_fixture
 ):
     with pytest.raises(ValueError, match="Target column 'target' cannot be in predictor columns"):
-        ModelReference(
+        ImputationModelReference(
             model_name=mock_model_name_fixture,  # Use fixture for ModelName
             predictor_cols=["target", "feature1", "feature2"],
             target_col="target",
@@ -43,7 +43,7 @@ def test__model_reference__grouper_in_predictor_cols__raises_value_error(
     mock_model_name_fixture, mock_model_builder_fixture, dummy_extra_sampler_fixture
 ):
     with pytest.raises(ValueError, match="Grouper column 'group' cannot be in predictor columns"):
-        ModelReference(
+        ImputationModelReference(
             model_name=mock_model_name_fixture,  # Use fixture for ModelName
             predictor_cols=["group", "feature1", "feature2"],
             target_col="target",
@@ -59,7 +59,7 @@ def test__model_reference__valid_columns__does_not_raise_exception(
     mock_model_name_fixture, mock_model_builder_fixture, dummy_extra_sampler_fixture
 ):
     try:
-        ModelReference(
+        ImputationModelReference(
             model_name=mock_model_name_fixture,  # Use fixture for ModelName
             predictor_cols=["feature1", "feature2"],
             target_col="target",

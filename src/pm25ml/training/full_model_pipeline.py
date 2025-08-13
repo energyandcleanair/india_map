@@ -1,0 +1,276 @@
+"""Trains regression models for pm25ml."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable
+
+import pandas as pd
+import polars as pl
+from arrow import Arrow
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import StratifiedGroupKFold, cross_validate
+
+from pm25ml.logging import logger
+from pm25ml.training.model_storage import ModelStorage, ValidatedModel
+
+if TYPE_CHECKING:
+    from pm25ml.combiners.combined_storage import CombinedStorage
+    from pm25ml.combiners.data_artifact import DataArtifactRef
+    from pm25ml.training.types import Pm25mlCompatibleModel
+
+
+MODEL_NAME = "full_pm25"
+
+
+@dataclass
+class FullModelReference:
+    """Data definition for the model training."""
+
+    predictor_cols: list[str]
+    target_col: str
+    stratifier_col: str
+    grouper_col: str
+
+    model_builder: Callable[[], Pm25mlCompatibleModel]
+
+    extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame]
+
+    min_r2_score: float
+    max_r2_score: float
+
+    def __post_init__(self) -> None:
+        """Validate the model reference."""
+        if self.target_col in self.predictor_cols:
+            msg = (
+                f"Target column '{self.target_col}' cannot be in predictor columns: "
+                f"{self.predictor_cols}"
+            )
+            raise ValueError(
+                msg,
+            )
+        if self.grouper_col in self.predictor_cols:
+            msg = (
+                f"Grouper column '{self.grouper_col}' cannot be in predictor columns: "
+                f"{self.predictor_cols}"
+            )
+            raise ValueError(
+                msg,
+            )
+        if self.stratifier_col in self.predictor_cols:
+            msg = (
+                f"Stratified column '{self.stratifier_col}' cannot be in predictor columns: "
+                f"{self.predictor_cols}"
+            )
+            raise ValueError(
+                msg,
+            )
+
+    @property
+    def all_cols(self) -> set[str]:
+        """Return all required columns for the model."""
+        return {self.target_col, self.grouper_col, self.stratifier_col, *self.predictor_cols}
+
+
+class FullModelPipeline:
+    """
+    Trains regression models for pm25ml.
+
+    Including imputation models and the final model.
+    """
+
+    def __init__(
+        self,
+        *,
+        combined_storage: CombinedStorage,
+        data_ref: FullModelReference,
+        model_store: ModelStorage,
+        n_jobs: int,
+        input_data_artifact: DataArtifactRef,
+    ) -> None:
+        """Initialize the ModelTrainer."""
+        self.data = data_ref
+        self.combined_storage = combined_storage
+        self.model_store = model_store
+        self.n_jobs = n_jobs
+        self.input_data_artifact = input_data_artifact
+
+    def train_model(self) -> None:
+        """Run imputation ML model."""
+        # 1. Sampling
+        logger.info(f"Loading and sampling training data for {MODEL_NAME} imputation")
+        df_sampled = self.load_training_data()
+        self._check_clean(df_sampled)
+
+        # 2. Create folds
+        # outer_cv is a list where each item contains a tuple with indices
+        # of training and validation sets for each fold
+        logger.info("Cross validate model")
+        model = self.data.model_builder()
+        cv_results = self.cross_validate_with_stratification(model, df_sampled)
+        self.log_cv_results(cv_results)
+
+        logger.info("Training model on the sampled data")
+        trained_model = self.train_model_on_sample(model, df_sampled)
+
+        self.model_store.save_model(
+            model_name=MODEL_NAME,
+            model_run_ref=Arrow.now(),
+            model=ValidatedModel(
+                model=trained_model,
+                cv_results=cv_results,
+                test_metrics={},
+            ),
+        )
+
+    def train_model_on_sample(
+        self,
+        model: Pm25mlCompatibleModel,
+        df_sampled: pd.DataFrame,
+    ) -> Pm25mlCompatibleModel:
+        """
+        Train the XGBRegressor model on the sampled data.
+
+        Args:
+            model (XGBRegressor): The XGBRegressor model to be trained.
+            df_sampled (pd.DataFrame): Sampled data for training.
+
+        Returns:
+            XGBRegressor: The trained XGBRegressor model.
+
+        """
+        target = df_sampled[self.data.target_col]
+        predictors = df_sampled[self.data.predictor_cols]
+
+        model.set_params(n_jobs=self.n_jobs)
+        model.fit(predictors, target)
+
+        return model
+
+    def load_training_data(self) -> pd.DataFrame:
+        """Load the sampled data imputation from GCS."""
+        results = self.combined_storage.scan_stage(
+            stage=self.input_data_artifact.stage,
+        )
+
+        actual_cols = results.collect_schema().names()
+        expected_cols = self.data.all_cols
+
+        missing_cols = set(expected_cols) - set(actual_cols)
+        if missing_cols:
+            msg = f"Missing columns in training data: {missing_cols}"
+            raise ValueError(msg)
+
+        return (
+            self.data.extra_sampler(results)
+            .with_columns(
+                month_of_year=pl.col("date").dt.month(),
+            )
+            .select(self.data.all_cols)
+            .collect(engine="streaming")
+            .to_pandas()
+        )
+
+    def cross_validate_with_stratification(
+        self,
+        model: Pm25mlCompatibleModel,
+        df_sampled: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Perform cross-validation with stratification on the sampled data.
+
+        Args:
+            model (XGBRegressor): The XGBRegressor model to be trained.
+            df_sampled (pd.DataFrame): Sampled data for training.
+
+        Returns:
+            XGBRegressor: The trained XGBRegressor model.
+
+        """
+        target = df_sampled[self.data.target_col]
+        predictors = df_sampled[self.data.predictor_cols]
+        grouper = df_sampled[self.data.grouper_col]
+        stratifier = df_sampled[self.data.stratifier_col]
+
+        n_splits = 10
+        cpus_per_model = int(self.n_jobs / n_splits)
+
+        model.set_params(n_jobs=cpus_per_model)
+
+        selector = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+        splits = list(
+            selector.split(
+                predictors,
+                stratifier,
+                grouper,
+            ),
+        )
+
+        scores = cross_validate(
+            model,  # pyright: ignore[reportArgumentType]
+            predictors,
+            target,
+            cv=splits,
+            scoring=["neg_root_mean_squared_error", "r2"],
+            n_jobs=n_splits,
+            return_train_score=True,
+        )
+
+        return pd.DataFrame(scores)
+
+    def log_cv_results(self, cv_results: pd.DataFrame) -> None:
+        """Log the cross-validation results."""
+        cv_results = cv_results.rename(
+            columns={
+                "test_neg_root_mean_squared_error": "test_rmse",
+                "train_neg_root_mean_squared_error": "train_rmse",
+            },
+        )
+        logger.info(f"Cross-validation scores:\n{cv_results.to_string()}")
+        cv_results_agg = cv_results.aggregate(["mean", "std", "min", "max"])
+        logger.info(f"Cross-validation scores aggregated:\n{cv_results_agg.to_string()}")
+
+    def evaluate_model(self, model: Pm25mlCompatibleModel, df_rest: pd.DataFrame) -> dict:
+        """
+        Evaluate the model on the rest of the data.
+
+        This function uses the trained model to predict values
+        for the rest of the data (test set not used for training) and returns
+        the predictions.
+
+        Args:
+            model (XGBRegressor): The trained XGBRegressor model.
+            df_rest (pd.DataFrame): Dataframe with the rest of the data for evaluation.
+
+        """
+        # Check if the model is trained
+        if not hasattr(model, "feature_importances_") and not hasattr(model, "booster_"):
+            msg = "Model is not trained yet."
+            raise ValueError(msg)
+
+        predicted: Any = model.predict(df_rest[self.data.predictor_cols])
+        target = df_rest[self.data.target_col]
+
+        # Check if prediction length matches the number of rows in rest_df
+        if len(predicted) != df_rest.shape[0]:
+            msg = "Prediction length does not match the number of rows in rest_df"
+            raise TypeError(msg)
+
+        # Calculate metrics for evaluation
+        r2 = r2_score(target, predicted)
+        rmse = math.sqrt(mean_squared_error(target, predicted))
+
+        return {"r2": r2, "rmse": rmse}
+
+    def _check_clean(self, df: pd.DataFrame) -> None:
+        """Check if the DataFrame is clean."""
+        must_not_be_null_cols = self.data.predictor_cols
+
+        if df[must_not_be_null_cols].isna().any().any():
+            msg = (
+                f"DataFrame contains null values in columns: {must_not_be_null_cols}. "
+                "Please ensure that the data is clean before training stage."
+            )
+            raise ValueError(msg)
