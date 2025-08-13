@@ -39,7 +39,7 @@ main:
         next: invalid_continue_from
 
     - invalid_continue_from:
-      raise: ${ "Invalid continue_from value: " + string(continue_from) }
+      raise: '${ "Invalid continue_from value: " + string(continue_from) }'
 
     - collect_data_and_combine:
         call: googleapis.run.v1.namespaces.jobs.run
