@@ -1,6 +1,7 @@
 main:
   params: [args]
   steps:
+    # Initialize environment and continue-from plumbing
     - init_env:
         assign:
           - common_env:
@@ -15,6 +16,26 @@ main:
               START_MONTH: "2018-08-01"
               END_MONTH: "2025-03-01"
               RUNNING_IN_CLOUD_BATCH: "true"
+          # Extract continue_from arg (string stage name); if empty, start at first step
+          - continue_from: ${ map.get(args, "continue_from") }
+
+    # Single dispatcher: jump directly to requested starting step, else proceed from first
+    - dispatch_continue_from:
+        switch:
+          - condition: ${ continue_from == "generate_features" }
+            next: generate_features
+          - condition: ${ continue_from == "sample" }
+            next: sample
+          - condition: ${ continue_from == "train" }
+            next: check_if_training
+          - condition: ${ continue_from == "impute" }
+            next: impute
+          - condition: ${ continue_from == "full_model_sample" }
+            next: full_model_sample
+          - condition: ${ continue_from == "full_model_train" }
+            next: full_model_train
+        next: collect_data_and_combine
+
     - collect_data_and_combine:
         call: googleapis.run.v1.namespaces.jobs.run
         args:
@@ -84,7 +105,7 @@ main:
 
     - check_if_training:
         switch:
-          - condition: ${default(map.get(args, "do_training"), true) }
+          - condition: ${ default(map.get(args, "do_training"), true) }
             next: train
         next: end
 
@@ -150,7 +171,7 @@ main:
                     provisioningModel: SPOT        # pre-emptible
             taskGroups:
               - taskCount: 1
-                taskSpec:s
+                taskSpec:
                   runnables:
                     - container:
                         imageUri: europe-west1-docker.pkg.dev/vital-form-455413-p8/pm25ml/pm25ml:latest
@@ -199,3 +220,4 @@ main:
                     - -m
                     - pm25ml.run.train_full_model
         result: run_job_result
+  - end: {}
