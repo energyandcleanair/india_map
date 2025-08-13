@@ -16,6 +16,7 @@ from fsspec import AbstractFileSystem
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 
+from pm25ml.logging import logger
 from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
 
 if TYPE_CHECKING:
@@ -178,7 +179,7 @@ class ModelStorage:
             raise FileNotFoundError(msg)
 
         latest_run_ref: str = max(model_run_refs)
-
+        logger.debug(f"Latest model run reference for {model_name}: {latest_run_ref}")
         # Delegate to the existing load_model method
         return self._load_from_str_ref(model_name, latest_run_ref)
 
@@ -197,6 +198,7 @@ class ModelStorage:
         # Ensure `model_type` is defined and accessible
         model_type = model_type_path.split("+")[-1].replace(".gz", "")
 
+        logger.debug(f"Loading bytes for model type: {model_type_path}")
         with (
             cast("BufferedReader", self.filesystem.open(model_type_path, "rb")) as f,
             GzipFile(fileobj=f, mode="rb") as gz_f,
@@ -205,6 +207,7 @@ class ModelStorage:
 
         predictor: Predictor
 
+        logger.debug(f"Writing bytes to temporary dir for model type: {model_type_path}")
         with tempfile.TemporaryDirectory() as tmp_dir:
             model_path = Path(
                 tmp_dir,
@@ -214,6 +217,9 @@ class ModelStorage:
             with model_path.open("wb") as tmp_file:
                 tmp_file.write(model_bytes)
 
+            del model_bytes
+
+            logger.debug(f"Loading model from temporary path: {model_path}")
             # Ensure proper indentation and fix syntax errors
             if model_type == "XGBRegressor":
                 predictor = XGBRegressor()
@@ -227,10 +233,12 @@ class ModelStorage:
                 raise TypeError(msg)
 
         cv_results_path = str(base_path / "cv_results.parquet")
+        logger.debug(f"Loading CV results from: {cv_results_path}")
         with self.filesystem.open(cv_results_path, "rb") as f:
             cv_results = pd.read_csv(f)
 
         test_metrics_path = str(base_path / "test_metrics.json")
+        logger.debug(f"Loading test metrics from: {test_metrics_path}")
         with self.filesystem.open(test_metrics_path, "r") as f:
             test_metrics = json.load(f)
 
