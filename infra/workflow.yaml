@@ -17,11 +17,13 @@ main:
               END_MONTH: "2025-03-01"
               RUNNING_IN_CLOUD_BATCH: "true"
           # Extract continue_from arg (string stage name); if empty, start at first step
-          - continue_from: ${ map.get(args, "continue_from") }
+          - continue_from: ${ map.get(args, "continue_from", "collect_data_and_combine") }
 
     # Single dispatcher: jump directly to requested starting step, else proceed from first
     - dispatch_continue_from:
         switch:
+          - condition: ${ continue_from == "collect_data_and_combine" }
+            next: collect_data_and_combine
           - condition: ${ continue_from == "generate_features" }
             next: generate_features
           - condition: ${ continue_from == "sample" }
@@ -34,7 +36,10 @@ main:
             next: full_model_sample
           - condition: ${ continue_from == "full_model_train" }
             next: full_model_train
-        next: collect_data_and_combine
+        next: invalid_continue_from
+
+    - invalid_continue_from:
+      raise: ${ "Invalid continue_from value: " + string(continue_from) }
 
     - collect_data_and_combine:
         call: googleapis.run.v1.namespaces.jobs.run
