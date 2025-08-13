@@ -18,10 +18,10 @@ from pm25ml.training.model_storage import ModelStorage, ValidatedModel
 if TYPE_CHECKING:
     from pm25ml.combiners.combined_storage import CombinedStorage
     from pm25ml.combiners.data_artifact import DataArtifactRef
-    from pm25ml.training.types import Pm25mlCompatibleModel
+    from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
 
 
-MODEL_NAME = "full_pm25"
+MODEL_NAME: ModelName = "full_pm25"
 
 
 @dataclass
