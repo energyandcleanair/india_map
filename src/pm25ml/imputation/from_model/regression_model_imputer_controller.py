@@ -46,25 +46,7 @@ class RegressionModelImputationController:
         to_add_stage_names: list[DataArtifactRef] = []
 
         for model_name, model_ref in self.model_refs.items():
-            logger.info(f"Imputing for model: {model_name}")
-
-            logger.debug(f"Loading model reference: {model_ref}")
-            latest_model = self.model_store.load_latest_model(model_name)
-
-            logger.debug(f"Selecting data for model: {model_ref}")
-            sub_artifact = self.output_data_artifact.for_sub_artifact(model_name)
-
-            regression_model_imputer = RegressionModelImputer(
-                model_ref=model_ref,
-                model=latest_model,
-                temporal_config=self.temporal_config,
-                combined_storage=self.combined_storage,
-                input_data_artifact=self.input_data_artifact,
-                output_data_artifact=sub_artifact,
-            )
-
-            logger.debug(f"Imputing for model: {model_name}")
-            regression_model_imputer.impute()
+            sub_artifact = self._impute_for_model(model_name, model_ref)
             to_add_stage_names.append(sub_artifact)
 
         logger.info("Combining imputed data with generated features")
@@ -74,3 +56,29 @@ class RegressionModelImputationController:
                 *to_add_stage_names,
             ],
         )
+
+    def _impute_for_model(
+        self,
+        model_name: ModelName,
+        model_ref: ImputationModelReference,
+    ) -> DataArtifactRef:
+        logger.info(f"Imputing for model: {model_name}")
+
+        logger.debug(f"Loading model reference: {model_ref}")
+        latest_model = self.model_store.load_latest_model(model_name)
+
+        logger.debug(f"Selecting data for model: {model_ref}")
+        sub_artifact = self.output_data_artifact.for_sub_artifact(model_name)
+
+        regression_model_imputer = RegressionModelImputer(
+            model_ref=model_ref,
+            model=latest_model,
+            temporal_config=self.temporal_config,
+            combined_storage=self.combined_storage,
+            input_data_artifact=self.input_data_artifact,
+            output_data_artifact=sub_artifact,
+        )
+
+        logger.debug(f"Imputing for model: {model_name}")
+        regression_model_imputer.impute()
+        return sub_artifact
