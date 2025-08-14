@@ -165,7 +165,7 @@ main:
           parent: projects/vital-form-455413-p8/locations/europe-west1
           jobId: ${"pm25ml-feature-" + string(int(sys.now()))}
           connector_params:
-            timeout: 10800
+            timeout: 108000
           body:
             allocationPolicy:
               serviceAccount:
