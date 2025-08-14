@@ -172,6 +172,7 @@ main:
                 email: pm25ml@vital-form-455413-p8.iam.gserviceaccount.com
               instances:
                 - policy:
+                    # Imputation should run on intel CPUs for use with daal4py
                     machineType: n4-standard-8     # 8 vCPU / 32 GiB
             taskGroups:
               - taskCount: 1
