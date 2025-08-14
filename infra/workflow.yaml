@@ -173,7 +173,7 @@ main:
               instances:
                 - policy:
                     # Imputation should run on intel CPUs for use with daal4py
-                    machineType: n4-standard-8     # 8 vCPU / 32 GiB
+                    machineType: n4-standard-16     # 16 vCPU / 64 GiB
             taskGroups:
               - taskCount: 1
                 taskSpec:
@@ -187,8 +187,8 @@ main:
                       environment:
                         variables: ${common_env}
                   computeResource:
-                    memoryMib: 32768               # 32 GiB
-                    cpuMilli: 8000                 # 8 vCPU
+                    memoryMib: 65536               # 64 GiB
+                    cpuMilli: 16000                 # 16 vCPU
                   maxRetryCount: 3
             logsPolicy:
               destination: CLOUD_LOGGING
