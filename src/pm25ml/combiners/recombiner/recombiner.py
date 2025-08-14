@@ -31,6 +31,7 @@ class Recombiner:
         temporal_config: TemporalConfig,
         output_data_artifact: DataArtifactRef,
         max_workers: int,
+        force_recombine: bool = False,
     ) -> None:
         """
         Initialize the Recombiner with a storage for combined datasets.
@@ -42,6 +43,7 @@ class Recombiner:
         self.output_data_artifact = output_data_artifact
         self.months = temporal_config.months
         self.max_workers = max_workers
+        self.force_recombine = force_recombine
 
     def recombine(
         self,
@@ -76,6 +78,9 @@ class Recombiner:
         self,
         stages: Collection[DataArtifactRef],
     ) -> Collection[Arrow]:
+        if self.force_recombine:
+            return self.months
+
         with ThreadPoolExecutor() as executor:
             results = executor.map(
                 lambda month: (month, self._needs_recombining(month, stages)),
