@@ -22,6 +22,8 @@ def build_full_model_ref(
             "merra_aot__aot__mean_r7d",
             "merra_co__co",
             "merra_co__co__mean_r7d",
+            "merra_co_top__co",
+            "merra_co_top__co__mean_r7d",
             "omi_no2__no2__mean_r7d",
             "era5_land__temperature_2m",
             "era5_land__temperature_2m__mean_r7d",
