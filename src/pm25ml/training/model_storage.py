@@ -2,16 +2,16 @@
 
 import json
 import tempfile
-from abc import abstractmethod
 from dataclasses import dataclass
 from gzip import GzipFile
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol, cast
+from typing import TYPE_CHECKING, Literal, cast
 
+import daal4py
 import lightgbm
-import numpy as np
 import pandas as pd
 from arrow import Arrow
+from daal4py.mb import GBTDAALModel
 from fsspec import AbstractFileSystem
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
@@ -43,16 +43,6 @@ class ValidatedModel(ModelStats):
         return self.model.__class__.__name__
 
 
-class Predictor(Protocol):
-    """Protocol for a model that can make predictions, this is."""
-
-    # We break convention with the rest of the project here and use a pandas dataframe
-    # as some of these models aren't polars aware.
-    @abstractmethod
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
-        """Make predictions on the provided data."""
-
-
 @dataclass
 class LoadedValidatedModel(ModelStats):
     """
@@ -62,7 +52,7 @@ class LoadedValidatedModel(ModelStats):
     whole input. For example, the LGBMRegressor can't be loaded fully.
     """
 
-    model: Predictor
+    model: GBTDAALModel
 
 
 type ModelRunRef = Arrow
@@ -230,7 +220,7 @@ class ModelStorage:
         self,
         model_type_path: str,
         model_type: ModelType,
-    ) -> Predictor:
+    ) -> GBTDAALModel:
         # When we run this in the cloud, anything written to disk is stored in RAM
         # and so we want to make sure that we remove the local copy of the model
         # after loading it.
@@ -254,17 +244,19 @@ class ModelStorage:
 
             return self._load_model_from_local_file(model_type, tmp_model_path)
 
-    def _load_model_from_local_file(self, model_type: ModelType, model_path: Path) -> Predictor:
+    def _load_model_from_local_file(self, model_type: ModelType, model_path: Path) -> GBTDAALModel:
         logger.debug(f"Loading model from temporary path: {model_path}")
-        predictor: Predictor
+        predictor: GBTDAALModel
         match model_type:
             case "XGBRegressor":
-                predictor = XGBRegressor()
-                predictor.load_model(model_path)
+                xgbmodel = XGBRegressor()
+                xgbmodel.load_model(model_path)
+                predictor = cast("GBTDAALModel", daal4py.mb.convert_model(xgbmodel))
             case "LGBMRegressor":
                 # We can cast this as, when a booster is used with a data frame, it will return
                 # an ndarray - and so will behave like a Predictor.
-                predictor = cast("Predictor", lightgbm.Booster(model_file=str(model_path)))
+                lightgbm_booster = lightgbm.Booster(model_file=str(model_path))
+                predictor = cast("GBTDAALModel", daal4py.mb.convert_model(lightgbm_booster))
             case _:
                 msg = f"Unsupported model type: {model_type}"
                 raise ValueError(msg)

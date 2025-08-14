@@ -1023,6 +1023,20 @@ docs = ["ipython", "matplotlib", "numpydoc", "sphinx"]
 tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
+name = "daal"
+version = "2025.7.0"
+description = "Intel® oneAPI Data Analytics Library"
+optional = false
+python-versions = "*"
+files = [
+    {file = "daal-2025.7.0-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:f293d6e021dbc3a5b5d6c253ff2a272f78c43ff2203be74bd6c6e9e68d1b9a1e"},
+    {file = "daal-2025.7.0-py2.py3-none-win_amd64.whl", hash = "sha256:1e65de503909c86214a05b1c3249d8aa7c9afcea6dcbaba5756a30b7aef6f26e"},
+]
+
+[package.dependencies]
+tbb = "==2022.*"
+
+[[package]]
 name = "dask"
 version = "2025.7.0"
 description = "Parallel PyData with Task Scheduling"
@@ -4754,6 +4768,30 @@ maintenance = ["conda-lock (==3.0.1)"]
 tests = ["matplotlib (>=3.5.0)", "mypy (>=1.15)", "numpydoc (>=1.2.0)", "pandas (>=1.4.0)", "polars (>=0.20.30)", "pooch (>=1.6.0)", "pyamg (>=4.2.1)", "pyarrow (>=12.0.0)", "pytest (>=7.1.2)", "pytest-cov (>=2.9.0)", "ruff (>=0.11.7)", "scikit-image (>=0.19.0)"]
 
 [[package]]
+name = "scikit-learn-intelex"
+version = "2025.7.0"
+description = "Intel(R) Extension for Scikit-learn is a seamless way to speed up your Scikit-learn application."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "scikit_learn_intelex-2025.7.0-py310-none-manylinux_2_28_x86_64.whl", hash = "sha256:512db645b6d07e3cc6611b0beb2aa6835bbd96c2d84dd345d5476aaf6fec1315"},
+    {file = "scikit_learn_intelex-2025.7.0-py310-none-win_amd64.whl", hash = "sha256:7ccc189b5db822d11d4bfa77b3309491af9ab8c674ae4dcee148a03f408e1347"},
+    {file = "scikit_learn_intelex-2025.7.0-py311-none-manylinux_2_28_x86_64.whl", hash = "sha256:4d4f2ddf61f36af556b2431d68f5bed85f149ab09961b539e20cf67ac201a475"},
+    {file = "scikit_learn_intelex-2025.7.0-py311-none-win_amd64.whl", hash = "sha256:a487affb41050cca2b9d9561e3484fd74079793708e6a2fd69580b881147d127"},
+    {file = "scikit_learn_intelex-2025.7.0-py312-none-manylinux_2_28_x86_64.whl", hash = "sha256:a4c49e601474502c345e4e680fa48ffae4daa2559fdb61aadaa7003f27141d18"},
+    {file = "scikit_learn_intelex-2025.7.0-py312-none-win_amd64.whl", hash = "sha256:30347300c17f6773f190ced9eeb8f70b190ca9af99fdb6a4fecfb7284d2ebe79"},
+    {file = "scikit_learn_intelex-2025.7.0-py313-none-manylinux_2_28_x86_64.whl", hash = "sha256:e41b283b0727b28ad4d67e5effa6f2d91d11513b116077f2f780fdcdcf86a00f"},
+    {file = "scikit_learn_intelex-2025.7.0-py313-none-win_amd64.whl", hash = "sha256:ce6e9ef7d142354eebcce6e0f58053f0928e073061bf09cda26d85a1fece17e2"},
+    {file = "scikit_learn_intelex-2025.7.0-py39-none-manylinux_2_28_x86_64.whl", hash = "sha256:99dfcabcbed8bd7c4ad561416f286ddb3f425136126d8a74402c2ce5c461fedf"},
+    {file = "scikit_learn_intelex-2025.7.0-py39-none-win_amd64.whl", hash = "sha256:ea9eed1cc04aa5a426742c48b290193fc924e60a4217538e229ee4576a9297db"},
+]
+
+[package.dependencies]
+daal = "2025.7.0"
+numpy = ">=1.19"
+scikit-learn = ">=0.22"
+
+[[package]]
 name = "scipy"
 version = "1.16.0"
 description = "Fundamental algorithms for scientific computing in Python"
@@ -5016,6 +5054,31 @@ pure-eval = "*"
 
 [package.extras]
 tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
+
+[[package]]
+name = "tbb"
+version = "2022.2.0"
+description = "Intel® oneAPI Threading Building Blocks (oneTBB)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "tbb-2022.2.0-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:522189f3e370a6b9c92b8a7fbdecf3633f7c53f0ea4eb8d6891a7f5f00c78099"},
+    {file = "tbb-2022.2.0-py3-none-win_amd64.whl", hash = "sha256:acbce7632d4d7acc6bdfe9849a57ab1624490198699eb16ea63243cfb4fd4cfa"},
+]
+
+[package.dependencies]
+tcmlib = "==1.*"
+
+[[package]]
+name = "tcmlib"
+version = "1.4.0"
+description = "Thread Composability Manager"
+optional = false
+python-versions = "*"
+files = [
+    {file = "tcmlib-1.4.0-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:b2a2b68c100cc2a6163d394353b3013ab2479e70300b9bc1cb7f7822bcc38a40"},
+    {file = "tcmlib-1.4.0-py2.py3-none-win_amd64.whl", hash = "sha256:ab24f73c52b224cb744a0c0c28fcef8e51aec3c88aa6b39202c149495d6d2ea0"},
+]
 
 [[package]]
 name = "threadpoolctl"
@@ -5712,4 +5775,4 @@ test = ["coverage", "hypothesis", "mypy", "packaging", "pytest (<8.4)", "pytest-
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "997a9609a453dd5d5d211568464c3b4f538d159f92529b4f2ce54bd441108db8"
+content-hash = "9d9a17dc308bd356d700b3fdda34bc39d5336e223ea6a964c470fea328d6f7c4"

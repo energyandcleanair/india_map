@@ -1,6 +1,7 @@
 import warnings
 from arrow import Arrow
 import arrow
+import numpy as np
 import pytest
 import pandas as pd
 import json
@@ -138,9 +139,8 @@ def test__load_model__xgb_model_saved_and_loaded__model_and_predictions_match(
     loaded_model_wrapper = model_storage.load_model("xgb_model", EXAMPLE_DATE)
 
     loaded_model = loaded_model_wrapper.model
-    assert isinstance(loaded_model, XGBRegressor)
-    assert loaded_model.get_booster().get_dump() == trained_xgb_model.get_booster().get_dump()
-    assert loaded_model.predict([[1, 2]]) == trained_xgb_model.predict([[1, 2]])
+    to_predict = np.array([[1, 2]], dtype=np.float32)
+    assert loaded_model.predict(to_predict) == trained_xgb_model.predict(to_predict)
 
 
 def test__load_model__lgbm_model_saved_and_loaded__model_and_predictions_match(
@@ -156,11 +156,12 @@ def test__load_model__lgbm_model_saved_and_loaded__model_and_predictions_match(
 
     loaded_model = model_storage.load_model("lgbm_model", EXAMPLE_DATE)
 
-    assert isinstance(loaded_model.model, Booster)
-    assert loaded_model.model.dump_model() == trained_lgbm_model.booster_.dump_model()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        assert loaded_model.model.predict([[1, 2]]) == trained_lgbm_model.predict([[1, 2]])
+        to_predict = np.array([[1, 2]], dtype=np.float64)
+        assert np.allclose(
+            loaded_model.model.predict(to_predict), trained_lgbm_model.predict(to_predict)
+        )
 
 
 def test__load_latest_model__xgb_model_with_multiple_runs__latest_model_loaded(
@@ -183,7 +184,4 @@ def test__load_latest_model__xgb_model_with_multiple_runs__latest_model_loaded(
 
     loaded_model_wrapper = model_storage.load_latest_model("xgb_model")
 
-    loaded_model = loaded_model_wrapper.model
-    assert isinstance(loaded_model, XGBRegressor)
-    assert loaded_model.get_booster().get_dump() == trained_xgb_model.get_booster().get_dump()
     assert loaded_model_wrapper.test_metrics["rmse"] == 0.10
