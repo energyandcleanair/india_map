@@ -383,7 +383,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         combined_storage=combined_storage,
         temporal_config=temporal_config,
         output_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
-        max_workers=1,
+        max_workers=4,
     )
 
     regression_model_imputer_controller = providers.Factory(
