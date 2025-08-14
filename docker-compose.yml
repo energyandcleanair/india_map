@@ -9,7 +9,9 @@ services:
       - ${HOME}/.config/gcloud/application_default_credentials.json:/app/.config/google-creds.json:ro
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/.config/google-creds.json
-  pm25ml-generate-features:
+    command: ["python", "-m", "pm25ml.run._run_local"]
+
+  pm25ml-imputation:
     build:
       context: .
       dockerfile: Dockerfile
@@ -19,4 +21,4 @@ services:
       - ${HOME}/.config/gcloud/application_default_credentials.json:/app/.config/google-creds.json:ro
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/.config/google-creds.json
-    command: ["python", "-m", "pm25ml.feature_generation.generate"]
+    command: ["python", "-m", "pm25ml.run.impute"]

@@ -41,6 +41,7 @@ VOLUME /app/.config/gcloud
 
 # Copy only what's needed from previous stages
 COPY --from=deps /app/.venv/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
+COPY --from=deps /app/.venv/lib/*.so* /usr/local/lib/
 COPY ./assets/ ./assets/
 
 # Set the user to the non-root user, this ensures that the app can't write to the earlier
