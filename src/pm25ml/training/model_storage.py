@@ -6,7 +6,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from gzip import GzipFile
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Literal, Protocol, cast
 
 import lightgbm
 import numpy as np
@@ -67,9 +67,16 @@ class LoadedValidatedModel(ModelStats):
 
 type ModelRunRef = Arrow
 
+type ModelType = Literal["XGBRegressor", "LGBMRegressor"]
+
 
 class ModelStorage:
-    """Storage for ML models."""
+    """
+    Storage for ML models.
+
+    The models are stored temporarily on the local filesystem during writing and loading
+    as they do not support direct streaming from cloud storage.
+    """
 
     def __init__(self, filesystem: AbstractFileSystem, bucket_name: str) -> None:
         """
@@ -190,60 +197,94 @@ class ModelStorage:
             model_run_ref,
         )
 
-        model_type_path = next(iter(self.filesystem.glob(str(base_path / "model+*"))), None)
-        if not model_type_path:
-            model_type_not_found_msg = "Model type file not found."
-            raise FileNotFoundError(model_type_not_found_msg)
+        model_type_path = self._find_model_path(base_path)
+        model_type = self._identify_model_type(model_type_path)
+        predictor = self._load_model_from_remote_path(model_type_path, model_type)
 
-        # Ensure `model_type` is defined and accessible
-        model_type = model_type_path.split("+")[-1].replace(".gz", "")
+        cv_results = self._load_cv_metrics(base_path)
 
-        logger.debug(f"Loading bytes for model type: {model_type_path}")
-        with (
-            cast("BufferedReader", self.filesystem.open(model_type_path, "rb")) as f,
-            GzipFile(fileobj=f, mode="rb") as gz_f,
-        ):
-            model_bytes = cast("bytes", gz_f.read())
-
-        predictor: Predictor
-
-        logger.debug(f"Writing bytes to temporary dir for model type: {model_type_path}")
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            model_path = Path(
-                tmp_dir,
-                "model.json" if model_type == "XGBRegressor" else "model.txt",
-            )
-
-            with model_path.open("wb") as tmp_file:
-                tmp_file.write(model_bytes)
-
-            del model_bytes
-
-            logger.debug(f"Loading model from temporary path: {model_path}")
-            # Ensure proper indentation and fix syntax errors
-            if model_type == "XGBRegressor":
-                predictor = XGBRegressor()
-                predictor.load_model(model_path)
-            elif model_type == "LGBMRegressor":
-                # We can cast this as, when a booster is used with a data frame, it will return
-                # an ndarray - and so will behave like a Predictor.
-                predictor = cast("Predictor", lightgbm.Booster(model_file=str(model_path)))
-            else:
-                msg = "Unsupported model type for loading."
-                raise TypeError(msg)
-
-        cv_results_path = str(base_path / "cv_results.parquet")
-        logger.debug(f"Loading CV results from: {cv_results_path}")
-        with self.filesystem.open(cv_results_path, "rb") as f:
-            cv_results = pd.read_csv(f)
-
-        test_metrics_path = str(base_path / "test_metrics.json")
-        logger.debug(f"Loading test metrics from: {test_metrics_path}")
-        with self.filesystem.open(test_metrics_path, "r") as f:
-            test_metrics = json.load(f)
+        test_metrics = self._load_test_metrics(base_path)
 
         return LoadedValidatedModel(
             model=predictor,
             cv_results=cv_results,
             test_metrics=test_metrics,
         )
+
+    def _find_model_path(self, base_path: Path) -> str:
+        model_type_path = next(iter(self.filesystem.glob(str(base_path / "model+*"))), None)
+        if not model_type_path:
+            model_type_not_found_msg = "Model type file not found."
+            raise FileNotFoundError(model_type_not_found_msg)
+        return model_type_path
+
+    def _identify_model_type(self, model_type_path: str) -> ModelType:
+        model_type = model_type_path.split("+")[-1].replace(".gz", "")
+        if model_type not in {"XGBRegressor", "LGBMRegressor"}:
+            msg = f"Unsupported model type: {model_type}"
+            raise ValueError(msg)
+
+        return cast("ModelType", model_type)
+
+    def _load_model_from_remote_path(
+        self,
+        model_type_path: str,
+        model_type: ModelType,
+    ) -> Predictor:
+        # When we run this in the cloud, anything written to disk is stored in RAM
+        # and so we want to make sure that we remove the local copy of the model
+        # after loading it.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            logger.debug(f"Loading bytes for model type: {model_type_path}")
+            model_bytes = self._read_bytes_from_model_path(model_type_path)
+
+            logger.debug(f"Writing bytes to temporary dir for model type: {model_type_path}")
+            tmp_model_path = Path(
+                tmp_dir,
+                "model.json" if model_type == "XGBRegressor" else "model.txt",
+            )
+
+            with tmp_model_path.open("wb") as tmp_file:
+                tmp_file.write(model_bytes)
+
+            # The model's bytes can be pretty significant in size so we want to
+            # make sure that we don't keep it in memory before loading it from
+            # the temporary file.
+            del model_bytes
+
+            return self._load_model_from_local_file(model_type, tmp_model_path)
+
+    def _load_model_from_local_file(self, model_type: ModelType, model_path: Path) -> Predictor:
+        logger.debug(f"Loading model from temporary path: {model_path}")
+        predictor: Predictor
+        match model_type:
+            case "XGBRegressor":
+                predictor = XGBRegressor()
+                predictor.load_model(model_path)
+            case "LGBMRegressor":
+                # We can cast this as, when a booster is used with a data frame, it will return
+                # an ndarray - and so will behave like a Predictor.
+                predictor = cast("Predictor", lightgbm.Booster(model_file=str(model_path)))
+            case _:
+                msg = f"Unsupported model type: {model_type}"
+                raise ValueError(msg)
+        return predictor
+
+    def _read_bytes_from_model_path(self, model_type_path: str) -> bytes:
+        with (
+            cast("BufferedReader", self.filesystem.open(model_type_path, "rb")) as f,
+            GzipFile(fileobj=f, mode="rb") as gz_f,
+        ):
+            return cast("bytes", gz_f.read())
+
+    def _load_cv_metrics(self, base_path: Path) -> pd.DataFrame:
+        cv_results_path = str(base_path / "cv_results.parquet")
+        logger.debug(f"Loading CV results from: {cv_results_path}")
+        with self.filesystem.open(cv_results_path, "rb") as f:
+            return pd.read_csv(f)
+
+    def _load_test_metrics(self, base_path: Path) -> dict:
+        test_metrics_path = str(base_path / "test_metrics.json")
+        logger.debug(f"Loading test metrics from: {test_metrics_path}")
+        with self.filesystem.open(test_metrics_path, "r") as f:
+            return json.load(f)

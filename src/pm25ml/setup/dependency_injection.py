@@ -309,6 +309,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         combined_storage=combined_storage,
         temporal_config=temporal_config,
         output_data_artifact=data_artifacts_container.spatially_imputed_stage.provided,
+        max_workers=8,
     )
 
     feature_generator = providers.Singleton(
@@ -382,6 +383,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         combined_storage=combined_storage,
         temporal_config=temporal_config,
         output_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
+        max_workers=1,
     )
 
     regression_model_imputer_controller = providers.Factory(

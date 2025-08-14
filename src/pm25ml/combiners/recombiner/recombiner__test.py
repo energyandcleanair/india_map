@@ -35,6 +35,7 @@ def recombiner(in_memory_combined_storage):
         combined_storage=in_memory_combined_storage,
         temporal_config=temporal_config,
         output_data_artifact=OUTPUT_DATA_ARTIFACT,
+        max_workers=4,
     )
 
 

@@ -1,5 +1,7 @@
 """Controller for imputation using regression models."""
 
+import gc
+
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.combiners.recombiner.recombiner import Recombiner
@@ -43,11 +45,7 @@ class RegressionModelImputationController:
 
         Do this for the time period specified by the temporal config.
         """
-        to_add_stage_names: list[DataArtifactRef] = []
-
-        for model_name, model_ref in self.model_refs.items():
-            sub_artifact = self._impute_for_model(model_name, model_ref)
-            to_add_stage_names.append(sub_artifact)
+        to_add_stage_names = self._impute_for_all()
 
         logger.info("Combining imputed data with generated features")
         self.recombiner.recombine(
@@ -56,6 +54,16 @@ class RegressionModelImputationController:
                 *to_add_stage_names,
             ],
         )
+
+    def _impute_for_all(self) -> list[DataArtifactRef]:
+        to_add_stage_names: list[DataArtifactRef] = []
+
+        for model_name, model_ref in self.model_refs.items():
+            sub_artifact = self._impute_for_model(model_name, model_ref)
+            to_add_stage_names.append(sub_artifact)
+            # Do an explicit garbage collect to ensure memory is freed
+            gc.collect()
+        return to_add_stage_names
 
     def _impute_for_model(
         self,
@@ -66,6 +74,7 @@ class RegressionModelImputationController:
 
         logger.debug(f"Loading model reference: {model_ref}")
         latest_model = self.model_store.load_latest_model(model_name)
+        gc.collect()
 
         logger.debug(f"Selecting data for model: {model_ref}")
         sub_artifact = self.output_data_artifact.for_sub_artifact(model_name)
