@@ -8,7 +8,7 @@ This paper created results from 2005-2023 can be [downloaded from Zenodo].
 
 ## Project layout
 
-The `pm25ml` is where most of the code for this project can be found.
+The `src/pm25ml` is where most of the code for this project can be found.
 
 We have additional directories:
  - `experiments`: Experiments to inform implementation and to understand reference code.
@@ -23,8 +23,8 @@ We use poetry to manage the project. To install the dependencies needed run:
 poetry install --only main,dev
 ```
 
-We suggest that you also read the "Architecture" and "Implementation" of this
-document, too.
+To get started, we suggest that you also read the "Environment", "Architecture" and "Implementation"
+sections of this document.
 
 ### Dependencies
 
@@ -56,13 +56,52 @@ And you can run the integration tests from the command line with:
 poetry run pytest -m "integration"
 ```
 
-The integration tests expect you to be already set up and authenticated in your environment to use:
- - A Google Cloud project
- - NASA Earthaccess
- - Google Earth Engine 
+The integration tests expect you to be already set up as per the [*Environment* section]:
  - A bucket for test assets (with an environment variable `IT_GEE_ASSET_BUCKET_NAME` for the name set)
  - An environment variable set for `IT_GEE_ASSET_ROOT`, which is where you want the test assets to go
    in GEE.
+   
+### Running end-to-end
+
+You can run the software end-to-end "locally" using the `src/pm25ml/run/_run_local.py` file.
+This script references the other scripts needed to run.
+
+> [!IMPORTANT]
+> While the code will require external services to be available, as per the . We suggest using different buckets for 
+> test runs than production to ensure that you do not add test data to the production environment.
+
+You can run this with:
+```
+poetry run python -m "pm25ml.run._run_local"
+```
+
+We suggest running with the following `.env` file:
+```
+# Name of the GCP project
+GCP_PROJECT=
+# Reference to the shapefile asset in GEE for `assets/grid_india_10km_shapefiles.zip` (which you will need to upload)
+INDIA_SHAPEFILE_ASSET=
+
+# Bucket for GEE to upload completed CSVs for further processing
+CSV_BUCKET_NAME=
+# Bucket to store ingested data in a parquet format (for archiving)
+INGEST_ARCHIVE_BUCKET_NAME=
+# Bucket for storing any processed data
+COMBINED_BUCKET_NAME=
+# Bucket to store processed models 
+MODEL_STORAGE_BUCKET_NAME=
+
+# Use a limited period of time to run the analysis for - this makes training locally feasible.
+START_MONTH=2024-01-01
+END_MONTH=2024-06-30
+
+# This takes a fraction of the data we have to make training locally feasible.
+TAKE_MINI_TRAINING_SAMPLE=true
+
+SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX=^era5_land__.*$
+```
+
+See the [*Environment* section](#Environment) for more details on the environment's dependencies.
 
 ### Code standards
 
@@ -74,19 +113,43 @@ configuration provided so that your code is checked before committing:
 1. Install `pre-commit`, if you haven't already
 2. [Install the git hook scripts](https://pre-commit.com/#3-install-the-git-hook-scripts)
 
+## Environment
+
+This project is built around using Google Cloud and its available services. To run it
+locally, you will need:
+- a Google Cloud Project
+- Google Earth Engine enabled within the project
+- Google Cloud Storage Buckets (ideally separate) for the following:
+  - Temporary storage of results from Google Earth Engine (with a lifecycle policy to delete results
+  after 7 days)
+  - Archiving ingested data to store (with versioning optionally enabled to enable reproduction)
+  - Processed intermediate and final steps
+  - Trained models
+
+In addition, this project also depends on NASA Earthdata. You will need an account with access to
+the following and authenticated to run the code:
+- Harmony subsetting
+- GES DISC datasets
+
 ## Architecture
 
-We run this on Google Cloud and use Google Workflows to run the software. This
-allows us to run different components with different types of compute. We aim to
-only provision compute on-demand to avoid high compute costs.
+We run this project on Google Cloud and use Google Workflows to provision the compute
+for the project. This allows us to run different components with different types of
+compute. We aim to only provision compute on-demand to avoid high compute costs.
 
-For the entrypoint for the workflows, see `infra/workflow*yaml`.
+For the entrypoint for the workflows, see `infra/workflow.yaml`. This workflow triggers
+individual stages (`src/pm25ml/run/s*`), which rely on dependency injection to get
+their dependencies.
 
-The data is stored in Google Cloud with different buckets for:
-- Ingested data (which is versioned at the bucket level)
-- Combined, generated, and sampled data (unversioned latest): we don't version these to keep
-  data costs down.
-- Models (versioned within the bucket)
+### Dependency injection
+
+The runnables for each stage have their dependencies injected from the setup
+module `src/pm25ml/setup` and its submodule `dependency_injection`.
+
+Modules and components outside the `setup` directory should avoid coupling their
+implementation to the precise data, workflow, and features required for the pipeline
+(especially where these values might change). Instead, the `setup` and its submodules
+should define these as "configuration" instead.
 
 ### Collecting
 
@@ -107,34 +170,30 @@ However, if this isn't possible, larger compute can be provisioned.
 
 ## Implementation
 
-This shows the overall process flow for this project. More detail is provided on these
+This shows the overall process and data flow for this project. More detail is provided on these
 areas in the document below.
 
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TB
-  collect_station_data["Collect station data"]
-  collect_features["Collect and prepare features"]
+  train_pm25_model["Train PM2.5 model"]
+  collect_features["`
+    **Collect and prepare data**
+    Includes grid metadata, observational data, and the measured station data.
+  `"]
   impute_satellite["Impute satellite using models"]
   train_imputation_models["Train and evaluate imputation models"]
-  train_pm25_model["Train PM2.5 model"]
   predict_pm25["Predict PM2.5"]
-  recombine_datasets["Combine collected, imputed, and station data"]
 
   train_imputation_models --> impute_satellite
 
   collect_features --> impute_satellite
   collect_features --> train_imputation_models
-
-  impute_satellite --> recombine_datasets
   
-  recombine_datasets --> train_pm25_model
-  recombine_datasets --> predict_pm25
-
-  collect_features --> recombine_datasets
-  collect_station_data --> recombine_datasets
-
+  impute_satellite --> train_pm25_model
   train_pm25_model --> predict_pm25
+  impute_satellite --> predict_pm25
+
 
 ```
 
@@ -172,6 +231,12 @@ flowchart TB
     **Gridded NASA Earth Data**
   `"]
 
+  collect_station_data{{"`
+    **Collection station PM2.5 data**
+  `"}}
+  clean_station_data{{"Clean"}}
+  cleaned_station_data["Clean station data"]
+
   static_datasets["`
     **Static datasets**
     India 10km grid
@@ -201,10 +266,12 @@ flowchart TB
 
   collect_gee_feature_sets --> gee_feature_sets
   collect_ned --> ned_regrid --> ned_regridded
+  collect_station_data --> clean_station_data --> cleaned_station_data
 
   gee_feature_sets --> combine_datasets
   ned_regridded --> combine_datasets
   static_datasets --> combine_datasets
+  cleaned_station_data --> combine_datasets
 
   combine_datasets --> combined_datasets
 
@@ -295,75 +362,46 @@ flowchart TB
 
 ### Train PM2.5 model
 
-This shows the data needed to train the model.
+This shows the workflow followed to train the model.
 
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TB
-  direction TB
 
-  nasa_earth_data["`
-    **NASA Earth Data**
-    MERRA AOT
-    MERRA CO
-    OMI NO2
-  `"]
-  grid_nasa_earth_data{{"Grid"}}
-  gridded_nasa_earth_data["`
-    **Gridded NASA Earth Data**
+  imputed_combined["`
+    **Combined with imputed data**
+    From _Impute satellite using models_
   `"]
 
-  gee_feature_sets["`
-    **GEE feature sets**
-    Meteorology
-    Land cover type
-    Elevation
-  `"]
-
-  generated_feature_sets["`
-    **Generated feature sets**
-    Monsoon flag
-  `"]
-
-  imputed_data["`
-    **Imputed data**
-  `"]
-
-  station_data["`
-    **Station data**
-  `"]
-
-  station_data_cleaning{{"`
-    **Station data cleaning**
+  prepare_full_model{{"`
+    **Prepare for the full model**
+    Filters the data to only non-null 
   `"}}
 
-  clean_station_data["`
-    Clean station data
+  prepared_full_model["`
+    **Prepared data**
   `"]
 
-  training{{Training}}
+  sample{{"Sample"}}
+  cross_validate{{"Cross validate"}}
+  cv_metrics["Cross validation metrics"]
+  train{{"Train model"}}
+  model["Trained model"]
+  packaged_model["Packaged full model"]
 
-  model["`
-    **Model**
-  `"]
+  
+  imputed_combined -->
+    prepare_full_model -->
+    prepared_full_model -->
+    sample -->
+    cross_validate
 
-  nasa_earth_data --> grid_nasa_earth_data --> gridded_nasa_earth_data
+  cross_validate --> train
+  cross_validate --> cv_metrics
+  train --> model
 
-  station_data --> station_data_cleaning --> clean_station_data
-
-  gee_feature_sets --> training
-  generated_feature_sets --> training
-  imputed_data --> training
-  gridded_nasa_earth_data --> training
-  clean_station_data --> training
-
-  training --> model
-
-  classDef from_elsewhere fill:#004517,color:#bdfcd2;
-
-  class imputed_data from_elsewhere
-
-
+  cv_metrics --> packaged_model
+  model --> packaged_model
 ```
 
 ## Citations
@@ -394,3 +432,4 @@ https://doi.org/10.5067/Aura/OMI/DATA3002
 
 [Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]: https://www.science.org/doi/10.1126/sciadv.adq1071
 [downloaded from Zenodo]: https://zenodo.org/records/13694585
+[*Environment* section]: #environment
