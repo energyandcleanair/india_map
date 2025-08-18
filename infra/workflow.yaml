@@ -54,7 +54,7 @@ main:
                 - args:
                     - python
                     - -m
-                    - pm25ml.run.fetch_and_combine
+                    - pm25ml.run.s01_fetch_and_combine
         result: run_job_result
 
     - generate_features:
@@ -81,7 +81,7 @@ main:
                         commands:
                           - python
                           - -m
-                          - pm25ml.run.generate_features
+                          - pm25ml.run.s02_generate_features
                       environment:
                         variables: ${common_env}
                   computeResource:
@@ -105,7 +105,7 @@ main:
                 - args:
                     - python
                     - -m
-                    - pm25ml.run.sample_for_imputation
+                    - pm25ml.run.s03_sample_for_imputation
         result: run_job_result
 
     - check_if_training:
@@ -148,7 +148,7 @@ main:
                                   commands:
                                     - python
                                     - -m
-                                    - ${"pm25ml.run.train_" + model + "_imputer"}
+                                    - ${"pm25ml.run.s04_train_" + model + "_imputer"}
                                 environment:
                                   variables: ${common_env}
                             computeResource:
@@ -183,7 +183,7 @@ main:
                         commands:
                           - python
                           - -m
-                          - pm25ml.run.impute
+                          - pm25ml.run.s05_impute
                       environment:
                         variables: ${common_env}
                   computeResource:
@@ -207,7 +207,7 @@ main:
                 - args:
                     - python
                     - -m
-                    - pm25ml.run.prep_for_full_model
+                    - pm25ml.run.s06_prep_for_full_model
         result: run_job_result
 
     - full_model_train:
@@ -223,5 +223,5 @@ main:
                 - args:
                     - python
                     - -m
-                    - pm25ml.run.train_full_model
+                    - pm25ml.run.s07_train_full_model
         result: run_job_result
