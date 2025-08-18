@@ -23,8 +23,8 @@ We use poetry to manage the project. To install the dependencies needed run:
 poetry install --only main,dev
 ```
 
-To get started, we suggest that you also read the "Environment", "Architecture" and "Implementation"
-sections of this document.
+To start understanding the code, we suggest that you also read the "Environment", "Architecture" and
+"Implementation" sections of this document.
 
 ### Dependencies
 
@@ -64,18 +64,21 @@ The integration tests expect you to be already set up as per the [*Environment* 
 ### Running end-to-end
 
 You can run the software end-to-end "locally" using the `src/pm25ml/run/_run_local.py` file.
-This script references the other scripts needed to run.
+This script references the other scripts needed to run the whole project end-to-end.
 
 > [!IMPORTANT]
-> While the code will require external services to be available, as per the . We suggest using different buckets for 
-> test runs than production to ensure that you do not add test data to the production environment.
+> While this will run the majority of the software locally, the project still requires
+> external services to be available, as per the [*Environment* section].
+> 
+> We suggest using different buckets for  test runs than production to ensure that you
+> do not add test data to the production environment.
 
 You can run this with:
 ```
 poetry run python -m "pm25ml.run._run_local"
 ```
 
-We suggest running with the following `.env` file:
+We suggest running with the following (incomplete) `.env` file:
 ```
 # Name of the GCP project
 GCP_PROJECT=
@@ -115,8 +118,8 @@ configuration provided so that your code is checked before committing:
 
 ## Environment
 
-This project is built around using Google Cloud and its available services. To run it
-locally, you will need:
+This project is built around using Google Cloud and its available services. To run it, you will
+need:
 - a Google Cloud Project
 - Google Earth Engine enabled within the project
 - Google Cloud Storage Buckets (ideally separate) for the following:
@@ -136,6 +139,8 @@ the following and authenticated to run the code:
 We run this project on Google Cloud and use Google Workflows to provision the compute
 for the project. This allows us to run different components with different types of
 compute. We aim to only provision compute on-demand to avoid high compute costs.
+
+### Entrypoint
 
 For the entrypoint for the workflows, see `infra/workflow.yaml`. This workflow triggers
 individual stages (`src/pm25ml/run/s*`), which rely on dependency injection to get
