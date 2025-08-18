@@ -2,9 +2,9 @@
 
 from typing import Protocol
 
+from pm25ml.model_reference import ImputationModelReference
 from pm25ml.training.imputation_model_pipeline import (
     ImputationModelPipeline,
-    ImputationModelReference,
 )
 
 

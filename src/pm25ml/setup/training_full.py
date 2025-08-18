@@ -5,7 +5,7 @@ from collections.abc import Callable
 import polars as pl
 from xgboost import XGBRegressor
 
-from pm25ml.training.full_model_pipeline import FullModelReference
+from pm25ml.model_reference import FullModelReference
 
 
 def build_full_model_ref(
@@ -15,6 +15,7 @@ def build_full_model_ref(
 ) -> FullModelReference:
     """Build the model reference for the full PM2.5 model."""
     return FullModelReference(
+        model_name="full_pm25",
         grouper_col="grid__id_50km",
         stratifier_col="grid__k_region",
         predictor_cols=[

@@ -3,8 +3,8 @@ import polars as pl
 import numpy as np
 from unittest.mock import MagicMock, Mock
 from pm25ml.combiners.data_artifact import DataArtifactRef
-from pm25ml.imputation.from_model.regression_model_imputer import RegressionModelImputer
-from pm25ml.training.imputation_model_pipeline import ImputationModelReference
+from pm25ml.imputation.from_model.regression_model_predictor import RegressionModelPredictor
+from pm25ml.model_reference import ImputationModelReference
 from pm25ml.training.model_storage import LoadedValidatedModel
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.combiners.combined_storage import CombinedStorage
@@ -91,7 +91,7 @@ def regression_model_imputer_with_data(
     mock_temporal_config,
     combined_storage_with_data,
 ):
-    return RegressionModelImputer(
+    return RegressionModelPredictor(
         model_ref=mock_model_reference,
         model=mock_loaded_validated_model,
         temporal_config=mock_temporal_config,

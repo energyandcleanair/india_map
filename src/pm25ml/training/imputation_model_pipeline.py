@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import polars as pl
@@ -18,48 +17,8 @@ from pm25ml.training.model_storage import ModelStorage, ValidatedModel
 if TYPE_CHECKING:
     from pm25ml.combiners.combined_storage import CombinedStorage
     from pm25ml.combiners.data_artifact import DataArtifactRef
-    from pm25ml.training.types import ModelName, Pm25mlCompatibleModel
-
-
-@dataclass
-class ImputationModelReference:
-    """Data definition for the model training."""
-
-    model_name: ModelName
-    predictor_cols: list[str]
-    target_col: str
-    grouper_col: str
-
-    model_builder: Callable[[], Pm25mlCompatibleModel]
-
-    extra_sampler: Callable[[pl.LazyFrame], pl.LazyFrame]
-
-    min_r2_score: float
-    max_r2_score: float
-
-    def __post_init__(self) -> None:
-        """Validate the model reference."""
-        if self.target_col in self.predictor_cols:
-            msg = (
-                f"Target column '{self.target_col}' cannot be in predictor columns: "
-                f"{self.predictor_cols}"
-            )
-            raise ValueError(
-                msg,
-            )
-        if self.grouper_col in self.predictor_cols:
-            msg = (
-                f"Grouper column '{self.grouper_col}' cannot be in predictor columns: "
-                f"{self.predictor_cols}"
-            )
-            raise ValueError(
-                msg,
-            )
-
-    @property
-    def all_cols(self) -> set[str]:
-        """Return all required columns for the model."""
-        return {self.target_col, self.grouper_col, *self.predictor_cols}
+    from pm25ml.model_reference import ImputationModelReference
+    from pm25ml.training.types import Pm25mlCompatibleModel
 
 
 class ImputationModelPipeline:

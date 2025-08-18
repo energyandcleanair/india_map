@@ -32,8 +32,9 @@ from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.combiners.recombiner.recombiner import Recombiner
 from pm25ml.feature_generation.generate import FeatureGenerator
-from pm25ml.imputation.from_model.regression_model_imputer_controller import (
-    RegressionModelImputationController,
+from pm25ml.imputation.from_model.full_predict_controller import FinalPredictionController
+from pm25ml.imputation.from_model.imputation_controller import (
+    ImputationController,
 )
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
@@ -158,6 +159,11 @@ class DataArtifactProvider(containers.DeclarativeContainer):
     ml_full_model_sample_stage = providers.Singleton(
         DataArtifactRef,
         stage="full_model_sample",
+    )
+
+    final_prediction = providers.Singleton(
+        DataArtifactRef,
+        stage="final_prediction",
     )
 
 
@@ -388,7 +394,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
     )
 
     regression_model_imputer_controller = providers.Factory(
-        RegressionModelImputationController,
+        ImputationController,
         model_store=model_store,
         temporal_config=temporal_config,
         combined_storage=combined_storage,
@@ -428,6 +434,16 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         model_store=model_store,
         n_jobs=config.max_parallel_tasks,
         input_data_artifact=data_artifacts_container.ml_full_model_sample_stage.provided,
+    )
+
+    final_predict_controller = providers.Singleton(
+        FinalPredictionController,
+        model_store=model_store,
+        temporal_config=temporal_config,
+        combined_storage=combined_storage,
+        model_ref=full_model_ref,
+        input_data_artifact=data_artifacts_container.ml_full_model_sample_stage.provided,
+        output_data_artifact=data_artifacts_container.final_prediction.provided,
     )
 
 

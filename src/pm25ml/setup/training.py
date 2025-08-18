@@ -6,7 +6,7 @@ import polars as pl
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 
-from pm25ml.training.imputation_model_pipeline import ImputationModelReference
+from pm25ml.model_reference import ImputationModelReference
 from pm25ml.training.types import ModelName
 
 SHARED_IMPUTATION_PREDICTOR_COLS = [

@@ -13,17 +13,17 @@ if TYPE_CHECKING:
 
     from pm25ml.combiners.combined_storage import CombinedStorage
     from pm25ml.combiners.data_artifact import DataArtifactRef
+    from pm25ml.model_reference import ModelReference
     from pm25ml.setup.date_params import TemporalConfig
-    from pm25ml.training.imputation_model_pipeline import ImputationModelReference
     from pm25ml.training.model_storage import LoadedValidatedModel
 
 
-class RegressionModelImputer:
+class RegressionModelPredictor:
     """Imputes missing data using a regression model."""
 
     def __init__(  # noqa: PLR0913
         self,
-        model_ref: ImputationModelReference,
+        model_ref: ModelReference,
         model: LoadedValidatedModel,
         temporal_config: TemporalConfig,
         combined_storage: CombinedStorage,
@@ -38,7 +38,7 @@ class RegressionModelImputer:
         self.input_data_artifact = input_data_artifact
         self.output_data_artifact = output_data_artifact
 
-    def impute(self) -> None:
+    def predict(self, *, include_stats: bool = True) -> None:
         """Impute missing data and imputation relevant stats to the DataFrame."""
         trainer_data_def = self.model_ref
 
@@ -75,6 +75,7 @@ class RegressionModelImputer:
                 data_for_month,
                 predicted_data,
                 previous_result,
+                include_stats=include_stats,
             )
 
             previous_result = result_df
@@ -134,10 +135,19 @@ class RegressionModelImputer:
         data_for_month: pl.DataFrame,
         predicted_data: ndarray,
         previous_result: pl.DataFrame | None,
+        *,
+        include_stats: bool,
     ) -> pl.DataFrame:
         target_col_name = self.model_ref.target_col
 
         predicted_col_name = f"{target_col_name}__predicted"
+
+        with_predicted_results = data_for_month.with_columns(
+            pl.Series(name=predicted_col_name, values=predicted_data),
+        )
+        if not include_stats:
+            return with_predicted_results
+
         imputed_flag_col_name = f"{target_col_name}__imputed_flag"
         imputed_col_name = f"{target_col_name}__imputed"
         rolling_imputed_col_name = f"{target_col_name}__imputed_r7d"
@@ -148,8 +158,7 @@ class RegressionModelImputer:
 
         target_col = pl.col(target_col_name)
 
-        with_predicted_results = data_for_month.with_columns(
-            pl.Series(name=predicted_col_name, values=predicted_data),
+        with_predicted_results = with_predicted_results.with_columns(
             # This allows us to use "is_imputed" in the next step
             **{
                 imputed_flag_col_name: pl.when(target_col.is_null())

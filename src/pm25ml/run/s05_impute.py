@@ -12,14 +12,14 @@ from pm25ml.setup.dependency_injection import (
 )
 
 if TYPE_CHECKING:
-    from pm25ml.imputation.from_model.regression_model_imputer_controller import (
-        RegressionModelImputationController,
+    from pm25ml.imputation.from_model.imputation_controller import (
+        ImputationController,
     )
 
 
 @inject
 def _main(
-    regression_model_imputer_controller: RegressionModelImputationController = Provide[
+    regression_model_imputer_controller: ImputationController = Provide[
         Pm25mlContainer.regression_model_imputer_controller
     ],
 ) -> None:
