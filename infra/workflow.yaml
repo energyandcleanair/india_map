@@ -250,7 +250,7 @@ main:
                         commands:
                           - python
                           - -m
-                          - pm25ml.run.s05_impute
+                          - pm25ml.run.s08_predict_final
                       environment:
                         variables: ${common_env}
                   computeResource:
