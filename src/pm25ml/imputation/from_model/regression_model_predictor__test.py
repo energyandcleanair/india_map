@@ -110,7 +110,7 @@ def test__impute__raises_error_on_low_score(
 
     # Expect an error due to low average CV score
     with pytest.raises(ValueError, match="too low"):
-        regression_model_imputer_with_data.impute()
+        regression_model_imputer_with_data.predict()
 
 
 def test__impute__raises_error_on_high_score(
@@ -122,18 +122,18 @@ def test__impute__raises_error_on_high_score(
 
     # Expect an error due to high average CV score
     with pytest.raises(ValueError, match="unusually high"):
-        regression_model_imputer_with_data.impute()
+        regression_model_imputer_with_data.predict()
 
 
 def test__impute__passes_on_valid_score(regression_model_imputer_with_data, mock_model_reference):
     # Set a valid range and ensure no exceptions are raised
     mock_model_reference.min_r2_score = 0.7
     mock_model_reference.max_r2_score = 0.9
-    regression_model_imputer_with_data.impute()
+    regression_model_imputer_with_data.predict()
 
 
 def test__impute__writes_results_correctly_with_data(regression_model_imputer_with_data):
-    regression_model_imputer_with_data.impute()
+    regression_model_imputer_with_data.predict()
 
     # Verify the results are written by reading them using CombinedStorage
     combined_storage = regression_model_imputer_with_data.combined_storage
