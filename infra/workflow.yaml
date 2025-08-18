@@ -36,6 +36,8 @@ main:
             next: full_model_sample
           - condition: ${ continue_from == "full_model_train" }
             next: full_model_train
+          - condition: ${ continue_from == "full_model_predict" }
+            next: full_model_predict
         next: invalid_continue_from
 
     - invalid_continue_from:
@@ -250,7 +252,7 @@ main:
                         commands:
                           - python
                           - -m
-                          - pm25ml.run.s08_predict_final
+                          - pm25ml.run.s08_predict_full_model
                       environment:
                         variables: ${common_env}
                   computeResource:

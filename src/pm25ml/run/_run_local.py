@@ -30,7 +30,7 @@ def _ordered_steps() -> list[Step]:
         Step("s05_impute", f"{base}.s05_impute"),
         Step("s06_prep_for_full_model", f"{base}.s06_prep_for_full_model"),
         Step("s07_train_full_model", f"{base}.s07_train_full_model"),
-        Step("s08_predict_final", f"{base}.s08_predict_final"),
+        Step("s08_predict_full_model", f"{base}.s08_predict_full_model"),
     ]
 
 
@@ -62,8 +62,8 @@ _aliases: dict[str, str] = {
     "train_full_model": "s07_train_full_model",
     "s07_train_full_model": "s07_train_full_model",
     # s08
-    "predict_final": "s08_predict_final",
-    "s08_predict_final": "s08_predict_final",
+    "predict_full_model": "s08_predict_full_model",
+    "s08_predict_full_model": "s08_predict_full_model",
 }
 
 
