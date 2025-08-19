@@ -442,7 +442,7 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         temporal_config=temporal_config,
         combined_storage=combined_storage,
         model_ref=full_model_ref,
-        input_data_artifact=data_artifacts_container.ml_full_model_sample_stage.provided,
+        input_data_artifact=data_artifacts_container.ml_imputed_super_stage.provided,
         output_data_artifact=data_artifacts_container.final_prediction.provided,
     )
 
