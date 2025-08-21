@@ -39,11 +39,13 @@ from pm25ml.imputation.from_model.imputation_controller import (
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
 from pm25ml.imputation.spatial.spatial_imputation_manager import SpatialImputationManager
 from pm25ml.logging import logger
+from pm25ml.results.final_result_storage import FinalResultStorage
 from pm25ml.sample.full_model_sampler import FullModelSampler
 from pm25ml.sample.imputation_sampler import ImputationSamplerDefinition
 from pm25ml.setup.date_params import TemporalConfig
 from pm25ml.setup.pipelines import define_pipelines
 from pm25ml.setup.pm25_filters import define_filters
+from pm25ml.setup.result_writers import define_result_writers
 from pm25ml.setup.samplers import ImputationStep, define_samplers
 from pm25ml.setup.training import build_model_ref
 from pm25ml.setup.training_full import build_full_model_ref
@@ -446,6 +448,17 @@ class Pm25mlContainer(containers.DeclarativeContainer):
         output_data_artifact=data_artifacts_container.final_prediction.provided,
     )
 
+    final_result_storage = providers.Singleton(
+        FinalResultStorage,
+        filesystem=gcs_filesystem,
+        destination_bucket=config.gcp.final_result_bucket,
+    )
+
+    final_result_writers = providers.Singleton(
+        define_result_writers,
+        storage=final_result_storage,
+    )
+
 
 def init_dependencies_from_env() -> Pm25mlContainer:
     """
@@ -464,6 +477,7 @@ def init_dependencies_from_env() -> Pm25mlContainer:
     container.config.gcp.model_storage_bucket.from_env(
         "MODEL_STORAGE_BUCKET_NAME",
     )
+    container.config.gcp.final_result_bucket.from_env("FINAL_RESULT_BUCKET_NAME")
 
     container.config.gcp.gee.india_shapefile_asset.from_env("INDIA_SHAPEFILE_ASSET")
 

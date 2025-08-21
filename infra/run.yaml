@@ -30,6 +30,8 @@ spec:
                   value: crea-pm25ml-combined
                 - name: MODEL_STORAGE_BUCKET_NAME
                   value: crea-pm25ml-models
+                - name: FINAL_RESULT_BUCKET_NAME
+                  value: crea-pm25ml-final-results
                 - name: SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX
                   value: "^era5_land__.*$"
                 - name: TQDM_DISABLE

@@ -11,6 +11,7 @@ main:
               INGEST_ARCHIVE_BUCKET_NAME: crea-pm25ml-ingest-archive
               COMBINED_BUCKET_NAME: crea-pm25ml-combined
               MODEL_STORAGE_BUCKET_NAME: crea-pm25ml-models
+              FINAL_RESULT_BUCKET_NAME: crea-pm25ml-final-results
               SPATIAL_COMPUTATION_VALUE_COLUMN_REGEX: "^era5_land__.*$"
               TQDM_DISABLE: "1"
               START_MONTH: "2018-08-01"

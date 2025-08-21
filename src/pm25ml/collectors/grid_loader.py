@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
+import numpy as np
 import polars as pl
 import shapefile
 from polars import DataFrame
@@ -14,12 +15,16 @@ from pyproj import CRS, Transformer
 from shapely.geometry import shape
 from shapely.ops import transform
 from shapely.wkt import loads as load_wkt
+from xarray import Dataset
 
+from pm25ml.collectors.geo_time_grid_dataset import as_geo_time_grid
 from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.logging import logger
 
 if TYPE_CHECKING:
     from shapely.geometry.base import BaseGeometry
+
+    from pm25ml.collectors.geo_time_grid_dataset import GeoTimeGridDataset
 
 
 class Grid:
@@ -67,6 +72,11 @@ class Grid:
             df (DataFrame): The DataFrame containing grid data.
 
         """
+        for col in [Grid.LON_COL, Grid.LAT_COL, Grid.ORIGINAL_X, Grid.ORIGINAL_Y]:
+            if df[col].dtype != pl.Float32 and df[col].dtype != pl.Float64:
+                msg = f"Column {col} is not a float32 or float64"
+                raise ValueError(msg)
+
         self.df = df.select(
             [pl.col(col) for col in self.ACTUAL_COLUMNS if col in df.columns],
         )
@@ -108,6 +118,71 @@ class Grid:
     def n_rows(self) -> int:
         """Get the number of rows in the grid."""
         return self.df.shape[0]
+
+    def to_xarray_with_data(self, data_df: DataFrame) -> GeoTimeGridDataset:
+        """
+        Convert input to xarray dataset with the provided data.
+
+        Input data must have a column for "grid_id" and "date". Any remaining data columns will be
+        treated as variables.
+
+        Returns a 3D dataset, with time, y, and x dimensions in the original grid's CRS.
+        """
+        actual_columns = set(data_df.columns)
+        incoming_df_expected_id_cols = {"grid_id", "date"}
+        missing_id_columns = incoming_df_expected_id_cols - actual_columns
+        if missing_id_columns:
+            msg = f"Missing ID columns in DataFrame: {missing_id_columns}"
+            raise ValueError(msg)
+
+        # Check that date column is of type date
+        if data_df["date"].dtype != pl.Date:
+            data_df = data_df.with_columns(
+                pl.col("date").str.strptime(pl.Date, "%Y-%m-%d"),
+            )
+
+        joined_df = (
+            self.df_original.select(
+                [
+                    self.ORIGINAL_X,
+                    self.ORIGINAL_Y,
+                    self.GRID_ID_COL,
+                ],
+            )
+            .join(
+                data_df,
+                on="grid_id",
+                how="outer",
+                coalesce=True,
+            )
+            .rename(
+                {
+                    "original_x": "x",
+                    "original_y": "y",
+                    "date": "time",
+                },
+            )
+            .to_pandas()
+        )
+
+        joined_id_cols = ["x", "y", "time", "grid_id"]
+
+        value_cols = [c for c in joined_df.columns if c not in joined_id_cols]
+        joined_df["x"] = joined_df["x"].astype(np.float32)
+        joined_df["y"] = joined_df["y"].astype(np.float32)
+        for col in value_cols:
+            joined_df[col] = joined_df[col].astype(np.float32)
+        indexed_df = joined_df.set_index(["time", "y", "x"]).sort_index()
+
+        return as_geo_time_grid(
+            Dataset.from_dataframe(
+                indexed_df[value_cols],
+            ).transpose(
+                "time",
+                "y",
+                "x",
+            ),
+        )
 
 
 def load_grid_from_files(

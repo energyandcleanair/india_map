@@ -1,4 +1,4 @@
-"""Script to train the full model."""
+"""Script to predict data for the full model."""
 
 from dependency_injector.wiring import Provide, inject
 
