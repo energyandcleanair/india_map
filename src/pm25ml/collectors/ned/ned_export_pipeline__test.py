@@ -8,7 +8,7 @@ from polars.testing import assert_frame_equal
 from polars import DataFrame
 
 from pm25ml.collectors.export_pipeline import ValueColumnType
-from pm25ml.collectors.grid_loader import Grid
+from pm25ml.collectors.grid import Grid
 from pm25ml.collectors.ned.coord_types import Lat, Lon
 from pm25ml.collectors.ned.data_readers import NedDataReader, NedDayData
 from pm25ml.collectors.ned.dataset_descriptor import NedDatasetDescriptor

@@ -3,7 +3,7 @@
 import polars as pl
 from dependency_injector.wiring import Provide, inject
 
-from pm25ml.collectors.grid_loader import Grid
+from pm25ml.collectors.grid import Grid
 from pm25ml.combiners.combined_storage import CombinedStorage
 from pm25ml.combiners.data_artifact import DataArtifactRef
 from pm25ml.results.final_result_writer import FinalResultWriter

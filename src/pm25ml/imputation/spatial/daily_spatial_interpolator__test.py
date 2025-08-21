@@ -1,7 +1,7 @@
 import numpy as np
 import polars as pl
 from pm25ml.imputation.spatial.daily_spatial_interpolator import DailySpatialInterpolator
-from pm25ml.collectors.grid_loader import Grid
+from pm25ml.collectors.grid import Grid
 from polars.testing import assert_frame_equal
 
 

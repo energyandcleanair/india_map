@@ -14,7 +14,7 @@ from pm25ml.collectors.pm25.pm25_pipeline import (
     Pm25MeasurementFilterMarker,
 )
 from pm25ml.collectors.archive_storage import IngestArchiveStorage
-from pm25ml.collectors.grid_loader import Grid
+from pm25ml.collectors.grid import Grid
 
 
 class _BaseFilter(Pm25MeasurementFilterMarker):  # pragma: no cover - trivial base for tests

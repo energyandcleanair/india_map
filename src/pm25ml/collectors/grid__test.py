@@ -1,7 +1,7 @@
 import numpy as np
 import polars as pl
 
-from pm25ml.collectors.grid_loader import Grid
+from pm25ml.collectors.grid import Grid
 from pm25ml.collectors.geo_time_grid_dataset import DIMS3
 
 

@@ -2,7 +2,7 @@ from polars import Float64, Int64, String
 from pathlib import Path
 
 import pytest
-from pm25ml.collectors.grid_loader import load_grid_from_files, Grid
+from pm25ml.collectors.grid import load_grid_from_files, Grid
 
 from shapely.wkt import loads as load_wkt
 from shapely.geometry import Polygon

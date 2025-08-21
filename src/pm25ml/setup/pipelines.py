@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from pm25ml.collectors.export_pipeline import ExportPipeline
     from pm25ml.collectors.gee.feature_planner import GriddedFeatureCollectionPlanner
     from pm25ml.collectors.gee.gee_export_pipeline import GeePipelineConstructor
-    from pm25ml.collectors.grid_loader import Grid
+    from pm25ml.collectors.grid import Grid
     from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
     from pm25ml.collectors.pm25.pm25_pipeline import Pm25MeasurementsPipelineConstructor
     from pm25ml.setup.date_params import TemporalConfig

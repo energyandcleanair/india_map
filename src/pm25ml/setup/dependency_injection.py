@@ -20,7 +20,7 @@ from pm25ml.collectors.collector import RawDataCollector
 from pm25ml.collectors.gee.feature_planner import GriddedFeatureCollectionPlanner
 from pm25ml.collectors.gee.gee_export_pipeline import GeePipelineConstructor
 from pm25ml.collectors.gee.intermediate_storage import GeeIntermediateStorage
-from pm25ml.collectors.grid_loader import Grid, load_grid_from_files
+from pm25ml.collectors.grid import Grid, load_grid_from_files
 from pm25ml.collectors.ned.ned_export_pipeline import NedPipelineConstructor
 from pm25ml.collectors.pm25.data_source import CreaMeasurementsApiDataSource
 from pm25ml.collectors.pm25.pm25_pipeline import Pm25MeasurementsPipelineConstructor

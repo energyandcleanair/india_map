@@ -6,7 +6,7 @@ import numpy as np
 import polars as pl
 from scipy.interpolate import griddata
 
-from pm25ml.collectors.grid_loader import Grid
+from pm25ml.collectors.grid import Grid
 from pm25ml.logging import logger
 
 
