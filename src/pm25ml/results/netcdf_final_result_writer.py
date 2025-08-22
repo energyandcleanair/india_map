@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pyproj
@@ -47,7 +48,7 @@ class NetCdfResultWriter(FinalResultWriter):
 
         The destination key will be ``{output_ref.initial_path}/{file_prefix}.nc``.
         """
-        ds = result.copy()
+        ds: Dataset = result.copy()
 
         ds["x"].attrs.update(
             {
@@ -81,13 +82,13 @@ class NetCdfResultWriter(FinalResultWriter):
             filename = f"{self.file_prefix}.nc"
             tmp_path = Path(tmpdir) / filename
 
-            encoding = {
+            compression_args: dict[str, Any] = {
                 "zlib": True,
                 "complevel": 5,
                 "chunksizes": (16, 82, 72),
                 "shuffle": True,
             }
-            encoding = dict.fromkeys(ds.data_vars, encoding)
+            encoding: dict[str, dict[str, Any]] = dict.fromkeys(ds.data_vars, compression_args)
 
             # Persist to NetCDF using the h5netcdf engine (netCDF4-compatible)
             ds.to_netcdf(

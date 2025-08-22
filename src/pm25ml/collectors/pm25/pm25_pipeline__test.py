@@ -86,6 +86,8 @@ def _make_grid() -> Grid:
             Grid.GEOM_COL: ["POINT (20 10)", "POINT (21 11)"],
             Grid.LAT_COL: [10.0, 11.0],
             Grid.LON_COL: [20.0, 21.0],
+            Grid.ORIGINAL_X: [0.0, 1.0],
+            Grid.ORIGINAL_Y: [2.0, 3.0],
         },
     )
     return Grid(df)

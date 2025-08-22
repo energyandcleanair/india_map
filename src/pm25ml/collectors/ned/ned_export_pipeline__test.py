@@ -44,6 +44,8 @@ def mock_grid():
                 "grid_id": ["01", "02", "03", "04"],
                 "lon": [0.5, 1.5, 2.5, 3.5],
                 "lat": [2.5, 3.5, 4.5, 5.5],
+                "original_x": [0.0, 1.0, 2.0, 3.0],
+                "original_y": [2.0, 3.0, 4.0, 5.0],
             }
         )
     )
@@ -149,18 +151,7 @@ def test__NedPipelineConstructor__dataset_retriever_logic__uses_provided_retriev
     assert pipeline.dataset_retriever is mock_dataset_retriever
 
 
-def test__NedExportPipeline__happy_path__regrids_data_correctly():
-    # Create a mock grid (4x4 grid)
-    mock_grid = Grid(
-        DataFrame(
-            {
-                "grid_id": ["01", "02", "03", "04"],
-                "lon": [0.5, 1.5, 2.5, 3.5],
-                "lat": [2.5, 3.5, 4.5, 5.5],
-            }
-        )
-    )
-
+def test__NedExportPipeline__happy_path__regrids_data_correctly(mock_grid):
     # Create mock data (2x2 grid with larger gaps between lat and lon)
     mock_data = NedDayData(
         dataset=xr.Dataset(
@@ -245,18 +236,7 @@ def test__NedExportPipeline__happy_path__regrids_data_correctly():
     )
 
 
-def test__NedExportPipeline__export_result__matches_expected_format_and_values():
-    # Create a mock grid (4x4 grid)
-    mock_grid = Grid(
-        DataFrame(
-            {
-                "grid_id": ["01", "02", "03", "04"],
-                "lon": [0.5, 1.5, 2.5, 3.5],
-                "lat": [2.5, 3.5, 4.5, 5.5],
-            }
-        )
-    )
-
+def test__NedExportPipeline__export_result__matches_expected_format_and_values(mock_grid):
     # Create mock data (2x2 grid with larger gaps between lat and lon)
     mock_data = NedDayData(
         dataset=xr.Dataset(
@@ -318,18 +298,7 @@ def test__NedExportPipeline__export_result__matches_expected_format_and_values()
     assert result.expected_rows == 4
 
 
-def test__NedExportPipeline__multiple_variables__processes_correctly():
-    # Create a mock grid (4x4 grid)
-    mock_grid = Grid(
-        DataFrame(
-            {
-                "grid_id": ["01", "02", "03", "04"],
-                "lon": [0.5, 1.5, 2.5, 3.5],
-                "lat": [2.5, 3.5, 4.5, 5.5],
-            }
-        )
-    )
-
+def test__NedExportPipeline__multiple_variables__processes_correctly(mock_grid):
     # Create mock data with multiple variables
     mock_data = NedDayData(
         dataset=xr.Dataset(
@@ -433,18 +402,7 @@ def test__NedExportPipeline__multiple_variables__processes_correctly():
     )
 
 
-def test__NedExportPipeline__missing_dates__fills_in_missing_rows():
-    # Create a mock grid (4x4 grid)
-    mock_grid = Grid(
-        DataFrame(
-            {
-                "grid_id": ["01", "02", "03", "04"],
-                "lon": [0.5, 1.5, 2.5, 3.5],
-                "lat": [2.5, 3.5, 4.5, 5.5],
-            }
-        )
-    )
-
+def test__NedExportPipeline__missing_dates__fills_in_missing_rows(mock_grid):
     # Create mock data with missing dates
     mock_data = NedDayData(
         dataset=xr.Dataset(

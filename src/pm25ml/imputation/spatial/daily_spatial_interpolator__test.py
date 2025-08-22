@@ -8,8 +8,8 @@ from polars.testing import assert_frame_equal
 def test__impute__single_day_single_column__correct_imputation():
     # Create a 4x4 grid of points
     grid_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-    x_coords = [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3]
-    y_coords = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+    x_coords = [0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0]
+    y_coords = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
 
     grid_data = pl.DataFrame(
         {
@@ -18,8 +18,8 @@ def test__impute__single_day_single_column__correct_imputation():
             Grid.ORIGINAL_X: x_coords,
             Grid.ORIGINAL_Y: y_coords,
             Grid.GEOM_COL: [None] * 16,
-            Grid.LAT_COL: [None] * 16,
-            Grid.LON_COL: [None] * 16,
+            Grid.LAT_COL: [1.0] * 16,
+            Grid.LON_COL: [1.0] * 16,
         }
     )
     grid = Grid(df=grid_data)
@@ -107,8 +107,8 @@ def test__impute__single_day_single_column__correct_imputation():
 def test__impute__multiple_dates__separate_imputation():
     # Create a 3x3 grid of points
     grid_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    x_coords = [0, 1, 2, 0, 1, 2, 0, 1, 2]
-    y_coords = [0, 0, 0, 1, 1, 1, 2, 2, 2]
+    x_coords = [0.0, 1.0, 2.0, 0.0, 1.0, 2.0, 0.0, 1.0, 2.0]
+    y_coords = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0]
 
     grid_data = pl.DataFrame(
         {
@@ -117,8 +117,8 @@ def test__impute__multiple_dates__separate_imputation():
             Grid.ORIGINAL_X: x_coords,
             Grid.ORIGINAL_Y: y_coords,
             Grid.GEOM_COL: [None] * 9,
-            Grid.LAT_COL: [None] * 9,
-            Grid.LON_COL: [None] * 9,
+            Grid.LAT_COL: [1.0] * 9,
+            Grid.LON_COL: [1.0] * 9,
         }
     )
     grid = Grid(df=grid_data)
@@ -199,8 +199,8 @@ def test__impute__multiple_dates__separate_imputation():
 def test__impute__multiple_columns__regex_selection():
     # Create a 3x3 grid of points
     grid_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    x_coords = [0, 1, 2, 0, 1, 2, 0, 1, 2]
-    y_coords = [0, 0, 0, 1, 1, 1, 2, 2, 2]
+    x_coords = [0.0, 1.0, 2.0, 0.0, 1.0, 2.0, 0.0, 1.0, 2.0]
+    y_coords = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0]
 
     grid_data = pl.DataFrame(
         {
@@ -209,8 +209,8 @@ def test__impute__multiple_columns__regex_selection():
             Grid.ORIGINAL_X: x_coords,
             Grid.ORIGINAL_Y: y_coords,
             Grid.GEOM_COL: [None] * 9,
-            Grid.LAT_COL: [None] * 9,
-            Grid.LON_COL: [None] * 9,
+            Grid.LAT_COL: [1.0] * 9,
+            Grid.LON_COL: [1.0] * 9,
         }
     )
     grid = Grid(df=grid_data)
