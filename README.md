@@ -6,6 +6,8 @@ India. It features a two-stage machine learning model for daily PM2.5 prediction
 Based on *[Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]*.
 This paper created results from 2005-2023 can be [downloaded from Zenodo].
 
+Reference code is forked from [`ayako-kawano/pm_prediction`](https://github.com/ayako-kawano/pm_prediction).
+
 ## Project layout
 
 The `src/pm25ml` is where most of the code for this project can be found.
