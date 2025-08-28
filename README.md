@@ -3,8 +3,9 @@
 The aim of this project is to regularly produce raster PM2.5 predictions at a 10 km resolution in
 India. It features a two-stage machine learning model for daily PM2.5 predictions.
 
-Based on *[Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]*.
-This paper created results from 2005-2023 can be [downloaded from Zenodo].
+Based on *[Improved daily PM2.5 estimates in India reveal inequalities in recent enhancement of air quality]*
+(developed and published by researchers at Stanford University and collaborators).
+This paper created results from 2005-2023 which can be [downloaded from Zenodo].
 
 Reference code is forked from [`ayako-kawano/pm_prediction`](https://github.com/ayako-kawano/pm_prediction).
 
