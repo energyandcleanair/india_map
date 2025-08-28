@@ -7,7 +7,7 @@ Based on *[Improved daily PM2.5 estimates in India reveal inequalities in recent
 (developed and published by researchers at Stanford University and collaborators).
 This paper created results from 2005-2023 which can be [downloaded from Zenodo].
 
-Reference code is forked from [`ayako-kawano/pm_prediction`](https://github.com/ayako-kawano/pm_prediction).
+Reference code (under `reference`) is forked from [`ayako-kawano/pm_prediction`](https://github.com/ayako-kawano/pm_prediction).
 
 ## Project layout
 
